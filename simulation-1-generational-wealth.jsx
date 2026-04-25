@@ -23,10 +23,15 @@ const N_PATHS    = 6000;  // Monte Carlo paths (balance between accuracy and spe
 const AGE_MAX    = 65;
 const STD_RETURN = 0.16;  // annual return standard deviation (historical S&P 500)
 
-// PSU equilibrium by employer type (EV per employee × 20% worker pool share)
-// 50% of workers at large firms (EV/emp ~$500K), 30% mid-market (~$275K), 20% small/exempt
+// PSU equilibrium by employer tier (EV per employee × 20% worker pool share)
+// Tier 3 (>$100M EV, large firms): 20% PSU via 4%/yr Equity Excise → equilibrium ~$100K/worker
+// Tier 2 ($10M–$100M EV, mid-market): phantom equity ~$55K/worker, portable, cashed at departure
+// Tier 1 (<$10M EV, small/exempt firms): no PSU; workers receive $1K/yr Sectoral Fund contribution
+// 50% of workers at Tier 3 firms, 30% at Tier 2, 20% at Tier 1/exempt
+const AMCF_RET = 0.05; // AMCF fund real return — fixed, separate from market slider (matches Sims 3/4)
+
 const PSU_BY_TYPE = { large: 100000, mid: 55000, small: 0 };
-const SWF_SMALL_FIRM = 1000; // $1,000/yr Sectoral Wealth Fund for exempt-firm workers (per spec)
+const SWF_SMALL_FIRM = 1000; // $1,000/yr Tier 1 Sectoral Fund contribution (builds at 6% gross; 3.5% distributed as dividends)
 const PSU_RAMP_YRS   = 5;
 const PSU_DIV_BASE   = 0.035; // base PSU dividend yield (slider adjusts)
 
@@ -160,9 +165,9 @@ function runSimulation(params) {
       const accordYear = age + 1;
       const ret = rng.normal(realReturn, STD_RETURN);
 
-      // ── AMCF: grows at market return (AMCF invests in equities) ──
+      // ── AMCF: grows at fixed 5% real (fund-level return, not individual market) ──
       const grant = grantFn(accordYear);
-      amcf = amcf * (1 + ret) + grant;
+      amcf = amcf * (1 + AMCF_RET) + grant;
 
       if (age === 18) amcfAt18Values[p] = amcf;
 
@@ -199,7 +204,7 @@ function runSimulation(params) {
         }
 
         // Prebate net savings
-        const netFiscal = Math.max(0, 5000 - 0.10 * q.consumeRatio * salary);
+        const netFiscal = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
         prebSav = (prebSav + netFiscal * q.prebateSaveRate) * (1 + ret);
 
         // ── Current system: 401(k) + personal savings ──
@@ -576,7 +581,7 @@ export default function GenerationalWealth() {
         at each change, PSU cashed out at FMV and reinvested. Employer type drawn at each job from quintile-specific
         distribution (large/mid/exempt firms per Census Statistics of US Businesses).
         AMCF grows at the same annual return as household portfolio (AMCF holds passive equity).
-        Prebate net savings = max(0, $5,000 − 10% VAT on quintile consumption) × income-appropriate savings rate.
+        Prebate net savings = max(0, $5,000 − 4% VAT on quintile consumption, New Accord rate) × income-appropriate savings rate.
         Current system: 401(k) at quintile participation rate (9% combined, slider-adjustable) + minimal personal savings.
         All values in 2024 real dollars.
       </div>

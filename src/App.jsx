@@ -5,14 +5,22 @@ import RacialWealthGap from '../simulation-3-racial-wealth-gap.jsx';
 import RetirementSecurity from '../simulation-4-retirement-security.jsx';
 import MarketStabilization from '../simulation-5-market-stabilization.jsx';
 import FiscalTrajectory from '../simulation-6-fiscal-trajectory.jsx';
+import RentTaxOptimizer from '../simulation-7-rent-tax-optimizer.jsx';
+import IncomeTax from '../simulation-8-income-tax.jsx';
+import NonProfitEquity from '../simulation-9-nonprofit-equity.jsx';
+import Dashboard from '../simulation-10-dashboard.jsx';
 
 const TABS = [
-  { id: 1, label: 'Generational Wealth',   component: GenerationalWealth },
-  { id: 2, label: 'Distributional Impact', component: DistributionalImpact },
-  { id: 3, label: 'Racial Wealth Gap',     component: RacialWealthGap },
-  { id: 4, label: 'Retirement Security',   component: RetirementSecurity },
-  { id: 5, label: 'Market Stabilization',  component: MarketStabilization },
-  { id: 6, label: 'Fiscal Trajectory',     component: FiscalTrajectory },
+  { id: 1,  label: 'Generational Wealth',   component: GenerationalWealth },
+  { id: 2,  label: 'Distributional Impact', component: DistributionalImpact },
+  { id: 3,  label: 'Racial Wealth Gap',     component: RacialWealthGap },
+  { id: 4,  label: 'Retirement Security',   component: RetirementSecurity },
+  { id: 5,  label: 'Market Stabilization',  component: MarketStabilization },
+  { id: 6,  label: 'Fiscal Trajectory',     component: FiscalTrajectory },
+  { id: 7,  label: 'Rent Tax Optimizer',    component: RentTaxOptimizer },
+  { id: 8,  label: 'Income Tax',            component: IncomeTax },
+  { id: 9,  label: 'Non-Profit Equity',     component: NonProfitEquity },
+  { id: 10, label: 'Viz Dashboard',         component: Dashboard },
 ];
 
 export default function App() {

@@ -52,7 +52,7 @@ const PSU_ELIG    = 0.70;
 //   30% at mid-market (EV/emp ~$300K × 20% = $60K) + 20% exempt = $68K ≈ $65K
 const PSU_EQUIL   = 65000;
 const PSU_RAMP_YRS = 5;       // years to reach full PSU equilibrium (4%/yr Equity Excise)
-const LVT_RENT_MAX = 0.12;    // 12% rent reduction at full LVT phase-in
+const LVT_RENT_MAX = 0.25;    // 25% rent reduction at full LVT phase-in (calibrated to 10% LVT rate)
 const LVT_RAMP_YRS = 10;      // years to full LVT housing supply effect
 
 // AMCF per-capita grant schedule (2024 real dollars)
@@ -165,7 +165,7 @@ function runSimulation() {
 
     // Accord: net fiscal benefit from prebate − VAT − slight income tax increase
     // 10% VAT on consumption, $5K/capita prebate (unconditional)
-    const netFiscal    = Math.max(0, 5000 * g.hhSize - 0.10 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
+    const netFiscal    = Math.max(0, 5000 * g.hhSize - 0.04 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
     const prebateSave  = netFiscal * g.prebateSaveRate;
 
     // PSU equilibrium wealth (takes ~5 years to ramp via 4%/yr Equity Excise Tax)
@@ -309,10 +309,10 @@ export default function RacialWealthGap() {
           from 6.3:1 today to {wb_accord}:1 by Year 30 — compared to {wb_current}:1 under the current system.
         </p>
         <p style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
-          Equal per-capita AMCF grants, universal worker PSUs, and net prebate transfers
-          disproportionately benefit Black and Hispanic households, which start with less wealth
-          and a higher consumption-to-income ratio. Simultaneously, the Equity Excise Tax and
-          EV Growth Tax reduce returns on existing stock portfolios — held overwhelmingly by white households.
+          Equal per-capita AMCF grants, universal worker equity (three-tier: Tier 1 sectoral fund, Tier 2 phantom equity, Tier 3 PSU),
+          and net prebate transfers disproportionately benefit Black and Hispanic households, which start with less wealth
+          and a higher consumption-to-income ratio. The New Accord (VAT 4%, LVT 10%) further amplifies rent relief for renters.
+          Simultaneously, the four-percent annual Equity Excise and EV Growth Tax reduce returns on existing stock portfolios — held overwhelmingly by white households.
         </p>
       </div>
 
@@ -419,7 +419,7 @@ export default function RacialWealthGap() {
         </ResponsiveContainer>
         <p style={S.source}>
           {decompMode === 'advantage'
-            ? 'AMCF grants compound at 5% real. PSU equity builds to equilibrium over 5 years (4%/yr Equity Excise). Prebate/VAT net is positive for all groups. Rent savings reflect 12% reduction in renter costs from LVT-driven housing supply expansion over 10 years. Stock drag applies the 2% annual reduction in equity returns to each group\'s stock portfolio fraction.'
+            ? 'AMCF grants compound at 5% real (Sim-6 validated anchor points). PSU equity builds to equilibrium over 5 years (Tier 3: 4%/yr Equity Excise → 20% PSU; blended with Tier 1 sectoral fund and Tier 2 phantom equity = ~$65K weighted average for eligible workers). Prebate/VAT net is positive for all groups (4% VAT, New Accord rate). Rent savings reflect 25% reduction in renter costs from LVT-driven housing supply expansion over 10 years (calibrated to 10% LVT rate; 25% is conservative vs ~40% theoretical ceiling). Stock drag applies the 2% annual reduction in equity returns to each group\'s stock portfolio fraction.'
             : 'Blue base = current system wealth at Year 30 (starting wealth + savings compounded). Colored segments = additional Accord sources. Sum = total Accord wealth. White\'s base wealth (~$1.1M) dwarfs minority bases, illustrating the structural compounding advantage the Accord mechanisms work against.'}
         </p>
       </div>
@@ -480,10 +480,11 @@ export default function RacialWealthGap() {
       <div style={{ marginTop: 48, padding: '20px 24px', background: '#F9FAFB', borderRadius: 8, fontSize: 12, color: '#6B7280', lineHeight: 1.7 }}>
         <strong style={{ color: '#374151' }}>Methodology:</strong> Deterministic annual model for representative median household of each racial group.
         Current system: base wealth compounds at asset-class-weighted real returns; savings = after-tax income × savings rate + 401(k) employer match.
-        Accord system: same base with (1) 2% drag on stock return component from codetermination + EV growth tax, (2) AMCF citizen grants deposited
-        growing from $500/yr (Yr 1) to $14,784/yr (Yr 30) per capita as AMCF fund scales (Sim 6 validated, uncapped) compounding at 5% real, (3) Phantom Stock Unit equity building to equilibrium
-        over 5 years paying 3.5% annual dividends, (4) net prebate/VAT fiscal transfer saved at income-appropriate rate, and
-        (5) LVT-driven rent reduction phased in over 10 years for renter households.
+        Accord system (New Accord: VAT 4%, LVT 10%): same base with (1) 2% drag on stock return component from codetermination + EV growth tax,
+        (2) AMCF citizen grants growing from $500/yr (Yr 1) to $14,784/yr (Yr 30) per capita as AMCF fund scales (Sim 6 validated, uncapped) compounding at 5% real,
+        (3) worker equity building to equilibrium over 5 years — blended Tier 1 (sectoral fund $1K/yr), Tier 2 (phantom equity ~$55K), Tier 3 (4%/yr Equity Excise → 20% PSU);
+        weighted average ~$65K for eligible workers, paying 3.5% annual dividends, (4) net prebate/VAT (4% New Accord rate) fiscal transfer saved at income-appropriate rate, and
+        (5) LVT-driven rent reduction phased in over 10 years for renter households (25% maximum at full phase-in, calibrated to 10% LVT rate).
         All values in 2024 inflation-adjusted dollars. The model does not include behavioral changes (e.g., increased labor force participation),
         second-order growth effects, or healthcare cost changes — which would further benefit lower-income households.
       </div>

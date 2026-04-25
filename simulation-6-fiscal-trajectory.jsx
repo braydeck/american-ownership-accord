@@ -13,8 +13,10 @@ const BASE_PARAMS = {
   growthTaxRate:          0.20,
   equityExciseRate:       0.04,
   creditCapFrac:          0.20,
-  vatRate:                0.10,
-  lvtRate:                0.03,
+  vatRate:                0.04,
+  lvtRate:                0.10,
+  carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
+  stableTaxFrac:          0.0076, // FTT + FSL + royalties + spectrum + water (% of GDP)
   prebatePerCapita:       5000,
   grantPhaseMultiplier:   1.0,
   startingEV:             50e12,
@@ -45,7 +47,7 @@ const EV_COHORTS = [
 
 const PRESET_OVERRIDES = {
   base:                {},
-  conservative:        { startingEV: 40e12, amcfReturn: 0.05, baseRealGdpGrowth: 0.015, vatRate: 0.10, codetermBonus: 0.001, baselineSpendingFrac: 0.175 },
+  conservative:        { startingEV: 40e12, amcfReturn: 0.05, baseRealGdpGrowth: 0.015, codetermBonus: 0.001, baselineSpendingFrac: 0.175 },
   optimistic:          { startingEV: 60e12, amcfReturn: 0.09, baseRealGdpGrowth: 0.035, codetermBonus: 0.006, baselineSpendingFrac: 0.155 },
   slowCodetermination: { equityExciseRate: 0.01, creditCapFrac: 0.10 },
   fastCodetermination: { equityExciseRate: 0.08, creditCapFrac: 0.50 },
@@ -54,11 +56,12 @@ const PRESET_OVERRIDES = {
   recessionYr3:        { recessionYear: 3 },
   recessionYr10:       { recessionYear: 10 },
   highDebt:            { startingDebt: 42e12 },
-  currentLaw:          { vatRate: 0, lvtRate: 0, equityExciseRate: 0, growthTaxRate: 0, prebatePerCapita: 0, grantPhaseMultiplier: 0 },
+  currentLaw:          { vatRate: 0, lvtRate: 0, carbonRate: 0, stableTaxFrac: 0, equityExciseRate: 0, growthTaxRate: 0, prebatePerCapita: 0, grantPhaseMultiplier: 0 },
   lowRates:            { baseInterestRate: 0.02, interestReflexivity: 2 },
   highRates:           { baseInterestRate: 0.055, interestReflexivity: 10 },
   popGrowth:           { populationGrowthRate: 0.008 },
-  highLvt:             { lvtRate: 0.05 },
+  highLvt:             { lvtRate: 0.15 },
+  originalAccord:      { vatRate: 0.10, lvtRate: 0.03, carbonRate: 0, stableTaxFrac: 0 },
 };
 
 const PRESET_LABELS = {
@@ -68,7 +71,8 @@ const PRESET_LABELS = {
   recessionYr3: "Recession Yr 3", recessionYr10: "Recession Yr 10",
   highDebt: "High Starting Debt", currentLaw: "Current Law",
   lowRates: "Low Rates", highRates: "High Rates",
-  popGrowth: "Pop. Growth", highLvt: "High LVT",
+  popGrowth: "Pop. Growth", highLvt: "High LVT (15%)",
+  originalAccord: "Original Accord",
 };
 
 const CHART_TABS = [
@@ -86,6 +90,7 @@ const SENS_PARAMS = [
   { key: "creditCapFrac",        label: "Credit Cap Fraction" },
   { key: "vatRate",              label: "VAT Rate" },
   { key: "lvtRate",              label: "LVT Rate" },
+  { key: "carbonRate",           label: "Carbon Tax Rate" },
   { key: "prebatePerCapita",     label: "Prebate / Capita" },
   { key: "startingEV",           label: "Starting EV" },
   { key: "amcfReturn",           label: "AMCF Return" },
@@ -103,8 +108,10 @@ const PARAM_SECTIONS = [
       { key: "growthTaxRate",        label: "EV Growth Tax",          min: 0.05,   max: 0.35,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
       { key: "equityExciseRate",     label: "Equity Excise Rate",     min: 0.005,  max: 0.08,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
       { key: "creditCapFrac",        label: "Credit Cap (% of GT)",   min: 0,      max: 1.0,   step: 0.05,    fmt: v => `${(v*100).toFixed(0)}%` },
-      { key: "vatRate",              label: "VAT Rate",               min: 0.03,   max: 0.15,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "lvtRate",              label: "LVT Rate",               min: 0.005,  max: 0.08,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
+      { key: "vatRate",              label: "VAT Rate",               min: 0,      max: 0.20,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
+      { key: "lvtRate",              label: "LVT Rate",               min: 0,      max: 0.25,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
+      { key: "carbonRate",           label: "Carbon Tax ($/ton)",     min: 0,      max: 250,   step: 5,       fmt: v => `$${v}/ton` },
+      { key: "stableTaxFrac",        label: "Stable Taxes (% GDP)",   min: 0,      max: 0.02,  step: 0.001,   fmt: v => `${(v*100).toFixed(2)}%` },
       { key: "prebatePerCapita",     label: "Prebate / Capita / Yr",  min: 1000,   max: 10000, step: 250,     fmt: v => `$${v.toLocaleString()}` },
       { key: "grantPhaseMultiplier", label: "Grant Phase Multiplier", min: 0.5,    max: 2.0,   step: 0.1,     fmt: v => `${v.toFixed(1)}×` },
     ],
@@ -235,12 +242,16 @@ function runFiscalSimulation(p) {
     const vatGross = nominalGdp * 0.55 * p.vatRate * vatCompliance;
     const landPremium = 1 + 0.005 * (yr - 1);
     const lvtRev = nominalGdp * 0.20 * landPremium * p.lvtRate;
+    // Carbon: Laffer peak ~$165/ton; natural decarbonization 2.5%/yr
+    const carbonRev = p.carbonRate * 5e9 * (1 - p.carbonRate / 330) * Math.pow(0.975, yr - 1);
+    // Stable rent-based taxes: FTT + FSL + royalties + spectrum + water ≈ 0.76% GDP
+    const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
     const payrollFix = nominalGdp * 0.008;
     const capGainsTax = nominalGdp * 0.012;
     const incomeTax = nominalGdp * 0.078;
     const payrollTax = nominalGdp * 0.054;
     const otherTax = nominalGdp * 0.010;
-    const totalRev = vatGross + lvtRev + payrollFix + capGainsTax + incomeTax + payrollTax + otherTax;
+    const totalRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax + incomeTax + payrollTax + otherTax;
 
     // Spending — baselineSpendingFrac = primary federal (ex-interest, ex-dissolved welfare,
     // ex-new Accord programs). Prebate/childcare/family leave are explicit line items.
@@ -310,6 +321,8 @@ function runFiscalSimulation(p) {
       budgetGrantCost:    +(budgetGrantCost / 1e12).toFixed(3),
       vatGross:        +(vatGross / 1e12).toFixed(2),
       lvtRev:          +(lvtRev / 1e12).toFixed(2),
+      carbonRev:       +(carbonRev / 1e12).toFixed(2),
+      stableTaxRev:    +(stableTaxRev / 1e12).toFixed(2),
       payrollFix:      +(payrollFix / 1e12).toFixed(2),
       capGainsTax:     +(capGainsTax / 1e12).toFixed(2),
       incomeTax:       +(incomeTax / 1e12).toFixed(2),

@@ -167,7 +167,7 @@ function runSimulation() {
         psuBal = psuTarget;
 
         // Net prebate/VAT benefit (individual: $5K prebate per person)
-        const netFiscal    = Math.max(0, 5000 - 0.10 * q.consumeRatio * salary);
+        const netFiscal    = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
         const prebateSave  = netFiscal * q.prebateSaveRate;
 
         // AMCF grant accumulates at deterministic fund return (not market)
@@ -199,7 +199,7 @@ function runSimulation() {
       const psuDiv    = d_psu * PSU_DIV;
       d_psu    = psuTarget;
       d_psuDiv = (d_psuDiv  + psuDiv) * (1 + MEAN_RET);
-      const netFiscal  = Math.max(0, 5000 - 0.10 * q.consumeRatio * salary);
+      const netFiscal  = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
       d_prebate = (d_prebate + netFiscal * q.prebateSaveRate) * (1 + MEAN_RET);
       d_amcf   = (d_amcf   + amcfGrant(y)) * (1 + AMCF_RET);
     }
@@ -387,7 +387,7 @@ export default function RetirementSecurity() {
         <p style={S.source}>
           AMCF: childhood account (~$15K at 18) + 45 years of adult grants growing from $800/yr to $25K+/yr as AMCF scales (Sim 6 validated, uncapped), compounding at 5% real.
           PSU equity + dividends: worker phantom equity builds to $30K–$95K over 5 years; dividends reinvested at market rate.
-          Prebate: $5,000/person/year less 10% VAT on consumption; fraction saved.
+          Prebate: $5,000/person/year less 4% VAT on consumption (New Accord rate); fraction saved.
         </p>
       </div>
 
@@ -476,8 +476,9 @@ export default function RetirementSecurity() {
         Current system: 401(k) contributions at quintile-specific participation rate (9% combined employee+employer),
         plus minimal personal savings (2.5% for non-participants). Social Security unchanged under both systems.
         Accord additions: per-person AMCF grants ($500–$800 floor Yrs 1–9, then growing uncapped: $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 per Sim 6) compounding at 5% real
-        from childhood account; worker PSU equity building to $30K–$95K equilibrium over 5 years paying 3.5% dividends;
-        net prebate-minus-VAT fiscal benefit saved at income-appropriate rates.
+        from childhood account; worker PSU equity building to $30K–$95K equilibrium over 5 years paying 3.5% dividends
+        (psuEquil values represent employment-weighted average across Tier 1 sectoral fund, Tier 2 phantom equity, and Tier 3 PSU per quintile distribution);
+        net prebate-minus-VAT (4% New Accord rate) fiscal benefit saved at income-appropriate rates.
         All values in 2024 real (inflation-adjusted) dollars. BLS age-earnings profiles applied.
       </div>
     </div>
