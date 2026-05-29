@@ -375,9 +375,9 @@ function getNW(k, y, P) {
     pd = c;
   }
   if (P.has('PSU_C')) {
-    // PSU cashouts reinvested at full value (wealth event, not subject to savings rate)
+    // PSU cashouts: saved fraction reinvested at household return rate (same treatment as PSU_D)
     let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + psuCAt(k, t);
+    for (let t = 1; t <= y; t++) c = c * (1 + r) + psuCAt(k, t) * d.save;
     pc = c;
   }
 
@@ -584,7 +584,8 @@ function CompositionTable({ title, demos, getRows, note }) {
       {demos.map(k => {
         const d = DEMOS[k];
         const byYear = SNAP_YEARS.map(y => getRows(k, y));
-        const schema = byYear[0];
+        // Use the row set with the most entries as schema (Year 0 is BASE_ONLY and has fewer rows)
+        const schema = byYear.reduce((a, b) => b.length > a.length ? b : a);
         const maxPerRow = schema.map((_, ri) =>
           Math.max(...byYear.map(yr => Math.abs(yr[ri]?.value ?? 0)), 1)
         );
@@ -1431,7 +1432,7 @@ export default function Dashboard() {
   const [logScale, setLogScale]         = useState(false);
   const [activeDemos, setActiveDemos]   = useState(new Set(['P10','P50','T1']));
   // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
-  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D']));
+  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
   const [stackedShare, setStackedShare] = useState(false);
   const [normalizedBar, setNormalizedBar] = useState(false);
   const [chart8View, setChart8View]     = useState('time');   // 'time' | 'demos'
