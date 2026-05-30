@@ -3,6 +3,20 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   Cell, LineChart, Line, ReferenceLine,
 } from 'recharts';
+import { PageShell } from '@/components/layout/PageShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { SliderControl } from '@/components/controls/SliderControl';
+import { ControlPanel, ControlGroup } from '@/components/controls/ControlPanel';
+import { MilestoneCard } from '@/components/shared/MilestoneCard';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
+import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 
 // ─── BRACKETS (IRS SOI + Census, 2024 estimates — from Income Tax Design) ─────────────────
 // 15 brackets covering all ~162M filers
@@ -344,37 +358,20 @@ const fmtDollar = v => {
 };
 const fmtPct = v => `${(v * 100).toFixed(1)}%`;
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── TOOLTIP ─────────────────────────────────────────────────────────────────
 
-const S = {
-  root:    { fontFamily: "'Georgia', serif", maxWidth: 1040, margin: '0 auto', padding: '40px 32px', background: '#fff', color: '#111' },
-  section: { marginTop: 48 },
-  h1:      { fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.2 },
-  headline:{ fontSize: 17, color: '#065F46', fontWeight: 600, marginTop: 10 },
-  h2:      { fontSize: 18, fontWeight: 700, marginBottom: 4, marginTop: 0 },
-  subtext: { fontSize: 13, color: '#6B7280', marginTop: 4, marginBottom: 24 },
-  label:   { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', marginBottom: 2 },
-  source:  { fontSize: 11, color: '#9CA3AF', marginTop: 12, lineHeight: 1.6 },
-  table:   { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th:      { textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '8px 10px', fontWeight: 600, background: '#F9FAFB' },
-  td:      { borderBottom: '1px solid #f3f4f6', padding: '6px 10px' },
-  tab:     (active) => ({
-    padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: active ? 700 : 400,
-    color: active ? '#fff' : '#374151',
-    background: active ? '#065F46' : '#F9FAFB',
-    border: '1px solid #e5e7eb',
-    borderRadius: 6,
-  }),
-  input:   { padding: '6px 10px', border: '1px solid #D1D5DB', borderRadius: 6, fontSize: 14, width: '100%' },
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
 };
 
 const DollarTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '10px 14px', fontSize: 12, borderRadius: 6 }}>
-      <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>
+    <div style={TOOLTIP_STYLE}>
+      <p className="font-semibold mb-1.5">{label}</p>
       {payload.map(p => (
-        <p key={p.dataKey} style={{ color: p.fill || p.stroke, margin: '2px 0' }}>
+        <p key={p.dataKey} style={{ color: p.fill || p.stroke }} className="my-0.5">
           {p.name}: {fmtDollar(p.value)}
         </p>
       ))}
@@ -445,16 +442,16 @@ export default function DistributionalImpact() {
   const calcNetChange = -(calcResults.acc.netBurden - calcResults.cur.netBurden);
 
   return (
-    <div style={S.root}>
+    <PageShell>
       {/* ── Header ── */}
-      <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord</p>
-        <h1 style={S.h1}>Distributional Impact</h1>
-        <p style={S.headline}>
+      <div className="border-l-4 border-emerald-600 pl-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">American Ownership Accord</p>
+        <h1 className="text-2xl font-bold tracking-tight">Distributional Impact</h1>
+        <p className="text-[17px] text-emerald-800 font-semibold mt-2.5">
           {(pctBetter * 100).toFixed(0)}% of American households are better off under the Accord at Year {snapshotYear} —
           driven by the universal $5,000/person prebate and growing AMCF dividend offsetting the {(vatRate * 100).toFixed(0)}% VAT.
         </p>
-        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
+        <p className="text-sm text-muted-foreground mt-1.5">
           Net fiscal burden comparison: VAT ({(vatRate * 100).toFixed(0)}%) + LVT net ({(lvtRate * 100).toFixed(0)}%) + carbon ($100/ton) versus
           prebate ($5K/person), AMCF citizen dividend (${Math.round(amcfPerCap).toLocaleString()}/person at Year {snapshotYear}),
           and worker equity (toggle below). Income tax kept at current law in this base distributional view.
@@ -462,173 +459,174 @@ export default function DistributionalImpact() {
       </div>
 
       {/* ── View toggle ── */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 28 }}>
-        <button style={S.tab(view === 'national')}    onClick={() => setView('national')}>National Picture</button>
-        <button style={S.tab(view === 'table')}       onClick={() => setView('table')}>Full Accord Table</button>
-        <button style={S.tab(view === 'calculator')}  onClick={() => setView('calculator')}>My Household</button>
-      </div>
+      <Tabs value={view} onValueChange={setView} className="mt-7">
+        <TabsList>
+          <TabsTrigger value="national">National Picture</TabsTrigger>
+          <TabsTrigger value="table">Full Accord Table</TabsTrigger>
+          <TabsTrigger value="calculator">My Household</TabsTrigger>
+        </TabsList>
 
-      {/* ── Shared controls (National + Table views) ── */}
-      {view !== 'calculator' && (
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center', marginTop: 20, padding: '16px 20px', background: '#F9FAFB', borderRadius: 10 }}>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>VAT Rate: {(vatRate * 100).toFixed(0)}%</p>
-            <input type="range" min={0} max={0.15} step={0.01} value={vatRate}
-              onChange={e => setVatRate(+e.target.value)} style={{ width: 140 }} />
-          </div>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>LVT Rate: {(lvtRate * 100).toFixed(0)}%</p>
-            <input type="range" min={0} max={0.20} step={0.01} value={lvtRate}
-              onChange={e => setLvtRate(+e.target.value)} style={{ width: 140 }} />
-          </div>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Snapshot Year: {snapshotYear}</p>
-            <input type="range" min={1} max={30} step={1} value={snapshotYear}
-              onChange={e => setSnapshotYear(+e.target.value)} style={{ width: 140 }} />
-          </div>
-          <div style={{ padding: '10px 14px', background: '#ECFDF5', borderRadius: 8, border: '1px solid #A7F3D0', fontSize: 12, lineHeight: 1.8 }}>
-            <strong>AMCF at Year {snapshotYear}</strong><br />
-            Equity: <strong>${(amcfEquity / 1e12).toFixed(1)}T</strong> &nbsp;|&nbsp;
-            Yield: <strong>{(amcfYield * 100).toFixed(1)}%</strong><br />
-            Dividend: <strong>${Math.round(amcfPerCap).toLocaleString()}/person/yr</strong>
-          </div>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Worker Equity</p>
-            <button onClick={() => setShowPSU(s => !s)} style={{
-              padding: '8px 16px', borderRadius: 6, border: '2px solid', cursor: 'pointer',
-              fontWeight: 700, fontSize: 12,
-              background: showPSU ? '#065F46' : '#fff',
-              color: showPSU ? '#fff' : '#374151',
-              borderColor: showPSU ? '#065F46' : '#D1D5DB',
-            }}>
-              {showPSU ? '✓ Equity On' : 'Equity Off'}
-            </button>
-            <p style={{ fontSize: 10, color: '#9CA3AF', marginTop: 4, maxWidth: 110 }}>PSU dividends + annualized cashout</p>
-          </div>
-        </div>
-      )}
+        {/* ── Shared controls (National + Table views) ── */}
+        {view !== 'calculator' && (
+          <ControlPanel columns={3} className="mt-5">
+            <SliderControl
+              label={`VAT Rate: ${(vatRate * 100).toFixed(0)}%`}
+              value={vatRate}
+              onChange={setVatRate}
+              min={0}
+              max={0.15}
+              step={0.01}
+              formatValue={v => `${(v * 100).toFixed(0)}%`}
+            />
+            <SliderControl
+              label={`LVT Rate: ${(lvtRate * 100).toFixed(0)}%`}
+              value={lvtRate}
+              onChange={setLvtRate}
+              min={0}
+              max={0.20}
+              step={0.01}
+              formatValue={v => `${(v * 100).toFixed(0)}%`}
+            />
+            <SliderControl
+              label={`Snapshot Year: ${snapshotYear}`}
+              value={snapshotYear}
+              onChange={setSnapshotYear}
+              min={1}
+              max={30}
+              step={1}
+              formatValue={v => `Year ${v}`}
+            />
+            <ControlGroup>
+              <Card className="border-emerald-200 bg-emerald-50">
+                <CardContent className="py-3 px-4 text-xs leading-7">
+                  <strong>AMCF at Year {snapshotYear}</strong><br />
+                  Equity: <strong>${(amcfEquity / 1e12).toFixed(1)}T</strong> &nbsp;|&nbsp;
+                  Yield: <strong>{(amcfYield * 100).toFixed(1)}%</strong><br />
+                  Dividend: <strong>${Math.round(amcfPerCap).toLocaleString()}/person/yr</strong>
+                </CardContent>
+              </Card>
+            </ControlGroup>
+            <ControlGroup>
+              <p className="text-xs font-semibold mb-1.5">Worker Equity</p>
+              <Button
+                variant={showPSU ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowPSU(s => !s)}
+                className={showPSU ? 'bg-emerald-800 hover:bg-emerald-900' : ''}
+              >
+                {showPSU ? '✓ Equity On' : 'Equity Off'}
+              </Button>
+              <p className="text-[10px] text-muted-foreground mt-1 max-w-[110px]">PSU dividends + annualized cashout</p>
+            </ControlGroup>
+          </ControlPanel>
+        )}
 
-      {/* ══ NATIONAL PICTURE ══════════════════════════════════════════════════ */}
-      {view === 'national' && (
-        <>
+        {/* ══ NATIONAL PICTURE ══════════════════════════════════════════════════ */}
+        <TabsContent value="national">
           {/* Headline stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 28 }}>
-            {[
-              { label: 'Households better off', value: fmtPct(pctBetter), color: '#059669' },
-              { label: 'Households worse off',  value: fmtPct(worseOffHH / totalFilers), color: '#DC2626' },
-              { label: 'Breakeven income range', value: breakeven || 'None in range', color: '#1D4ED8' },
-            ].map((box, i) => (
-              <div key={i} style={{ padding: '18px 20px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#F9FAFB' }}>
-                <p style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>{box.label}</p>
-                <p style={{ fontSize: 28, fontWeight: 700, color: box.color }}>{box.value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-3 gap-4 mt-7">
+            <MilestoneCard label="Households better off" value={fmtPct(pctBetter)} className="[&_p:last-of-type]:text-emerald-600 [&_p.text-xl]:text-[28px]" />
+            <MilestoneCard label="Households worse off" value={fmtPct(worseOffHH / totalFilers)} className="[&_p:last-of-type]:text-red-600 [&_p.text-xl]:text-[28px]" />
+            <MilestoneCard label="Breakeven income range" value={breakeven || 'None in range'} className="[&_p:last-of-type]:text-blue-700 [&_p.text-xl]:text-[28px]" />
           </div>
 
           {/* Chart 1: Net change by bracket */}
-          <div style={S.section}>
-            <h2 style={S.h2}>Annual Net Fiscal Change by Income Bracket — Year {snapshotYear}</h2>
-            <p style={S.subtext}>Green = better off under Accord (pays less or receives more). Red = worse off. Neutral band ±$100.</p>
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={netChangeData.map(d => ({ ...d, netChange: -d.delta }))}
-                margin={{ top: 10, right: 30, left: 20, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} interval={0} />
-                <YAxis tickFormatter={fmtDollar} tick={{ fontSize: 12 }} width={70} />
-                <Tooltip content={<DollarTooltip />} />
-                <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} />
-                <Bar dataKey="netChange" name="Net change vs current law" radius={[3,3,0,0]}>
-                  {netChangeData.map((d, i) => (
-                    <Cell key={i} fill={d.betterOff ? '#10B981' : d.worseOff ? '#EF4444' : '#9CA3AF'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <p style={S.source}>
-              Sources: IRS Statistics of Income (2024 estimates); EPA household carbon survey; BLS Consumer Expenditure Survey.
-              Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}%, carbon $100/ton (80% recycled as equal per-capita dividend),
-              $5,000/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
-              {showPSU ? ' Worker equity (PSU dividends + annualized cashout) included.' : ' Worker equity not included — toggle above.'}
-            </p>
-          </div>
+          <ChartContainer
+            title={`Annual Net Fiscal Change by Income Bracket — Year ${snapshotYear}`}
+            subtitle="Green = better off under Accord (pays less or receives more). Red = worse off. Neutral band ±$100."
+            height={340}
+            source={
+              <>
+                Sources: IRS Statistics of Income (2024 estimates); EPA household carbon survey; BLS Consumer Expenditure Survey.
+                Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}%, carbon $100/ton (80% recycled as equal per-capita dividend),
+                $5,000/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
+                {showPSU ? ' Worker equity (PSU dividends + annualized cashout) included.' : ' Worker equity not included — toggle above.'}
+              </>
+            }
+          >
+            <BarChart data={netChangeData.map(d => ({ ...d, netChange: -d.delta }))}
+              margin={{ top: 10, right: 30, left: 20, bottom: 40 }}>
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} interval={0} />
+              <YAxis tickFormatter={fmtDollar} tick={CHART_AXIS.tick} width={70} />
+              <Tooltip content={<DollarTooltip />} />
+              <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} />
+              <Bar dataKey="netChange" name="Net change vs current law" radius={[3,3,0,0]}>
+                {netChangeData.map((d, i) => (
+                  <Cell key={i} fill={d.betterOff ? '#10B981' : d.worseOff ? '#EF4444' : '#9CA3AF'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
 
           {/* Chart 2: Effective Tax Rate */}
-          <div style={S.section}>
-            <h2 style={S.h2}>Effective Net Tax Rate — Current Law vs Accord</h2>
-            <p style={S.subtext}>
-              Net burden as % of income. Accord effective rate is lower for most households
-              due to prebate, AMCF dividend, and LVT rent relief offsetting the VAT.
-              Negative = household receives more from Accord than it pays.
-            </p>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={rateData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="label" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} interval={0} />
-                <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 12 }} width={50} />
-                <Tooltip formatter={v => [`${v.toFixed(1)}%`]} contentStyle={{ fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
-                <ReferenceLine y={0} stroke="#9CA3AF" strokeDasharray="4 4" />
-                <Line dataKey="Current Law"   stroke="#1D4ED8" strokeWidth={2.5} dot={false} />
-                <Line dataKey="Accord (base)" stroke="#059669" strokeWidth={2.5} dot={false} />
-                {showPSU && <Line dataKey="Accord + Equity" stroke="#065F46" strokeWidth={2} dot={false} strokeDasharray="5 3" />}
-              </LineChart>
-            </ResponsiveContainer>
-            <p style={S.source}>
-              Effective rate = net burden / income. Bottom brackets show negative rate under Accord:
-              prebate + AMCF grants exceed VAT + carbon liability for households near or below poverty line.
-            </p>
-          </div>
+          <ChartContainer
+            title="Effective Net Tax Rate — Current Law vs Accord"
+            subtitle="Net burden as % of income. Accord effective rate is lower for most households due to prebate, AMCF dividend, and LVT rent relief offsetting the VAT. Negative = household receives more from Accord than it pays."
+            height={300}
+            source="Effective rate = net burden / income. Bottom brackets show negative rate under Accord: prebate + AMCF grants exceed VAT + carbon liability for households near or below poverty line."
+          >
+            <LineChart data={rateData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, angle: -30, textAnchor: 'end' }} interval={0} />
+              <YAxis tickFormatter={v => `${v}%`} tick={CHART_AXIS.tick} width={50} />
+              <Tooltip formatter={v => [`${v.toFixed(1)}%`]} contentStyle={TOOLTIP_STYLE} />
+              <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
+              <ReferenceLine y={0} stroke="#9CA3AF" strokeDasharray="4 4" />
+              <Line dataKey="Current Law"   stroke="#1D4ED8" strokeWidth={2.5} dot={false} />
+              <Line dataKey="Accord (base)" stroke="#059669" strokeWidth={2.5} dot={false} />
+              {showPSU && <Line dataKey="Accord + Equity" stroke="#065F46" strokeWidth={2} dot={false} strokeDasharray="5 3" />}
+            </LineChart>
+          </ChartContainer>
 
           {/* Summary table */}
-          <div style={S.section}>
-            <h2 style={S.h2}>Summary by Income Bracket</h2>
-            <table style={S.table}>
-              <thead>
-                <tr>
-                  <th style={S.th}>Income Range</th>
-                  <th style={S.th}>Filers</th>
-                  <th style={{ ...S.th, color: '#1D4ED8' }}>Current Rate</th>
-                  <th style={{ ...S.th, color: '#059669' }}>Accord Rate</th>
-                  <th style={S.th}>Net Annual Δ</th>
-                  <th style={S.th}>Better Off?</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="mt-12">
+            <h2 className="text-lg font-semibold tracking-tight">Summary by Income Bracket</h2>
+            <Table className="mt-4">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Income Range</TableHead>
+                  <TableHead>Filers</TableHead>
+                  <TableHead className="text-blue-700">Current Rate</TableHead>
+                  <TableHead className="text-emerald-600">Accord Rate</TableHead>
+                  <TableHead>Net Annual Δ</TableHead>
+                  <TableHead>Better Off?</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {distrib.map((d, i) => {
                   const delta   = showPSU ? d.deltaWithPSU : d.delta;
                   const effAcc  = showPSU ? d.effAccordWithPSU : d.effAccord;
                   const better  = showPSU ? d.betterOffWithPSU : d.betterOff;
                   const worse   = delta > 100;
                   return (
-                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#F9FAFB' }}>
-                      <td style={{ ...S.td, fontWeight: 600 }}>{d.label}</td>
-                      <td style={S.td}>{(d.filers / 1e6).toFixed(1)}M</td>
-                      <td style={{ ...S.td, color: '#1D4ED8' }}>{fmtPct(d.effCL)}</td>
-                      <td style={{ ...S.td, color: effAcc < d.effCL ? '#059669' : '#DC2626' }}>{fmtPct(effAcc)}</td>
-                      <td style={{ ...S.td, color: delta <= 0 ? '#059669' : '#DC2626', fontWeight: 600 }}>
+                    <TableRow key={i}>
+                      <TableCell className="font-semibold">{d.label}</TableCell>
+                      <TableCell>{(d.filers / 1e6).toFixed(1)}M</TableCell>
+                      <TableCell className="text-blue-700">{fmtPct(d.effCL)}</TableCell>
+                      <TableCell className={effAcc < d.effCL ? 'text-emerald-600' : 'text-red-600'}>{fmtPct(effAcc)}</TableCell>
+                      <TableCell className={`font-semibold ${delta <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {delta <= 0 ? '+' : ''}{fmtDollar(-delta)}
-                      </td>
-                      <td style={S.td}>{better ? '✓ Yes' : worse ? '✗ No' : '≈ Neutral'}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{better ? '✓ Yes' : worse ? '✗ No' : '≈ Neutral'}</TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </>
-      )}
+        </TabsContent>
 
-      {/* ══ FULL ACCORD TABLE ════════════════════════════════════════════════ */}
-      {view === 'table' && (
-        <>
-          <div style={{ marginTop: 28, overflowX: 'auto' }}>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>
+        {/* ══ FULL ACCORD TABLE ════════════════════════════════════════════════ */}
+        <TabsContent value="table">
+          <div className="mt-7 overflow-x-auto">
+            <p className="text-sm text-muted-foreground mb-4">
               Complete per-household impact vs Current Law. Income tax unchanged (base Accord distributional picture).
               VAT {(vatRate * 100).toFixed(0)}% + LVT {(lvtRate * 100).toFixed(0)}% + carbon $100/ton + prebate $5K/person + AMCF ${Math.round(amcfPerCap).toLocaleString()}/person at Year {snapshotYear}.
             </p>
-            <table style={{ ...S.table, fontSize: 11 }}>
-              <thead>
-                <tr style={{ background: '#1e3a5f', color: '#fff' }}>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#1e3a5f] hover:bg-[#1e3a5f]">
                   {[
                     'Bracket', 'Avg Inc', 'Filers',
                     'VAT Burden', 'LVT Net', 'Carbon Net',
@@ -636,218 +634,223 @@ export default function DistributionalImpact() {
                     ...(showPSU ? ['PSU Div', 'Cashout (ann.)'] : []),
                     'NET Δ vs CL', '% Income', 'Status',
                   ].map((h, i) => (
-                    <th key={i} style={{
-                      padding: '8px 8px', textAlign: i > 2 ? 'right' : 'left', fontWeight: 700, fontSize: 11,
-                      background:
-                        h === 'Prebate' ? '#14532d'
-                        : h === 'PSU Div' ? '#14532d'
-                        : h === 'Cashout (ann.)' ? '#166534'
-                        : h === 'NET Δ vs CL' ? '#1a5276'
-                        : undefined,
-                      color: '#fff',
-                    }}>
+                    <TableHead key={i} className={`text-white text-[11px] font-bold ${i > 2 ? 'text-right' : 'text-left'} ${
+                      h === 'Prebate' || h === 'PSU Div' ? 'bg-[#14532d]'
+                      : h === 'Cashout (ann.)' ? 'bg-[#166534]'
+                      : h === 'NET Δ vs CL' ? 'bg-[#1a5276]'
+                      : ''
+                    }`}>
                       {h}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {distrib.map((d, i) => {
                   const delta  = showPSU ? d.deltaWithPSU : d.delta;
                   const better = showPSU ? d.betterOffWithPSU : d.betterOff;
-                  const bg = better ? (i % 2 === 0 ? '#f0fdf4' : '#ecfdf5') : delta > 1000 ? '#fef2f2' : '#fff';
+                  const bgClass = better
+                    ? (i % 2 === 0 ? 'bg-green-50' : 'bg-emerald-50')
+                    : delta > 1000
+                      ? 'bg-red-50'
+                      : '';
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #e5e7eb', background: bg }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 700, color: '#1e3a5f' }}>{d.label}</td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right' }}>${(d.avgInc / 1000).toFixed(0)}K</td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6b7280' }}>{(d.filers / 1e6).toFixed(1)}M</td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: '#dc2626' }}>+{fmtDollar(d.vatBurden)}</td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: d.lvtBurden > 0 ? '#dc2626' : '#059669' }}>
+                    <TableRow key={i} className={bgClass}>
+                      <TableCell className="font-bold text-[#1e3a5f]">{d.label}</TableCell>
+                      <TableCell className="text-right">${(d.avgInc / 1000).toFixed(0)}K</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{(d.filers / 1e6).toFixed(1)}M</TableCell>
+                      <TableCell className="text-right text-red-600">+{fmtDollar(d.vatBurden)}</TableCell>
+                      <TableCell className={`text-right ${d.lvtBurden > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {d.lvtBurden > 0 ? '+' : ''}{fmtDollar(d.lvtBurden)}
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: d.carbonNet > 0 ? '#dc2626' : '#059669' }}>
+                      </TableCell>
+                      <TableCell className={`text-right ${d.carbonNet > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                         {d.carbonNet > 0 ? '+' : ''}{fmtDollar(d.carbonNet)}
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#059669', background: '#f0fdf4' }}>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-emerald-600 bg-green-50">
                         −{fmtDollar(d.prebate)}
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: '#059669' }}>−{fmtDollar(d.amcfBenefit)}</td>
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-600">−{fmtDollar(d.amcfBenefit)}</TableCell>
                       {showPSU && (
-                        <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: '#059669', background: '#f0fdf4' }}>
+                        <TableCell className="text-right font-bold text-emerald-600 bg-green-50">
                           −{fmtDollar(d.psuDividend)}
-                        </td>
+                        </TableCell>
                       )}
                       {showPSU && (
-                        <td style={{ padding: '6px 6px', textAlign: 'right', color: '#059669', background: '#ecfdf5' }}>
+                        <TableCell className="text-right text-emerald-600 bg-emerald-50">
                           −{fmtDollar(d.psuCashout)}
-                        </td>
+                        </TableCell>
                       )}
-                      <td style={{ padding: '6px 6px', textAlign: 'right', fontWeight: 700, color: delta < 0 ? '#059669' : '#dc2626', background: '#f0f9ff' }}>
+                      <TableCell className={`text-right font-bold bg-blue-50 ${delta < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {delta < 0 ? '−' : '+'}{fmtDollar(Math.abs(delta))}
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'right', color: '#6b7280' }}>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
                         {(Math.abs(d.deltaPct)).toFixed(1)}%
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center', fontWeight: 700, fontSize: 11 }}>
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-[11px]">
                         {better
-                          ? <span style={{ color: '#059669' }}>✓ Better</span>
+                          ? <span className="text-emerald-600">✓ Better</span>
                           : delta > 100
-                            ? <span style={{ color: '#dc2626' }}>✗ Worse</span>
-                            : <span style={{ color: '#6b7280' }}>≈ Neutral</span>}
-                      </td>
-                    </tr>
+                            ? <span className="text-red-600">✗ Worse</span>
+                            : <span className="text-muted-foreground">≈ Neutral</span>}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {showPSU && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0fdf4', borderRadius: 6, fontSize: 11, color: '#166534' }}>
+            <InfoBox className="mt-3 bg-green-50 text-emerald-800 border-emerald-200">
               <strong>PSU Div:</strong> Annual income from held stakes — Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed) + Tier 2 phantom-equity fund dividends + Tier 3 PSU dividends at 3.5% yield (Tier 3 value appreciates at 7.5%/yr after Year 5 ramp). &nbsp;
               <strong>Cashout (ann.):</strong> Wealth transfer when worker changes jobs — PSU/phantom equity redeemed at FMV, annualized as value ÷ average tenure (4.1 yr). Tier 1 sectoral fund is portable (no cashout event).
-            </div>
+            </InfoBox>
           )}
-          <p style={S.source}>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
             Accord parameters: VAT {(vatRate * 100).toFixed(0)}% on consumption (BLS consumption ratios by bracket) + LVT {(lvtRate * 100).toFixed(0)}% (net burden — renters receive rent relief; homeowners pay LVT on land value) + carbon $100/ton (80% recycled as equal per-capita dividend = ~${Math.round(5e9 * 100 * 0.80 / 330e6 * 2.5).toLocaleString()}/avg-household) + $5,000/person/yr universal prebate + AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Year {snapshotYear}, National Balance Sheet validated equity base ${(amcfEquity / 1e12).toFixed(1)}T × {(amcfYield * 100).toFixed(1)}% yield).
             Income tax unchanged vs current law in this base distributional view (see Income Tax Design for income tax reform scenarios).
           </p>
-        </>
-      )}
+        </TabsContent>
 
-      {/* ══ HOUSEHOLD CALCULATOR ════════════════════════════════════════════ */}
-      {view === 'calculator' && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 32, marginTop: 28 }}>
+        {/* ══ HOUSEHOLD CALCULATOR ════════════════════════════════════════════ */}
+        <TabsContent value="calculator">
+          <div className="grid grid-cols-[360px_1fr] gap-8 mt-7">
             {/* Inputs */}
-            <div style={{ padding: '24px', border: '1px solid #e5e7eb', borderRadius: 10, background: '#F9FAFB' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Your Household</h3>
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-base font-bold mb-5">Your Household</h3>
 
-              {[
-                {
-                  label: 'Annual Household Income',
-                  input: (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 14, color: '#374151' }}>$</span>
-                      <input type="number" value={calcIncome}
-                        onChange={e => setCalcIncome(+e.target.value || 0)}
-                        style={{ ...S.input, flex: 1 }} min={0} max={5000000} step={1000} />
-                    </div>
-                  ),
-                },
-                {
-                  label: 'Household Size (people)',
-                  input: (
-                    <select value={calcHhSize} onChange={e => setCalcHhSize(+e.target.value)} style={S.input}>
-                      {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} {n === 1 ? 'person' : 'people'}</option>)}
-                    </select>
-                  ),
-                },
-                {
-                  label: 'Number of Children',
-                  input: (
-                    <select value={calcChildren} onChange={e => setCalcChildren(+e.target.value)} style={S.input}>
-                      {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  ),
-                },
-                {
-                  label: 'Filing Status',
-                  input: (
-                    <select value={calcFiling} onChange={e => setCalcFiling(e.target.value)} style={S.input}>
-                      <option value="single">Single</option>
-                      <option value="mfj">Married Filing Jointly</option>
-                    </select>
-                  ),
-                },
-                {
-                  label: 'Realized Capital Gains This Year',
-                  input: (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 14 }}>$</span>
-                      <input type="number" value={calcCapGains}
-                        onChange={e => setCalcCapGains(+e.target.value || 0)}
-                        style={{ ...S.input, flex: 1 }} min={0} step={1000} />
-                    </div>
-                  ),
-                },
-              ].map(({ label, input }, i) => (
-                <div key={i} style={{ marginBottom: 16 }}>
-                  <label style={{ ...S.label, display: 'block', marginBottom: 6, color: '#374151', textTransform: 'none', fontSize: 13, fontWeight: 600 }}>{label}</label>
-                  {input}
+                {[
+                  {
+                    label: 'Annual Household Income',
+                    input: (
+                      <div className="flex gap-2 items-center">
+                        <span className="text-sm text-foreground">$</span>
+                        <input type="number" value={calcIncome}
+                          onChange={e => setCalcIncome(+e.target.value || 0)}
+                          className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm"
+                          min={0} max={5000000} step={1000} />
+                      </div>
+                    ),
+                  },
+                  {
+                    label: 'Household Size (people)',
+                    input: (
+                      <select value={calcHhSize} onChange={e => setCalcHhSize(+e.target.value)}
+                        className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm">
+                        {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} {n === 1 ? 'person' : 'people'}</option>)}
+                      </select>
+                    ),
+                  },
+                  {
+                    label: 'Number of Children',
+                    input: (
+                      <select value={calcChildren} onChange={e => setCalcChildren(+e.target.value)}
+                        className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm">
+                        {[0,1,2,3,4].map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    ),
+                  },
+                  {
+                    label: 'Filing Status',
+                    input: (
+                      <select value={calcFiling} onChange={e => setCalcFiling(e.target.value)}
+                        className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm">
+                        <option value="single">Single</option>
+                        <option value="mfj">Married Filing Jointly</option>
+                      </select>
+                    ),
+                  },
+                  {
+                    label: 'Realized Capital Gains This Year',
+                    input: (
+                      <div className="flex gap-2 items-center">
+                        <span className="text-sm">$</span>
+                        <input type="number" value={calcCapGains}
+                          onChange={e => setCalcCapGains(+e.target.value || 0)}
+                          className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm"
+                          min={0} step={1000} />
+                      </div>
+                    ),
+                  },
+                ].map(({ label, input }, i) => (
+                  <div key={i} className="mb-4">
+                    <label className="block mb-1.5 text-[13px] font-semibold text-foreground">{label}</label>
+                    {input}
+                  </div>
+                ))}
+
+                <div className="mt-2 p-3 bg-blue-50 rounded-lg text-xs text-blue-800">
+                  Prebate: <strong>${(5000 * calcHhSize).toLocaleString()}/year</strong> ($5,000 × {calcHhSize})<br />
+                  AMCF: <strong>~$600/person/year</strong> (base Year 1–2 estimate)
                 </div>
-              ))}
-
-              <div style={{ marginTop: 8, padding: '12px 14px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF' }}>
-                Prebate: <strong>${(5000 * calcHhSize).toLocaleString()}/year</strong> ($5,000 × {calcHhSize})<br />
-                AMCF: <strong>~$600/person/year</strong> (base Year 1–2 estimate)
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Results */}
             <div>
               {/* Net change banner */}
-              <div style={{
-                padding: '20px 24px', borderRadius: 10, marginBottom: 20,
-                background: calcNetChange >= 0 ? '#ECFDF5' : '#FEF2F2',
-                border: `1px solid ${calcNetChange >= 0 ? '#A7F3D0' : '#FECACA'}`,
-              }}>
-                <p style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>Under the American Ownership Accord, your household would be:</p>
-                <p style={{ fontSize: 32, fontWeight: 800, color: calcNetChange >= 0 ? '#065F46' : '#991B1B' }}>
-                  {calcNetChange >= 0 ? '▲ ' : '▼ '}
-                  {fmtDollar(Math.abs(Math.round(calcNetChange)))} per year
-                </p>
-                <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
-                  {calcNetChange >= 0 ? 'better off' : 'worse off'} than under the current system.
-                  {calcNetChange < 0 && calcIncome > 150000 && ' Higher-income households net-pay more to fund universal prebate and AMCF.'}
-                </p>
-              </div>
+              <Card className={`mb-5 ${calcNetChange >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                <CardContent className="py-5 px-6">
+                  <p className="text-sm text-foreground mb-1">Under the American Ownership Accord, your household would be:</p>
+                  <p className={`text-[32px] font-extrabold ${calcNetChange >= 0 ? 'text-emerald-800' : 'text-red-900'}`}>
+                    {calcNetChange >= 0 ? '▲ ' : '▼ '}
+                    {fmtDollar(Math.abs(Math.round(calcNetChange)))} per year
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {calcNetChange >= 0 ? 'better off' : 'worse off'} than under the current system.
+                    {calcNetChange < 0 && calcIncome > 150000 && ' Higher-income households net-pay more to fund universal prebate and AMCF.'}
+                  </p>
+                </CardContent>
+              </Card>
 
               {/* Side-by-side breakdown */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid grid-cols-2 gap-4">
                 {[
-                  { title: 'Current System', burden: calcResults.cur, color: '#1D4ED8', bg: '#EFF6FF' },
-                  { title: 'American Ownership Accord', burden: calcResults.acc, color: '#065F46', bg: '#ECFDF5' },
-                ].map(({ title, burden, color, bg }) => (
-                  <div key={title} style={{ padding: '16px 18px', border: `1px solid ${color}30`, borderRadius: 8, background: bg }}>
-                    <p style={{ fontWeight: 700, color, marginBottom: 12, fontSize: 14 }}>{title}</p>
-                    {Object.entries(burden.breakdown).map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
-                        <span style={{ color: '#374151' }}>{k}</span>
-                        <span style={{ fontWeight: 600, color: v < 0 ? '#059669' : '#DC2626' }}>
-                          {v < 0 ? '−' : '+'}${Math.abs(Math.round(v)).toLocaleString()}
+                  { title: 'Current System', burden: calcResults.cur, color: '#1D4ED8', bgClass: 'bg-blue-50 border-blue-200' },
+                  { title: 'American Ownership Accord', burden: calcResults.acc, color: '#065F46', bgClass: 'bg-emerald-50 border-emerald-200' },
+                ].map(({ title, burden, color, bgClass }) => (
+                  <Card key={title} className={bgClass}>
+                    <CardContent className="p-4">
+                      <p className="font-bold mb-3 text-sm" style={{ color }}>{title}</p>
+                      {Object.entries(burden.breakdown).map(([k, v]) => (
+                        <div key={k} className="flex justify-between mb-1.5 text-xs">
+                          <span className="text-foreground">{k}</span>
+                          <span className={`font-semibold ${v < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {v < 0 ? '−' : '+'}${Math.abs(Math.round(v)).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="border-t-2 mt-2.5 pt-2.5 flex justify-between" style={{ borderColor: color + '40' }}>
+                        <span className="font-bold">Net Burden</span>
+                        <span className="font-bold" style={{ color }}>
+                          {burden.netBurden < 0 ? '−$' : '$'}{Math.abs(Math.round(burden.netBurden)).toLocaleString()}
+                          {burden.netBurden < 0 && ' (net recipient)'}
                         </span>
                       </div>
-                    ))}
-                    <div style={{ borderTop: '2px solid ' + color + '40', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 700 }}>Net Burden</span>
-                      <span style={{ fontWeight: 700, color }}>
-                        {burden.netBurden < 0 ? '−$' : '$'}{Math.abs(Math.round(burden.netBurden)).toLocaleString()}
-                        {burden.netBurden < 0 && ' (net recipient)'}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: 11, color, marginTop: 8 }}>
-                      Effective rate: {fmtPct(Math.max(-0.5, Math.min(1, burden.netBurden / Math.max(calcIncome, 1))))}
-                    </p>
-                  </div>
+                      <p className="text-[11px] mt-2" style={{ color }}>
+                        Effective rate: {fmtPct(Math.max(-0.5, Math.min(1, burden.netBurden / Math.max(calcIncome, 1))))}
+                      </p>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
 
-              <div style={{ marginTop: 16, padding: '12px 16px', background: '#F9FAFB', borderRadius: 8, fontSize: 12, color: '#6B7280', lineHeight: 1.7 }}>
-                <strong style={{ color: '#374151' }}>Calculator notes:</strong>{' '}
+              <InfoBox className="mt-4">
+                <strong className="text-foreground">Calculator notes:</strong>{' '}
                 LVT net burden estimated as 1.5% of income above $75K (rough owner-weighted average at 10% LVT; renters net zero or positive from rent relief).
                 Carbon tax = ${estimatedCarbonTons(calcIncome)} estimated tons × $100/ton, less $1,212 per-person annual carbon dividend (80% of revenue recycled equally).
                 Worker equity dividends use income-bracket approximation ($1,200–$4,000/yr; executives excluded).
                 AMCF uses ~$600/person base (Year 1–2); dividend grows substantially by Year 10+ (see National Balance Sheet for trajectory).
                 Capital gains reform not modeled here — see Income Tax Design for full income tax + CG reform analysis.
-              </div>
+              </InfoBox>
             </div>
           </div>
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
 
       {/* ── Methodology ── */}
-      <div style={{ marginTop: 48, padding: '16px 20px', background: '#F9FAFB', borderRadius: 8, fontSize: 11, color: '#6B7280', lineHeight: 1.7 }}>
-        <strong style={{ color: '#374151' }}>Methodology:</strong>{' '}
+      <InfoBox className="mt-12">
+        <strong className="text-foreground">Methodology:</strong>{' '}
         Bracket data: IRS Statistics of Income 2024 estimates (15 brackets, 162M filers). Effective current-law rates calibrated to IRS SOI.
         Accord parameters (base): VAT 4% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
         carbon $100/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~$1,212/person/yr);
@@ -855,7 +858,7 @@ export default function DistributionalImpact() {
         Worker equity (three-tier): Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed); Tier 2 phantom equity ($25K–$100K/worker) via sectoral fund contributions;
         Tier 3 PSU (4%/yr Equity Excise → 20% ownership, appreciates at 7.5%/yr after Year 5 ramp, 3.5% dividend yield).
         Part-time FTE adjustment applied by bracket. All values in 2024 real dollars. Income tax unchanged vs current law in this view (see Income Tax Design for income tax reform).
-      </div>
-    </div>
+      </InfoBox>
+    </PageShell>
   );
 }

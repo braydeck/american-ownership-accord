@@ -1,9 +1,26 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ComposedChart, Line, Bar, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ReferenceLine,
 } from "recharts";
+import { PageShell } from '@/components/layout/PageShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { SliderControl } from '@/components/controls/SliderControl';
+import { ControlPanel, ControlGroup } from '@/components/controls/ControlPanel';
+import { PresetSelector } from '@/components/controls/PresetSelector';
+import { MilestoneCard } from '@/components/shared/MilestoneCard';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -58,6 +75,10 @@ const PRESET_LABELS = {
   slowCodetermination: "Slow Codet.", fastCodetermination: "Fast Codet.",
 };
 
+const PRESET_LIST = Object.keys(PRESET_OVERRIDES).map(k => ({
+  key: k, label: PRESET_LABELS[k],
+}));
+
 const CHART_TABS = [
   { id: "deficit",  label: "Deficit Trajectory" },
   { id: "debt",     label: "Debt & Net Position" },
@@ -96,7 +117,7 @@ const PARAM_SECTIONS = [
       { key: "carbonRate",           label: "Carbon Tax ($/ton)",     min: 0,      max: 250,   step: 5,       fmt: v => `$${v}/ton` },
       { key: "stableTaxFrac",        label: "Stable Taxes (% GDP)",   min: 0,      max: 0.02,  step: 0.001,   fmt: v => `${(v*100).toFixed(2)}%` },
       { key: "prebatePerCapita",     label: "Prebate / Capita / Yr",  min: 1000,   max: 10000, step: 250,     fmt: v => `$${v.toLocaleString()}` },
-      { key: "grantPhaseMultiplier", label: "Grant Phase Multiplier", min: 0.5,    max: 2.0,   step: 0.1,     fmt: v => `${v.toFixed(1)}×` },
+      { key: "grantPhaseMultiplier", label: "Grant Phase Multiplier", min: 0.5,    max: 2.0,   step: 0.1,     fmt: v => `${v.toFixed(1)}x` },
     ],
   },
   {
@@ -394,8 +415,13 @@ const C = {
   compare:      "#0891b2",
 };
 
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
+};
+
 const ttFmt = (v, unit) => {
-  if (v == null) return "—";
+  if (v == null) return "\u2014";
   if (unit === "T") return `$${Math.abs(+v).toFixed(2)}T${+v < 0 ? " (surplus)" : ""}`;
   if (unit === "%") return `${(+v).toFixed(1)}%`;
   return String(v);
@@ -406,44 +432,10 @@ const axisPct = v => `${v}%`;
 const fmtYr = v => v == null ? "Never" : `Year ${v}`;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════
-
-function SliderInput({ label, value, min, max, step, onChange, fmt }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-        <span style={{ color: "#4b5563" }}>{label}</span>
-        <span style={{ color: "#111827", fontWeight: 600, minWidth: 60, textAlign: "right" }}>{fmt(value)}</span>
-      </div>
-      <input
-        type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        style={{ width: "100%", accentColor: C.accord, cursor: "pointer" }}
-      />
-    </div>
-  );
-}
-
-function MilestoneCard({ title, value, color, subtitle, compare }) {
-  return (
-    <div style={{
-      background: "#fff", border: `2px solid ${color}`, borderRadius: 8,
-      padding: "10px 14px", flex: 1, minWidth: 140,
-    }}>
-      <div style={{ fontSize: 10, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{title}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-      {compare && <div style={{ fontSize: 11, color: C.compare }}>vs {compare}</div>}
-      {subtitle && <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{subtitle}</div>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // CHART RENDERERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CHART_HEIGHT = 340;
+const CHART_H = 340;
 
 function DeficitChart({ rows, compareRows }) {
   const data = rows.map(r => ({
@@ -453,24 +445,23 @@ function DeficitChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare": compareRows[r.year - 1]?.deficit } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Annual fiscal deficit/surplus — Accord narrows the gap faster than current-law trajectory
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisT} tick={{ fontSize: 11 }} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Balance", fill: "#374151", fontSize: 11 }} />
-          <Line dataKey="Accord Deficit" stroke={C.accord} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-          {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="Annual fiscal deficit/surplus"
+      subtitle="Accord narrows the gap faster than current-law trajectory"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Balance", fill: "#374151", fontSize: 11 }} />
+        <Line dataKey="Accord Deficit" stroke={C.accord} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -484,26 +475,25 @@ function DebtChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare Debt": compareRows[r.year - 1]?.grossDebt } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Gross debt vs. AMCF equity — net sovereign position turns negative when AMCF exceeds national debt
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisT} tick={{ fontSize: 11 }} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
-          <Line dataKey="Gross Debt (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Gross Debt (CL)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-          <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Net Sovereign Position" stroke={C.netPos} strokeWidth={2} strokeDasharray="3 3" dot={false} />
-          {compareRows && <Line dataKey="Compare Debt" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="Gross debt vs. AMCF equity"
+      subtitle="Net sovereign position turns negative when AMCF exceeds national debt"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
+        <Line dataKey="Gross Debt (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Gross Debt (CL)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Net Sovereign Position" stroke={C.netPos} strokeWidth={2} strokeDasharray="3 3" dot={false} />
+        {compareRows && <Line dataKey="Compare Debt" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -515,24 +505,23 @@ function InterestChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare": compareRows[r.year - 1]?.intToRev } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Interest as % of federal revenue — Accord prevents the interest spiral that traps current-law trajectory
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisPct} tick={{ fontSize: 11 }} label={{ value: "% of Revenue", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "%"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <ReferenceLine y={10} stroke={C.debt} strokeDasharray="5 3" label={{ value: "10% threshold", fill: C.debt, fontSize: 11 }} />
-          <Line dataKey="Accord" stroke={C.accord} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-          {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="Interest as % of federal revenue"
+      subtitle="Accord prevents the interest spiral that traps current-law trajectory"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisPct} tick={CHART_AXIS.tick} label={{ value: "% of Revenue", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "%"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <ReferenceLine y={10} stroke={C.debt} strokeDasharray="5 3" label={{ value: "10% threshold", fill: C.debt, fontSize: 11 }} />
+        <Line dataKey="Accord" stroke={C.accord} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -546,25 +535,24 @@ function AmcfChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare Equity": compareRows[r.year - 1]?.amcfEquity } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        AMCF equity accumulation — dividends surpass grants to create citizen wealth surplus
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisT} tick={{ fontSize: 11 }} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={3} dot={false} />
-          {compareRows && <Line dataKey="Compare Equity" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
-          <Bar dataKey="Dividends (AMCF)" fill={C.accordLight} stackId="flow" />
-          <Bar dataKey="Grants Total" fill={C.creditsLight} stackId="target" />
-          <Line dataKey="SPV Surplus" stroke={C.grants} strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="AMCF equity accumulation"
+      subtitle="Dividends surpass grants to create citizen wealth surplus"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={3} dot={false} />
+        {compareRows && <Line dataKey="Compare Equity" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
+        <Bar dataKey="Dividends (AMCF)" fill={C.accordLight} stackId="flow" />
+        <Bar dataKey="Grants Total" fill={C.creditsLight} stackId="target" />
+        <Line dataKey="SPV Surplus" stroke={C.grants} strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -583,30 +571,29 @@ function RevenueChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare Outlays": compareRows[r.year - 1]?.totalOutlays } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Revenue components vs. total outlays — prebate/childcare/family leave are spending items funded by AMCF cash flow and new taxes
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisT} tick={{ fontSize: 11 }} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Bar dataKey="Income Tax" stackId="rev" fill="#60a5fa" />
-          <Bar dataKey="Payroll Tax" stackId="rev" fill="#93c5fd" />
-          <Bar dataKey="VAT (gross)" stackId="rev" fill={C.accordLight} />
-          <Bar dataKey="LVT" stackId="rev" fill="#4ade80" />
-          <Bar dataKey="Payroll Fix" stackId="rev" fill="#86efac" />
-          <Bar dataKey="Cap. Gains + Other" stackId="rev" fill="#a3e635" />
-          <Line dataKey="Total Revenue" stroke={C.accord} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Total Outlays" stroke={C.debt} strokeWidth={2.5} dot={false} />
-          <Line dataKey="Current Law Revenue" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-          {compareRows && <Line dataKey="Compare Outlays" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="Revenue components vs. total outlays"
+      subtitle="Prebate/childcare/family leave are spending items funded by AMCF cash flow and new taxes"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="Income Tax" stackId="rev" fill="#60a5fa" />
+        <Bar dataKey="Payroll Tax" stackId="rev" fill="#93c5fd" />
+        <Bar dataKey="VAT (gross)" stackId="rev" fill={C.accordLight} />
+        <Bar dataKey="LVT" stackId="rev" fill="#4ade80" />
+        <Bar dataKey="Payroll Fix" stackId="rev" fill="#86efac" />
+        <Bar dataKey="Cap. Gains + Other" stackId="rev" fill="#a3e635" />
+        <Line dataKey="Total Revenue" stroke={C.accord} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Total Outlays" stroke={C.debt} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Current Law Revenue" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        {compareRows && <Line dataKey="Compare Outlays" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -620,25 +607,24 @@ function CreditsChart({ rows, compareRows }) {
     ...(compareRows ? { "Compare Credit Bal.": compareRows[r.year - 1]?.creditBalance } : {}),
   }));
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Codetermination credit mechanics — 20% cap means AMCF receives ≥80% of Growth Tax from Year 1
-      </div>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={{ fontSize: 11 }} />
-          <YAxis tickFormatter={axisT} tick={{ fontSize: 11 }} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-          <Tooltip formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Area dataKey="Credit Balance" stroke={C.credits} fill={C.creditsLight} strokeWidth={2} />
-          {compareRows && <Line dataKey="Compare Credit Bal." stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
-          <Bar dataKey="Credits Generated" fill="#fbbf24" stackId="flow" />
-          <Bar dataKey="Credits Used" fill="#4ade80" stackId="used" />
-          <Line dataKey="AMCF Net Scrip" stroke={C.amcf} strokeWidth={2} dot={false} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartContainer
+      title="Codetermination credit mechanics"
+      subtitle="20% cap means AMCF receives at least 80% of Growth Tax from Year 1"
+      height={CHART_H}
+    >
+      <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+        <CartesianGrid {...CHART_GRID} />
+        <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
+        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Area dataKey="Credit Balance" stroke={C.credits} fill={C.creditsLight} strokeWidth={2} />
+        {compareRows && <Line dataKey="Compare Credit Bal." stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
+        <Bar dataKey="Credits Generated" fill="#fbbf24" stackId="flow" />
+        <Bar dataKey="Credits Used" fill="#4ade80" stackId="used" />
+        <Line dataKey="AMCF Net Scrip" stroke={C.amcf} strokeWidth={2} dot={false} />
+      </ComposedChart>
+    </ChartContainer>
   );
 }
 
@@ -652,71 +638,71 @@ function SensitivityTable({ data }) {
     { key: "debtPeakYear",          label: "Debt Peak",          dir: "lower" },
     { key: "amcfSelfFundingYear",   label: "AMCF Self-Funds",    dir: "lower" },
     { key: "netCreditorYear",       label: "Net Creditor",       dir: "lower" },
-    { key: "interestThresholdYear", label: "Interest < 10%",     dir: "lower" },
+    { key: "interestThresholdYear", label: "Interest {'<'} 10%", dir: "lower" },
   ];
 
   const cellColor = (base, test, dir) => {
-    if (base == null && test == null) return "#f9fafb";
-    if (test == null && base != null) return dir === "lower" ? "#fef2f2" : "#f0fdf4";
-    if (base == null && test != null) return dir === "lower" ? "#f0fdf4" : "#fef2f2";
+    if (base == null && test == null) return undefined;
+    if (test == null && base != null) return dir === "lower" ? "bg-red-50" : "bg-green-50";
+    if (base == null && test != null) return dir === "lower" ? "bg-green-50" : "bg-red-50";
     const diff = test - base;
-    if (Math.abs(diff) <= 1) return "#f9fafb";
+    if (Math.abs(diff) <= 1) return undefined;
     const better = dir === "lower" ? diff < 0 : diff > 0;
-    return better ? "#f0fdf4" : "#fef2f2";
+    return better ? "bg-green-50" : "bg-red-50";
   };
 
-  const thStyle = { padding: "6px 10px", fontSize: 11, fontWeight: 600, background: "#f3f4f6", borderBottom: "2px solid #e5e7eb", textAlign: "center" };
-  const tdStyle = { padding: "5px 8px", fontSize: 11, textAlign: "center", borderBottom: "1px solid #f0f0f0" };
-
   return (
-    <div style={{ overflowX: "auto", marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-        Sensitivity Analysis — ±20% on each parameter; green = earlier/better, red = later/worse
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-        <thead>
-          <tr>
-            <th style={{ ...thStyle, textAlign: "left" }}>Parameter</th>
-            {milestoneKeys.map(mk => (
-              <th key={mk.key} colSpan={2} style={thStyle}>{mk.label}</th>
-            ))}
-          </tr>
-          <tr>
-            <th style={{ ...thStyle, textAlign: "left" }}>+20% / −20%</th>
-            {milestoneKeys.map(mk => (
-              <>
-                <th key={mk.key + "h"} style={{ ...thStyle, color: C.accord }}>+20%</th>
-                <th key={mk.key + "l"} style={{ ...thStyle, color: C.debt }}>−20%</th>
-              </>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map(row => (
-            <tr key={row.key}>
-              <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>{row.label}</td>
+    <div className="mt-4">
+      <h3 className="text-lg font-semibold tracking-tight mb-2">Sensitivity Analysis</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        +/- 20% on each parameter; green = earlier/better, red = later/worse
+      </p>
+      <div className="rounded-lg border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead className="text-left">Parameter</TableHead>
               {milestoneKeys.map(mk => (
-                <>
-                  <td key={mk.key + "h"} style={{ ...tdStyle, background: cellColor(row.base[mk.key], row.high[mk.key], mk.dir) }}>
-                    {fmtYr(row.high[mk.key])}
-                  </td>
-                  <td key={mk.key + "l"} style={{ ...tdStyle, background: cellColor(row.base[mk.key], row.low[mk.key], mk.dir) }}>
-                    {fmtYr(row.low[mk.key])}
-                  </td>
-                </>
+                <TableHead key={mk.key} colSpan={2} className="text-center">{mk.label}</TableHead>
               ))}
-            </tr>
-          ))}
-          <tr style={{ background: "#f8fafc" }}>
-            <td style={{ ...tdStyle, textAlign: "left", fontWeight: 700 }}>Base Case</td>
-            {milestoneKeys.map(mk => (
-              <td key={mk.key + "base"} colSpan={2} style={{ ...tdStyle, fontWeight: 700 }}>
-                {fmtYr(data[0]?.base[mk.key])}
-              </td>
+            </TableRow>
+            <TableRow className="bg-muted/50">
+              <TableHead className="text-left text-xs">+20% / -20%</TableHead>
+              {milestoneKeys.map(mk => (
+                <React.Fragment key={mk.key}>
+                  <TableHead className="text-center text-xs" style={{ color: C.accord }}>+20%</TableHead>
+                  <TableHead className="text-center text-xs" style={{ color: C.debt }}>-20%</TableHead>
+                </React.Fragment>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map(row => (
+              <TableRow key={row.key}>
+                <TableCell className="text-left font-medium">{row.label}</TableCell>
+                {milestoneKeys.map(mk => (
+                  <React.Fragment key={mk.key}>
+                    <TableCell className={`text-center ${cellColor(row.base[mk.key], row.high[mk.key], mk.dir) ?? ''}`}>
+                      {fmtYr(row.high[mk.key])}
+                    </TableCell>
+                    <TableCell className={`text-center ${cellColor(row.base[mk.key], row.low[mk.key], mk.dir) ?? ''}`}>
+                      {fmtYr(row.low[mk.key])}
+                    </TableCell>
+                  </React.Fragment>
+                ))}
+              </TableRow>
             ))}
-          </tr>
-        </tbody>
-      </table>
+            <TableRow className="bg-muted/30">
+              <TableCell className="text-left font-bold">Base Case</TableCell>
+              {milestoneKeys.map(mk => (
+                <TableCell key={mk.key} colSpan={2} className="text-center font-bold">
+                  {fmtYr(data[0]?.base[mk.key])}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -727,36 +713,37 @@ function SensitivityTable({ data }) {
 
 function ParameterPanel({ params, setParam }) {
   return (
-    <div style={{ fontSize: 13 }}>
+    <div className="text-sm space-y-2">
       {PARAM_SECTIONS.map(section => (
-        <details key={section.title} open={section.open} style={{ marginBottom: 8 }}>
-          <summary style={{
-            cursor: "pointer", fontWeight: 700, fontSize: 12, padding: "6px 8px",
-            background: "#f3f4f6", borderRadius: 6, userSelect: "none",
-            color: "#374151", listStyle: "none",
-          }}>
-            ▸ {section.title}
-          </summary>
-          <div style={{ padding: "8px 4px 0" }}>
+        <Collapsible key={section.title} defaultOpen={section.open}>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 cursor-pointer select-none rounded-md bg-muted/50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground hover:bg-muted/80 transition-colors">
+            {section.title}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3 px-1 space-y-1">
             {section.params.map(pc => (
-              <SliderInput
+              <SliderControl
                 key={pc.key}
                 label={pc.label}
                 value={params[pc.key]}
-                min={pc.min} max={pc.max} step={pc.step}
+                min={pc.min}
+                max={pc.max}
+                step={pc.step}
                 onChange={v => setParam(pc.key, v)}
-                fmt={pc.fmt}
+                formatValue={pc.fmt}
               />
             ))}
-          </div>
-        </details>
+          </CollapsibleContent>
+        </Collapsible>
       ))}
-      <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Recession Year</div>
+
+      <div className="pt-2">
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Recession Year
+        </label>
         <select
           value={params.recessionYear}
           onChange={e => setParam("recessionYear", Number(e.target.value))}
-          style={{ width: "100%", padding: "4px 6px", fontSize: 12, borderRadius: 4, border: "1px solid #d1d5db" }}
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
         >
           <option value={0}>None</option>
           <option value={3}>Year 3</option>
@@ -805,217 +792,242 @@ export default function FiscalTrajectorySimulator() {
   const { rows, milestones: m } = result;
   const cm = compareResult?.milestones;
 
-  // Key Year 6 validation stat
-  const yr6 = rows[5];
-  const yr6Validation = yr6 ? `(AMCF equity Year 6: $${yr6.amcfEquity.toFixed(1)}T)` : "";
-
-  const btnStyle = (active) => ({
-    padding: "5px 11px", fontSize: 12, borderRadius: 4, border: "none",
-    cursor: "pointer", fontWeight: active ? 700 : 400,
-    background: active ? "#1f2937" : "#e5e7eb",
-    color: active ? "#fff" : "#374151",
-    transition: "background 0.15s",
-  });
-
   const presetKeys = Object.keys(PRESET_OVERRIDES);
 
   return (
-    <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", maxWidth: 1200, margin: "0 auto", padding: "16px", background: "#f9fafb", minHeight: "100vh" }}>
-
+    <PageShell className="max-w-6xl">
       {/* Header */}
-      <div style={{ marginBottom: 14 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>
-          National Balance Sheet
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>
-          35-year forward projection · All values in 2024 dollars
+      <div className="border-l-4 border-emerald-600 pl-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          American Ownership Accord
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight">National Balance Sheet</h1>
+        <p className="text-base font-semibold text-emerald-700 mt-2">
+          35-year forward projection of federal fiscal trajectory under the Accord
+        </p>
+        <p className="text-sm text-muted-foreground mt-1 mb-6">
+          All values in 2024 dollars
         </p>
       </div>
 
       {/* Milestone Dashboard */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
         <MilestoneCard
-          title="Fiscal Crossover"
+          label="Fiscal Crossover"
           value={fmtYr(m.fiscalCrossoverYear)}
-          color={C.accord}
-          subtitle="First year of surplus"
-          compare={cm ? fmtYr(cm.fiscalCrossoverYear) : null}
+          sub={cm ? `vs ${fmtYr(cm.fiscalCrossoverYear)}` : "First year of surplus"}
         />
         <MilestoneCard
-          title="Debt Peak"
+          label="Debt Peak"
           value={fmtYr(m.debtPeakYear)}
-          color={C.debt}
-          subtitle="Gross debt maximum"
-          compare={cm ? fmtYr(cm.debtPeakYear) : null}
+          sub={cm ? `vs ${fmtYr(cm.debtPeakYear)}` : "Gross debt maximum"}
         />
         <MilestoneCard
-          title="Net Creditor Year"
+          label="Net Creditor Year"
           value={fmtYr(m.netCreditorYear)}
-          color={C.amcf}
-          subtitle="AMCF equity > national debt"
-          compare={cm ? fmtYr(cm.netCreditorYear) : null}
+          sub={cm ? `vs ${fmtYr(cm.netCreditorYear)}` : "AMCF equity > national debt"}
         />
         <MilestoneCard
-          title="AMCF Self-Funding"
+          label="AMCF Self-Funding"
           value={fmtYr(m.amcfSelfFundingYear)}
-          color={C.grants}
-          subtitle="Dividends ≥ citizen grants"
-          compare={cm ? fmtYr(cm.amcfSelfFundingYear) : null}
+          sub={cm ? `vs ${fmtYr(cm.amcfSelfFundingYear)}` : "Dividends >= citizen grants"}
         />
         <MilestoneCard
-          title="Interest < 10%"
+          label="Interest < 10%"
           value={fmtYr(m.interestThresholdYear)}
-          color={m.interestThresholdYear ? C.accord : "#9ca3af"}
-          subtitle="of federal revenue"
-          compare={cm ? fmtYr(cm.interestThresholdYear) : null}
+          sub={cm ? `vs ${fmtYr(cm.interestThresholdYear)}` : "of federal revenue"}
         />
       </div>
 
-      {/* Presets */}
-      <div style={{ background: "#fff", borderRadius: 8, padding: "12px 14px", marginBottom: 14, boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Scenario Presets</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {presetKeys.map(k => (
-            <button key={k} onClick={() => applyPreset(k)} style={btnStyle(activePreset === k)}>
-              {PRESET_LABELS[k]}
-            </button>
-          ))}
-          {activePreset === "custom" && (
-            <span style={{ fontSize: 11, color: "#6b7280", alignSelf: "center", marginLeft: 4 }}>
-              (custom — sliders modified)
-            </span>
-          )}
-        </div>
+      {/* Presets + Compare */}
+      <Card className="mt-6">
+        <CardContent className="pt-5 pb-4 px-5 space-y-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Scenario Presets
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <PresetSelector
+                presets={PRESET_LIST}
+                value={activePreset}
+                onChange={applyPreset}
+              />
+              {activePreset === "custom" && (
+                <span className="text-xs text-muted-foreground ml-1">
+                  (custom — sliders modified)
+                </span>
+              )}
+            </div>
+          </div>
 
-        {/* Compare Mode */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox" checked={compareMode}
-              onChange={e => setCompareMode(e.target.checked)}
-              style={{ accentColor: C.compare }}
-            />
-            <span style={{ fontWeight: 600, color: C.compare }}>Compare Mode</span>
-          </label>
-          {compareMode && (
-            <>
-              <span style={{ fontSize: 12, color: "#6b7280" }}>Compare against:</span>
-              <select
-                value={comparePreset}
-                onChange={e => setComparePreset(e.target.value)}
-                style={{ padding: "3px 8px", fontSize: 12, borderRadius: 4, border: "1px solid #d1d5db", color: C.compare }}
-              >
-                {presetKeys.map(k => (
-                  <option key={k} value={k}>{PRESET_LABELS[k]}</option>
-                ))}
-              </select>
-              <span style={{ fontSize: 11, color: C.compare }}>
-                — crossover: {fmtYr(cm?.fiscalCrossoverYear)}, debt peak: {fmtYr(cm?.debtPeakYear)}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+          <div className="border-t border-border pt-4 flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={compareMode}
+                onChange={e => setCompareMode(e.target.checked)}
+                className="accent-cyan-600"
+              />
+              <span className="font-semibold text-cyan-700">Compare Mode</span>
+            </label>
+            {compareMode && (
+              <>
+                <span className="text-xs text-muted-foreground">Compare against:</span>
+                <select
+                  value={comparePreset}
+                  onChange={e => setComparePreset(e.target.value)}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-xs text-cyan-700"
+                >
+                  {presetKeys.map(k => (
+                    <option key={k} value={k}>{PRESET_LABELS[k]}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-cyan-600">
+                  — crossover: {fmtYr(cm?.fiscalCrossoverYear)}, debt peak: {fmtYr(cm?.debtPeakYear)}
+                </span>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main content: params + charts */}
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <div className="flex gap-4 items-start mt-6">
 
         {/* Parameter Panel */}
-        <div style={{ width: 270, flexShrink: 0 }}>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "12px 14px", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Parameters</span>
-              <button onClick={() => setShowParams(!showParams)} style={{ fontSize: 11, color: "#6b7280", background: "none", border: "none", cursor: "pointer" }}>
-                {showParams ? "hide" : "show"}
-              </button>
-            </div>
-            {showParams && <ParameterPanel params={params} setParam={setParam} />}
-          </div>
+        <div className="w-[270px] shrink-0">
+          <Card>
+            <CardContent className="pt-4 pb-4 px-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Parameters
+                </span>
+                <button
+                  onClick={() => setShowParams(!showParams)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  {showParams ? "hide" : "show"}
+                </button>
+              </div>
+              {showParams && <ParameterPanel params={params} setParam={setParam} />}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Chart Area */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "14px 16px", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-            {/* Chart tabs */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
-              {CHART_TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveChart(t.id)} style={btnStyle(activeChart === t.id)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Active chart */}
-            {activeChart === "deficit"  && <DeficitChart  rows={rows} compareRows={compareResult?.rows} />}
-            {activeChart === "debt"     && <DebtChart     rows={rows} compareRows={compareResult?.rows} />}
-            {activeChart === "interest" && <InterestChart rows={rows} compareRows={compareResult?.rows} />}
-            {activeChart === "amcf"     && <AmcfChart     rows={rows} compareRows={compareResult?.rows} />}
-            {activeChart === "revenue"  && <RevenueChart  rows={rows} compareRows={compareResult?.rows} />}
-            {activeChart === "credits"  && <CreditsChart  rows={rows} compareRows={compareResult?.rows} />}
-          </div>
-
-          {/* Data Table — Year milestones */}
-          <div style={{ background: "#fff", borderRadius: 8, padding: "12px 14px", marginTop: 12, boxShadow: "0 1px 2px rgba(0,0,0,0.06)", overflowX: "auto" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 8 }}>Key Metrics by Decade</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-              <thead>
-                <tr style={{ background: "#f3f4f6" }}>
-                  {["Year", "Nom. GDP", "AMCF Equity", "Own %", "Gross Debt", "Debt/GDP", "Deficit", "AMCF Cash Flow", "Healthcare Reserve", "Discretionary", "Grants/Cap", "Brake"].map(h => (
-                    <th key={h} style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, borderBottom: "2px solid #e5e7eb", color: "#374151", whiteSpace: "nowrap" }}>{h}</th>
+        <div className="flex-1 min-w-0 space-y-4">
+          <Card>
+            <CardContent className="pt-4 pb-4 px-5">
+              {/* Chart Tabs */}
+              <Tabs value={activeChart} onValueChange={setActiveChart}>
+                <TabsList className="mb-4">
+                  {CHART_TABS.map(t => (
+                    <TabsTrigger key={t.id} value={t.id} className="text-xs">
+                      {t.label}
+                    </TabsTrigger>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[1, 5, 10, 15, 20, 25, 30, 35].map(yr => {
-                  const r = rows[yr - 1];
-                  if (!r) return null;
-                  return (
-                    <tr key={yr} style={{ background: r.solventBrakeActive ? "#fff7ed" : "#f0fdf4" }}>
-                      <td style={{ padding: "4px 8px", textAlign: "right", fontWeight: 600 }}>{yr}</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right" }}>${r.nominalGdp}T</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: C.amcf, fontWeight: 600 }}>${r.amcfEquity}T</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: r.amcfOwnershipPct >= 20 ? C.accord : "#374151" }}>{r.amcfOwnershipPct}%</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: C.debt }}>${r.grossDebt}T</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: r.debtToGdp > 150 ? C.debt : r.debtToGdp < 100 ? C.accord : "#374151" }}>{r.debtToGdp}%</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: r.deficit < 0 ? C.accord : C.debt }}>{r.deficit < 0 ? `($${Math.abs(r.deficit).toFixed(2)}T)` : `$${r.deficit}T`}</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: C.credits }}>${r.amcfCashFlow}T <span style={{ color: "#9ca3af", fontSize: 10 }}>({r.combinedYield}%)</span></td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: "#0891b2" }}>${r.healthcareAMCF}T</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", color: r.solventBrakeActive ? "#9ca3af" : C.accord }}>{r.solventBrakeActive ? "—" : `$${r.discretionaryAMCF}T`}</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right" }}>${Number(r.grantsPerCapita).toLocaleString()}</td>
-                      <td style={{ padding: "4px 8px", textAlign: "right", fontSize: 10, color: r.solventBrakeActive ? C.debt : C.accord }}>{r.solventBrakeActive ? "ACTIVE" : "off"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                </TabsList>
+
+                <TabsContent value="deficit">
+                  <DeficitChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+                <TabsContent value="debt">
+                  <DebtChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+                <TabsContent value="interest">
+                  <InterestChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+                <TabsContent value="amcf">
+                  <AmcfChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+                <TabsContent value="revenue">
+                  <RevenueChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+                <TabsContent value="credits">
+                  <CreditsChart rows={rows} compareRows={compareResult?.rows} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Data Table — Key Metrics by Decade */}
+          <Card>
+            <CardContent className="pt-4 pb-4 px-5">
+              <h3 className="text-lg font-semibold tracking-tight mb-3">Key Metrics by Decade</h3>
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      {["Year", "Nom. GDP", "AMCF Equity", "Own %", "Gross Debt", "Debt/GDP", "Deficit", "AMCF Cash Flow", "Healthcare Reserve", "Discretionary", "Grants/Cap", "Brake"].map(h => (
+                        <TableHead key={h} className="text-right whitespace-nowrap">{h}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[1, 5, 10, 15, 20, 25, 30, 35].map(yr => {
+                      const r = rows[yr - 1];
+                      if (!r) return null;
+                      return (
+                        <TableRow key={yr} className={r.solventBrakeActive ? "bg-orange-50" : "bg-green-50/50"}>
+                          <TableCell className="text-right font-semibold">{yr}</TableCell>
+                          <TableCell className="text-right">${r.nominalGdp}T</TableCell>
+                          <TableCell className="text-right font-semibold" style={{ color: C.amcf }}>${r.amcfEquity}T</TableCell>
+                          <TableCell className="text-right" style={{ color: r.amcfOwnershipPct >= 20 ? C.accord : undefined }}>{r.amcfOwnershipPct}%</TableCell>
+                          <TableCell className="text-right" style={{ color: C.debt }}>${r.grossDebt}T</TableCell>
+                          <TableCell className="text-right" style={{ color: r.debtToGdp > 150 ? C.debt : r.debtToGdp < 100 ? C.accord : undefined }}>{r.debtToGdp}%</TableCell>
+                          <TableCell className="text-right" style={{ color: r.deficit < 0 ? C.accord : C.debt }}>
+                            {r.deficit < 0 ? `($${Math.abs(r.deficit).toFixed(2)}T)` : `$${r.deficit}T`}
+                          </TableCell>
+                          <TableCell className="text-right" style={{ color: C.credits }}>
+                            ${r.amcfCashFlow}T <span className="text-muted-foreground text-[10px]">({r.combinedYield}%)</span>
+                          </TableCell>
+                          <TableCell className="text-right text-cyan-600">${r.healthcareAMCF}T</TableCell>
+                          <TableCell className="text-right" style={{ color: r.solventBrakeActive ? "#9ca3af" : C.accord }}>
+                            {r.solventBrakeActive ? "\u2014" : `$${r.discretionaryAMCF}T`}
+                          </TableCell>
+                          <TableCell className="text-right">${Number(r.grantsPerCapita).toLocaleString()}</TableCell>
+                          <TableCell className="text-right text-[10px]" style={{ color: r.solventBrakeActive ? C.debt : C.accord }}>
+                            {r.solventBrakeActive ? "ACTIVE" : "off"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Sensitivity + Export */}
-      <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
-        <button
+      <div className="mt-6 flex items-center gap-3 flex-wrap">
+        <Button
+          variant={showSensitivity ? "default" : "outline"}
+          size="sm"
           onClick={() => setShowSensitivity(!showSensitivity)}
-          style={{ ...btnStyle(showSensitivity), padding: "7px 14px" }}
         >
           {showSensitivity ? "Hide" : "Show"} Sensitivity Analysis
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => exportCSV(rows)}
-          style={{ padding: "7px 14px", fontSize: 12, borderRadius: 4, border: "1px solid #d1d5db", cursor: "pointer", background: "#fff", color: "#374151" }}
         >
           Export CSV (35 rows)
-        </button>
-        <span style={{ fontSize: 11, color: "#9ca3af" }}>
+        </Button>
+        <span className="text-xs text-muted-foreground">
           Base: Growth Tax {(params.growthTaxRate * 100).toFixed(0)}% · VAT {(params.vatRate * 100).toFixed(0)}% · LVT {(params.lvtRate * 100).toFixed(0)}% · Prebate ${params.prebatePerCapita.toLocaleString()}/capita
         </span>
       </div>
 
       {showSensitivity && sensitivityData && (
-        <div style={{ background: "#fff", borderRadius: 8, padding: "14px 16px", marginTop: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }}>
-          <SensitivityTable data={sensitivityData} />
-        </div>
+        <Card className="mt-4">
+          <CardContent className="pt-4 pb-4 px-5">
+            <SensitivityTable data={sensitivityData} />
+          </CardContent>
+        </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

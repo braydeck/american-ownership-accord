@@ -2,16 +2,30 @@ import React, { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { PageShell } from '@/components/layout/PageShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { MilestoneCard } from '@/components/shared/MilestoneCard';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const fmtK  = v => v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
 const fmtPct = v => `${(v * 100).toFixed(1)}%`;
 
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
+};
+
 const BarTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '10px 14px', fontSize: 12, borderRadius: 6 }}>
+    <div style={TOOLTIP_STYLE}>
       <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>
       {payload.map(p => (
         <p key={p.dataKey} style={{ color: p.color, margin: '2px 0' }}>
@@ -246,21 +260,7 @@ function runSimulation() {
   return { results, natBelow50k_c, natBelow50k_a, natBelow250k_c, natBelow250k_a };
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-const S = {
-  root:    { fontFamily: "'Georgia', serif", maxWidth: 1040, margin: '0 auto', padding: '40px 32px', background: '#fff', color: '#111' },
-  section: { marginTop: 52 },
-  h1:      { fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.2 },
-  headline:{ fontSize: 17, color: '#065F46', fontWeight: 600, marginTop: 10 },
-  h2:      { fontSize: 18, fontWeight: 700, marginBottom: 4, marginTop: 0 },
-  subtext: { fontSize: 13, color: '#6B7280', marginTop: 4, marginBottom: 24 },
-  label:   { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', marginBottom: 2 },
-  source:  { fontSize: 11, color: '#9CA3AF', marginTop: 12, lineHeight: 1.6 },
-  table:   { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th:      { textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '8px 12px', fontWeight: 600, background: '#F9FAFB' },
-  td:      { borderBottom: '1px solid #f3f4f6', padding: '7px 12px' },
-};
+// ─── Colors ──────────────────────────────────────────────────────────────────
 
 const ACCORD_GREEN  = '#065F46';
 const CURRENT_BLUE  = '#1D4ED8';
@@ -299,188 +299,202 @@ export default function RetirementSecurity() {
   const q1Improvement = Math.round((results[0].acc_p50 / results[0].cur_p50 - 1) * 100);
 
   return (
-    <div style={S.root}>
-      {/* ── Header ── */}
-      <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord</p>
-        <h1 style={S.h1}>Retirement Security</h1>
-        <p style={S.headline}>
+    <PageShell>
+      {/* Header */}
+      <div className="border-l-4 border-emerald-500 pl-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          American Ownership Accord
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Retirement Security</h1>
+        <p className="text-base font-semibold text-emerald-700 mt-2">
           A worker entering the workforce today will accumulate {q1Improvement}% more retirement wealth
           under the Accord than the current system — with a universal AMCF floor that eliminates the
           retirement savings crisis for the bottom 40%.
         </p>
-        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
-          45-year career projection (age 22→67) by income quintile. {N_PATHS.toLocaleString()} Monte Carlo paths
-          per quintile using historical equity return distribution (mean 5% real, σ 16%). All values in 2024 dollars.
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+          45-year career projection (age 22-67) by income quintile. {N_PATHS.toLocaleString()} Monte Carlo paths
+          per quintile using historical equity return distribution (mean 5% real, sigma 16%). All values in 2024 dollars.
         </p>
       </div>
 
-      {/* ── Headline Stats ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 32 }}>
+      {/* Headline Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-8">
         {[
           { label: 'Bottom 20% median retirement wealth', cur: fmtK(results[0].cur_p50), acc: fmtK(results[0].acc_p50) },
           { label: 'Middle 20% median retirement wealth', cur: fmtK(results[2].cur_p50), acc: fmtK(results[2].acc_p50) },
           { label: 'Workers below $250K at retirement', cur: fmtPct(natBelow250k_c), acc: fmtPct(natBelow250k_a) },
           { label: 'Q1 annual retirement income', cur: `$${Math.round(results[0].cur_annualIncome/1000)}K/yr`, acc: `$${Math.round(results[0].acc_annualIncome/1000)}K/yr` },
         ].map((box, i) => (
-          <div key={i} style={{ padding: '16px 18px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#F9FAFB' }}>
-            <p style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>{box.label}</p>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <div><p style={{ fontSize: 10, color: CURRENT_BLUE, marginBottom: 2, fontWeight: 600 }}>CURRENT</p><p style={{ fontSize: 18, fontWeight: 700, color: CURRENT_BLUE }}>{box.cur}</p></div>
-              <div><p style={{ fontSize: 10, color: ACCORD_GREEN, marginBottom: 2, fontWeight: 600 }}>ACCORD</p><p style={{ fontSize: 18, fontWeight: 700, color: ACCORD_GREEN }}>{box.acc}</p></div>
-            </div>
-          </div>
+          <Card key={i}>
+            <CardContent className="pt-4 pb-3 px-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">
+                {box.label}
+              </p>
+              <div className="flex gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold mb-0.5" style={{ color: CURRENT_BLUE }}>CURRENT</p>
+                  <p className="text-lg font-bold" style={{ color: CURRENT_BLUE }}>{box.cur}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold mb-0.5" style={{ color: ACCORD_GREEN }}>ACCORD</p>
+                  <p className="text-lg font-bold" style={{ color: ACCORD_GREEN }}>{box.acc}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* ── Chart 1: Retirement Wealth Comparison ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Median Retirement Wealth at Age 67 by Income Quintile</h2>
-        <p style={S.subtext}>
-          Accord system includes Social Security (unchanged), AMCF account, Worker PSU equity and dividends,
-          continued 401(k), and net prebate savings. Current system includes Social Security and 401(k) only.
-        </p>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={comparisonData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-            <YAxis tickFormatter={fmtK} tick={{ fontSize: 12 }} width={70} />
-            <Tooltip content={<BarTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-            <Bar dataKey="Current System (Median)" fill={CURRENT_BLUE} radius={[3,3,0,0]} />
-            <Bar dataKey="Accord (Median)"         fill={ACCORD_GREEN} radius={[3,3,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Chart 1: Retirement Wealth Comparison */}
+      <ChartContainer
+        title="Median Retirement Wealth at Age 67 by Income Quintile"
+        subtitle="Accord system includes Social Security (unchanged), AMCF account, Worker PSU equity and dividends, continued 401(k), and net prebate savings. Current system includes Social Security and 401(k) only."
+        height={320}
+      >
+        <BarChart data={comparisonData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="name" tick={CHART_AXIS.tick} />
+          <YAxis tickFormatter={fmtK} tick={CHART_AXIS.tick} width={70} />
+          <Tooltip content={<BarTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
+          <Bar dataKey="Current System (Median)" fill={CURRENT_BLUE} radius={[3,3,0,0]} />
+          <Bar dataKey="Accord (Median)"         fill={ACCORD_GREEN} radius={[3,3,0,0]} />
+        </BarChart>
+      </ChartContainer>
 
-        {/* P25/P75 summary */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-          {results.map(r => (
-            <div key={r.shortLabel} style={{ flex: 1, padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11 }}>
-              <p style={{ fontWeight: 700, color: r.color, marginBottom: 4 }}>{r.shortLabel}</p>
-              <p style={{ color: CURRENT_BLUE }}>Current: {fmtK(r.cur_p25)} – {fmtK(r.cur_p75)}</p>
-              <p style={{ color: ACCORD_GREEN }}>Accord: {fmtK(r.acc_p25)} – {fmtK(r.acc_p75)}</p>
-            </div>
+      {/* P25/P75 summary */}
+      <div className="flex gap-3 mt-4">
+        {results.map(r => (
+          <Card key={r.shortLabel} className="flex-1">
+            <CardContent className="py-2.5 px-3">
+              <p className="text-[11px] font-bold mb-1" style={{ color: r.color }}>{r.shortLabel}</p>
+              <p className="text-[11px]" style={{ color: CURRENT_BLUE }}>Current: {fmtK(r.cur_p25)} – {fmtK(r.cur_p75)}</p>
+              <p className="text-[11px]" style={{ color: ACCORD_GREEN }}>Accord: {fmtK(r.acc_p25)} – {fmtK(r.acc_p75)}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+        P25-P75 range shown above. Monte Carlo variance driven by annual return distribution (sigma=16%). AMCF balance is deterministic (doesn't vary with market) — this is why Accord P25 is dramatically higher than current P25 for lower quintiles.
+      </p>
+
+      {/* Chart 2: Accord Wealth Components (Stacked) */}
+      <ChartContainer
+        className="mt-12"
+        title="Accord Retirement Wealth — What's In It"
+        subtitle="Stacked components at median return (5% real). AMCF is equal for every quintile — the most egalitarian element. PSU equity and dividends scale modestly with firm size."
+        source="AMCF: childhood account (~$15K at 18) + 45 years of adult grants growing from $800/yr to $25K+/yr as AMCF scales (Sim 6 validated, uncapped), compounding at 5% real. PSU equity + dividends: worker phantom equity builds to $30K-$95K over 5 years; dividends reinvested at market rate. Prebate: $5,000/person/year less 4% VAT on consumption (New Accord rate); fraction saved."
+        height={320}
+      >
+        <BarChart data={decompData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="name" tick={CHART_AXIS.tick} />
+          <YAxis tickFormatter={fmtK} tick={CHART_AXIS.tick} width={70} />
+          <Tooltip content={<BarTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
+          {Object.keys(DECOMP_COLORS).map(key => (
+            <Bar key={key} dataKey={key} stackId="a" fill={DECOMP_COLORS[key]} />
           ))}
+        </BarChart>
+      </ChartContainer>
+
+      {/* Chart 3: Annual Retirement Income */}
+      <ChartContainer
+        className="mt-12"
+        title="Annual Retirement Income at Age 67 (SS + Drawdown)"
+        subtitle="Assumes 4% Safe Withdrawal Rate on retirement wealth. Social Security unchanged under both systems."
+        height={280}
+      >
+        <BarChart data={incomeData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="name" tick={CHART_AXIS.tick} />
+          <YAxis tickFormatter={fmtK} tick={CHART_AXIS.tick} width={70} />
+          <Tooltip content={<BarTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
+          <Bar dataKey="Current: SS + 401(k) Drawdown"          fill={CURRENT_BLUE} radius={[3,3,0,0]} />
+          <Bar dataKey="Accord: SS + AMCF + PSU Drawdown"       fill={ACCORD_GREEN} radius={[3,3,0,0]} />
+        </BarChart>
+      </ChartContainer>
+
+      {/* Summary Table */}
+      <div className="mt-12">
+        <h2 className="text-lg font-semibold tracking-tight">Retirement Adequacy Metrics by Quintile</h2>
+        <p className="text-sm text-muted-foreground mt-1 mb-6">
+          Fraction of simulated career paths reaching retirement below savings thresholds
+        </p>
+        <div className="rounded-lg border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Income Group</TableHead>
+                <TableHead style={{ color: CURRENT_BLUE }}>Current Median</TableHead>
+                <TableHead style={{ color: ACCORD_GREEN }}>Accord Median</TableHead>
+                <TableHead>Gain</TableHead>
+                <TableHead style={{ color: CURRENT_BLUE }}>{'<$250K'} (Current)</TableHead>
+                <TableHead style={{ color: ACCORD_GREEN }}>{'<$250K'} (Accord)</TableHead>
+                <TableHead>Annual Income (Current)</TableHead>
+                <TableHead>Annual Income (Accord)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {results.map(r => {
+                const gain = r.acc_p50 - r.cur_p50;
+                return (
+                  <TableRow key={r.shortLabel}>
+                    <TableCell className="font-semibold" style={{ color: r.color }}>{r.label}</TableCell>
+                    <TableCell style={{ color: CURRENT_BLUE }}>{fmtK(r.cur_p50)}</TableCell>
+                    <TableCell className="font-semibold" style={{ color: ACCORD_GREEN }}>{fmtK(r.acc_p50)}</TableCell>
+                    <TableCell className="font-semibold" style={{ color: '#059669' }}>+{fmtK(gain)} ({Math.round((r.acc_p50/r.cur_p50 - 1)*100)}%)</TableCell>
+                    <TableCell style={{ color: CURRENT_BLUE }}>{fmtPct(r.n250k_c)}</TableCell>
+                    <TableCell style={{ color: ACCORD_GREEN }}>{fmtPct(r.n250k_a)}</TableCell>
+                    <TableCell>{fmtK(r.cur_annualIncome)}/yr</TableCell>
+                    <TableCell className="font-semibold">{fmtK(r.acc_annualIncome)}/yr</TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow className="bg-muted/50 font-bold">
+                <TableCell>National Average</TableCell>
+                <TableCell style={{ color: CURRENT_BLUE }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_p50,0)/results.length))}</TableCell>
+                <TableCell style={{ color: ACCORD_GREEN }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.acc_p50,0)/results.length))}</TableCell>
+                <TableCell style={{ color: '#059669' }}>+{Math.round((results.reduce((s,r)=>s+r.acc_p50,0)/results.reduce((s,r)=>s+r.cur_p50,0) - 1)*100)}%</TableCell>
+                <TableCell style={{ color: CURRENT_BLUE }}>{fmtPct(natBelow250k_c)}</TableCell>
+                <TableCell style={{ color: ACCORD_GREEN }}>{fmtPct(natBelow250k_a)}</TableCell>
+                <TableCell>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_annualIncome,0)/results.length))}/yr</TableCell>
+                <TableCell>{fmtK(Math.round(results.reduce((s,r)=>s+r.acc_annualIncome,0)/results.length))}/yr</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
-        <p style={S.source}>P25–P75 range shown above. Monte Carlo variance driven by annual return distribution (σ=16%). AMCF balance is deterministic (doesn't vary with market) — this is why Accord P25 is dramatically higher than current P25 for lower quintiles.</p>
       </div>
 
-      {/* ── Chart 2: Accord Wealth Components (Stacked) ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Accord Retirement Wealth — What's In It</h2>
-        <p style={S.subtext}>
-          Stacked components at median return (5% real). AMCF is equal for every quintile —
-          the most egalitarian element. PSU equity and dividends scale modestly with firm size.
-        </p>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={decompData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-            <YAxis tickFormatter={fmtK} tick={{ fontSize: 12 }} width={70} />
-            <Tooltip content={<BarTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-            {Object.keys(DECOMP_COLORS).map(key => (
-              <Bar key={key} dataKey={key} stackId="a" fill={DECOMP_COLORS[key]} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-        <p style={S.source}>
-          AMCF: childhood account (~$15K at 18) + 45 years of adult grants growing from $800/yr to $25K+/yr as AMCF scales (Sim 6 validated, uncapped), compounding at 5% real.
-          PSU equity + dividends: worker phantom equity builds to $30K–$95K over 5 years; dividends reinvested at market rate.
-          Prebate: $5,000/person/year less 4% VAT on consumption (New Accord rate); fraction saved.
-        </p>
-      </div>
+      {/* Key Insight Box */}
+      <Card className="mt-8 bg-emerald-50/50 border-emerald-200/50">
+        <CardContent className="pt-5 pb-4 px-5">
+          <p className="font-semibold text-emerald-800 mb-2">The Universal Floor</p>
+          <p className="text-sm text-emerald-900/80 leading-relaxed">
+            The AMCF citizen grant program creates a retirement wealth floor that is <em>independent of market performance</em>.
+            Every worker who enters the workforce today will accumulate approximately{' '}
+            <strong>{fmtK(Math.round(results[0].decompAccord['AMCF Account']))}</strong> in their AMCF account by retirement —
+            regardless of 401(k) participation, investment timing, or career interruptions.
+            This is the structural transformation that eliminates the retirement savings crisis for the bottom 40%:
+            universal compounding wealth from birth, not a means-tested benefit subject to cliff effects.
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* ── Chart 3: Annual Retirement Income ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Annual Retirement Income at Age 67 (SS + Drawdown)</h2>
-        <p style={S.subtext}>Assumes 4% Safe Withdrawal Rate on retirement wealth. Social Security unchanged under both systems.</p>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={incomeData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-            <YAxis tickFormatter={fmtK} tick={{ fontSize: 12 }} width={70} />
-            <Tooltip content={<BarTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-            <Bar dataKey="Current: SS + 401(k) Drawdown"          fill={CURRENT_BLUE} radius={[3,3,0,0]} />
-            <Bar dataKey="Accord: SS + AMCF + PSU Drawdown"       fill={ACCORD_GREEN} radius={[3,3,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ── Summary Table ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Retirement Adequacy Metrics by Quintile</h2>
-        <p style={S.subtext}>Fraction of simulated career paths reaching retirement below savings thresholds</p>
-        <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={S.th}>Income Group</th>
-              <th style={{ ...S.th, color: CURRENT_BLUE }}>Current Median</th>
-              <th style={{ ...S.th, color: ACCORD_GREEN }}>Accord Median</th>
-              <th style={S.th}>Gain</th>
-              <th style={{ ...S.th, color: CURRENT_BLUE }}>{'<$250K'} (Current)</th>
-              <th style={{ ...S.th, color: ACCORD_GREEN }}>{'<$250K'} (Accord)</th>
-              <th style={S.th}>Annual Income (Current)</th>
-              <th style={S.th}>Annual Income (Accord)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map(r => {
-              const gain = r.acc_p50 - r.cur_p50;
-              return (
-                <tr key={r.shortLabel}>
-                  <td style={{ ...S.td, fontWeight: 600, color: r.color }}>{r.label}</td>
-                  <td style={{ ...S.td, color: CURRENT_BLUE }}>{fmtK(r.cur_p50)}</td>
-                  <td style={{ ...S.td, color: ACCORD_GREEN, fontWeight: 600 }}>{fmtK(r.acc_p50)}</td>
-                  <td style={{ ...S.td, color: '#059669' }}>+{fmtK(gain)} ({Math.round((r.acc_p50/r.cur_p50 - 1)*100)}%)</td>
-                  <td style={{ ...S.td, color: CURRENT_BLUE }}>{fmtPct(r.n250k_c)}</td>
-                  <td style={{ ...S.td, color: ACCORD_GREEN }}>{fmtPct(r.n250k_a)}</td>
-                  <td style={S.td}>{fmtK(r.cur_annualIncome)}/yr</td>
-                  <td style={{ ...S.td, fontWeight: 600 }}>{fmtK(r.acc_annualIncome)}/yr</td>
-                </tr>
-              );
-            })}
-            <tr style={{ background: '#F9FAFB', fontWeight: 700 }}>
-              <td style={S.td}>National Average</td>
-              <td style={{ ...S.td, color: CURRENT_BLUE }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_p50,0)/results.length))}</td>
-              <td style={{ ...S.td, color: ACCORD_GREEN }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.acc_p50,0)/results.length))}</td>
-              <td style={{ ...S.td, color: '#059669' }}>+{Math.round((results.reduce((s,r)=>s+r.acc_p50,0)/results.reduce((s,r)=>s+r.cur_p50,0) - 1)*100)}%</td>
-              <td style={{ ...S.td, color: CURRENT_BLUE }}>{fmtPct(natBelow250k_c)}</td>
-              <td style={{ ...S.td, color: ACCORD_GREEN }}>{fmtPct(natBelow250k_a)}</td>
-              <td style={S.td}>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_annualIncome,0)/results.length))}/yr</td>
-              <td style={S.td}>{fmtK(Math.round(results.reduce((s,r)=>s+r.acc_annualIncome,0)/results.length))}/yr</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── Key Insight Box ── */}
-      <div style={{ marginTop: 32, padding: '20px 24px', background: '#ECFDF5', borderRadius: 8, border: '1px solid #A7F3D0' }}>
-        <p style={{ fontWeight: 700, color: '#065F46', marginBottom: 8 }}>The Universal Floor</p>
-        <p style={{ fontSize: 13, color: '#064E3B', lineHeight: 1.7 }}>
-          The AMCF citizen grant program creates a retirement wealth floor that is <em>independent of market performance</em>.
-          Every worker who enters the workforce today will accumulate approximately{' '}
-          <strong>{fmtK(Math.round(results[0].decompAccord['AMCF Account']))}</strong> in their AMCF account by retirement —
-          regardless of 401(k) participation, investment timing, or career interruptions.
-          This is the structural transformation that eliminates the retirement savings crisis for the bottom 40%:
-          universal compounding wealth from birth, not a means-tested benefit subject to cliff effects.
-        </p>
-      </div>
-
-      {/* ── Methodology Note ── */}
-      <div style={{ marginTop: 32, padding: '16px 20px', background: '#F9FAFB', borderRadius: 8, fontSize: 11, color: '#6B7280', lineHeight: 1.7 }}>
-        <strong style={{ color: '#374151' }}>Methodology:</strong>{' '}
-        Monte Carlo simulation: {N_PATHS.toLocaleString()} paths × {CAREER_YRS} years × 5 quintiles.
+      {/* Methodology Note */}
+      <InfoBox className="mt-6">
+        <strong className="text-foreground">Methodology:</strong>{' '}
+        Monte Carlo simulation: {N_PATHS.toLocaleString()} paths x {CAREER_YRS} years x 5 quintiles.
         Annual real equity returns drawn from N(5%, 16%) using seeded LCG + Box-Muller.
         Current system: 401(k) contributions at quintile-specific participation rate (9% combined employee+employer),
         plus minimal personal savings (2.5% for non-participants). Social Security unchanged under both systems.
-        Accord additions: per-person AMCF grants ($500–$800 floor Yrs 1–9, then growing uncapped: $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 per Sim 6) compounding at 5% real
-        from childhood account; worker PSU equity building to $30K–$95K equilibrium over 5 years paying 3.5% dividends
+        Accord additions: per-person AMCF grants ($500-$800 floor Yrs 1-9, then growing uncapped: $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 per Sim 6) compounding at 5% real
+        from childhood account; worker PSU equity building to $30K-$95K equilibrium over 5 years paying 3.5% dividends
         (psuEquil values represent employment-weighted average across Tier 1 sectoral fund, Tier 2 phantom equity, and Tier 3 PSU per quintile distribution);
         net prebate-minus-VAT (4% New Accord rate) fiscal benefit saved at income-appropriate rates.
         All values in 2024 real (inflation-adjusted) dollars. BLS age-earnings profiles applied.
-      </div>
-    </div>
+      </InfoBox>
+    </PageShell>
   );
 }

@@ -9,6 +9,17 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ReferenceLine, Cell
 } from 'recharts';
+import { DashboardShell } from '@/components/layout/DashboardShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { SliderControl } from '@/components/controls/SliderControl';
+import { DemoChips } from '@/components/controls/DemoChips';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
+import { cn } from '@/lib/utils';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
@@ -482,21 +493,25 @@ function computeGini(pts) {
 // ║  SHARED CHART COMPONENTS                             ║
 // ╚══════════════════════════════════════════════════════╝
 
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
+};
+
 const TTip = ({ active, payload, label, fmt, isBar }) => {
   if (!active || !payload?.length) return null;
   const head = isBar ? payload[0]?.payload?.demo : `Year ${label}`;
   return (
-    <div style={{ background:'#1e293b', border:'1px solid #475569', borderRadius:8,
-      padding:'10px 14px', fontSize:12, color:'#e2e8f0', maxWidth:280, zIndex:1000 }}>
-      <div style={{ fontWeight:700, marginBottom:6, color:'#f1f5f9' }}>{head}</div>
+    <div style={{ ...TOOLTIP_STYLE, maxWidth:280, zIndex:1000 }}>
+      <div className="font-bold mb-1.5 text-zinc-100">{head}</div>
       {payload.slice(0, 12).map((p, i) => {
         const v = fmt ? fmt(p.value) : (typeof p.value === 'number' ? p.value.toFixed(3) : p.value);
         return (
-          <div key={i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:2 }}>
-            <span style={{ width:10, height:10, borderRadius:2, background:p.fill || p.stroke,
-              display:'inline-block', flexShrink:0 }}/>
-            <span style={{ color:'#cbd5e1' }}>{p.name}:</span>
-            <b style={{ marginLeft:'auto', paddingLeft:8 }}>{v}</b>
+          <div key={i} className="flex items-center gap-1.5 mb-0.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+              style={{ background: p.fill || p.stroke }}/>
+            <span className="text-zinc-300">{p.name}:</span>
+            <b className="ml-auto pl-2">{v}</b>
           </div>
         );
       })}
@@ -512,13 +527,6 @@ const TTip = ({ active, payload, label, fmt, isBar }) => {
 function SnapshotTable({ title, demos, getValue, getCL, fmt, deltaFmt, note }) {
   // Year 0 is always the baseline — ignore provision toggles
   const getV = (k, y) => (y === 0 && getCL) ? getCL(k, y) : getValue(k, y);
-  const thS = { padding:'5px 10px', fontWeight:700, borderBottom:'2px solid #e2e8f0',
-    whiteSpace:'nowrap', textAlign:'right', background:'#f8fafc', fontSize:11 };
-  const thL = { ...thS, textAlign:'left', color:'#64748b', minWidth:50 };
-  const tdS = { padding:'4px 10px', borderBottom:'1px solid #f1f5f9', textAlign:'right',
-    whiteSpace:'nowrap', fontSize:11, color:'#0f172a' };
-  const tdL = { ...tdS, textAlign:'left', fontWeight:600, color:'#64748b' };
-  const tbl = { borderCollapse:'collapse', width:'100%' };
   const dFmt = deltaFmt || ((d, clV) => {
     const pos = d >= 0;
     const pct = clV && Math.abs(clV) > 0 ? ` (${pos?'+':''}${(d/Math.abs(clV)*100).toFixed(1)}%)` : '';
@@ -526,54 +534,63 @@ function SnapshotTable({ title, demos, getValue, getCL, fmt, deltaFmt, note }) {
   });
   return (
     <div>
-      <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>{title}</div>
-      {note && <div style={{ fontSize:11, color:'#94a3b8', marginBottom:6 }}>{note}</div>}
-      <div style={{ overflowX:'auto' }}>
-        <table style={tbl}>
-          <thead>
-            <tr>
-              <th style={thL}>Year</th>
-              {demos.map(k => <th key={k} style={{ ...thS, color:DEMOS[k].color }}>{DEMOS[k].short}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {SNAP_YEARS.map((y, i) => (
-              <tr key={y} style={{ background: i%2 ? '#f8fafc' : '#fff' }}>
-                <td style={tdL}>Yr {y}</td>
-                {demos.map(k => <td key={k} style={tdS}>{fmt(getV(k, y))}</td>)}
-              </tr>
+      <div className="text-sm font-bold text-foreground mb-1">{title}</div>
+      {note && <div className="text-[11px] text-muted-foreground mb-1.5">{note}</div>}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="text-left text-muted-foreground text-[11px] min-w-[50px]">Year</TableHead>
+            {demos.map(k => (
+              <TableHead key={k} className="text-right text-[11px] font-bold" style={{ color: DEMOS[k].color }}>
+                {DEMOS[k].short}
+              </TableHead>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {SNAP_YEARS.map((y, i) => (
+            <TableRow key={y} className={i % 2 ? 'bg-muted/30' : ''}>
+              <TableCell className="text-left font-semibold text-muted-foreground text-[11px]">Yr {y}</TableCell>
+              {demos.map(k => (
+                <TableCell key={k} className="text-right text-[11px] text-foreground">{fmt(getV(k, y))}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       {getCL && (
         <>
-          <div style={{ fontSize:11, fontWeight:600, color:'#94a3b8', margin:'12px 0 4px' }}>vs Current Law</div>
-          <div style={{ overflowX:'auto' }}>
-            <table style={tbl}>
-              <thead>
-                <tr>
-                  <th style={thL}>Year</th>
-                  {demos.map(k => <th key={k} style={{ ...thS, color:DEMOS[k].color }}>{DEMOS[k].short}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {SNAP_YEARS.map((y, i) => (
-                  <tr key={y} style={{ background: i%2 ? '#f8fafc' : '#fff' }}>
-                    <td style={tdL}>Yr {y}</td>
-                    {demos.map(k => {
-                      const v = getV(k, y), cl = getCL(k, y), d = v - cl;
-                      return (
-                        <td key={k} style={{ ...tdS, color: d>=0 ? '#16a34a' : '#dc2626', fontWeight:600 }}>
-                          {dFmt(d, cl)}
-                        </td>
-                      );
-                    })}
-                  </tr>
+          <div className="text-[11px] font-semibold text-muted-foreground mt-3 mb-1">vs Current Law</div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-left text-muted-foreground text-[11px] min-w-[50px]">Year</TableHead>
+                {demos.map(k => (
+                  <TableHead key={k} className="text-right text-[11px] font-bold" style={{ color: DEMOS[k].color }}>
+                    {DEMOS[k].short}
+                  </TableHead>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {SNAP_YEARS.map((y, i) => (
+                <TableRow key={y} className={i % 2 ? 'bg-muted/30' : ''}>
+                  <TableCell className="text-left font-semibold text-muted-foreground text-[11px]">Yr {y}</TableCell>
+                  {demos.map(k => {
+                    const v = getV(k, y), cl = getCL(k, y), d = v - cl;
+                    return (
+                      <TableCell key={k} className={cn(
+                        'text-right text-[11px] font-semibold',
+                        d >= 0 ? 'text-green-600' : 'text-red-600'
+                      )}>
+                        {dFmt(d, cl)}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </>
       )}
     </div>
@@ -589,12 +606,9 @@ function SnapshotTable({ title, demos, getValue, getCL, fmt, deltaFmt, note }) {
 // isTotal rows render bold with a heavier top border and no bar.
 // isSep rows render as a visual divider with label text.
 function CompositionTable({ title, demos, getRows, note }) {
-  const thS = { padding:'5px 10px', fontWeight:700, textAlign:'right', background:'#f8fafc',
-    fontSize:11, borderBottom:'1px solid #e2e8f0', whiteSpace:'nowrap', color:'#64748b' };
-  const thL = { ...thS, textAlign:'left', minWidth:180, color:'#475569' };
   return (
     <div>
-      <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:14 }}>{title}</div>
+      <div className="text-sm font-bold text-foreground mb-3.5">{title}</div>
       {demos.map(k => {
         const d = DEMOS[k];
         const byYear = SNAP_YEARS.map(y => getRows(k, y));
@@ -604,47 +618,43 @@ function CompositionTable({ title, demos, getRows, note }) {
           Math.max(...byYear.map(yr => Math.abs(yr[ri]?.value ?? 0)), 1)
         );
         return (
-          <div key={k} style={{ marginBottom:18, overflowX:'auto' }}>
-            <div style={{
-              background:d.color, color:'#fff', padding:'5px 12px',
-              fontSize:12, fontWeight:700, borderRadius:'4px 4px 0 0', letterSpacing:'0.02em',
-            }}>
+          <div key={k} className="mb-4.5 overflow-x-auto">
+            <div className="text-xs font-bold tracking-wide text-white px-3 py-1.5 rounded-t"
+              style={{ backgroundColor: d.color }}>
               {d.label}
             </div>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12,
-              border:'1px solid #e2e8f0', borderTop:'none' }}>
+            <table className="w-full border-collapse text-xs border border-border border-t-0">
               <thead>
                 <tr>
-                  <th style={thL}>Component</th>
-                  {SNAP_YEARS.map(y => <th key={y} style={thS}>Year {y}</th>)}
+                  <th className="text-left p-1.5 px-3 font-bold text-muted-foreground bg-muted/50 border-b border-border min-w-[180px] text-[11px]">Component</th>
+                  {SNAP_YEARS.map(y => (
+                    <th key={y} className="text-right p-1.5 px-2.5 font-bold text-muted-foreground bg-muted/50 border-b border-border whitespace-nowrap text-[11px]">Year {y}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {schema.map((row, ri) => {
                   if (row.isSep) return (
                     <tr key={ri}>
-                      <td colSpan={6} style={{ padding:'3px 12px', background:'#f1f5f9',
-                        fontSize:11, color:'#64748b', fontStyle:'italic',
-                        borderTop:'1px solid #e2e8f0', borderBottom:'1px solid #e2e8f0' }}>
+                      <td colSpan={6} className="px-3 py-0.5 bg-muted/50 text-[11px] text-muted-foreground italic border-y border-border">
                         {row.name}
                       </td>
                     </tr>
                   );
                   const isTotal = row.isTotal;
                   return (
-                    <tr key={ri} style={{
-                      background: isTotal ? '#f0f9ff' : 'white',
-                      fontWeight: isTotal ? 700 : 400,
-                      borderTop: isTotal ? '2px solid #cbd5e1' : 'none',
-                    }}>
-                      <td style={{ padding:'4px 12px', color: isTotal ? '#0f172a' : '#475569',
-                        borderBottom:'1px solid #f1f5f9', whiteSpace:'nowrap' }}>
+                    <tr key={ri} className={cn(
+                      isTotal ? 'bg-blue-50/50 font-bold border-t-2 border-t-zinc-300' : 'bg-white',
+                    )}>
+                      <td className={cn(
+                        'p-1 px-3 border-b border-zinc-50 whitespace-nowrap text-[12px]',
+                        isTotal ? 'text-foreground' : 'text-muted-foreground'
+                      )}>
                         {!isTotal && (
-                          <span style={{ display:'inline-block', width:8, height:8,
-                            borderRadius:2, background:row.fill,
-                            marginRight:7, verticalAlign:'middle' }}/>
+                          <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle"
+                            style={{ background: row.fill }}/>
                         )}
-                        <span style={{ verticalAlign:'middle' }}>{row.name}</span>
+                        <span className="align-middle">{row.name}</span>
                       </td>
                       {byYear.map((yr, yi) => {
                         const v = yr[ri]?.value ?? 0;
@@ -655,14 +665,14 @@ function CompositionTable({ title, demos, getRows, note }) {
                           : isNeg ? '#dc2626'
                           : v > 0 ? '#15803d' : '#94a3b8';
                         return (
-                          <td key={yi} style={{
-                            padding:'4px 10px', textAlign:'right', whiteSpace:'nowrap',
-                            fontVariantNumeric:'tabular-nums', color: textColor,
-                            borderBottom: isTotal ? 'none' : '1px solid #f1f5f9',
-                            background: (!isTotal && v !== 0)
-                              ? `linear-gradient(to right, ${barColor} ${pct}%, transparent ${pct}%)`
-                              : 'transparent',
-                          }}>
+                          <td key={yi} className="p-1 px-2.5 text-right whitespace-nowrap tabular-nums"
+                            style={{
+                              color: textColor,
+                              borderBottom: isTotal ? 'none' : '1px solid #f8fafc',
+                              background: (!isTotal && v !== 0)
+                                ? `linear-gradient(to right, ${barColor} ${pct}%, transparent ${pct}%)`
+                                : 'transparent',
+                            }}>
                             {fD(v)}
                           </td>
                         );
@@ -675,20 +685,16 @@ function CompositionTable({ title, demos, getRows, note }) {
           </div>
         );
       })}
-      {note && <div style={{ fontSize:11, color:'#64748b', marginTop:4, fontStyle:'italic' }}>{note}</div>}
+      {note && <div className="text-[11px] text-muted-foreground mt-1 italic">{note}</div>}
     </div>
   );
 }
 
-const ChartHeader = ({ title, desc }) => (
-  <div style={{ marginBottom:12 }}>
-    <div style={{ fontSize:16, fontWeight:700, color:'#0f172a' }}>{title}</div>
-    <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>{desc}</div>
+const noData = (
+  <div className="flex items-center justify-center h-[350px] text-muted-foreground text-sm">
+    Select at least one demographic to display
   </div>
 );
-
-const noData = <div style={{ display:'flex', alignItems:'center', justifyContent:'center',
-  height:350, color:'#94a3b8', fontSize:14 }}>Select at least one demographic to display</div>;
 
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 1: AVERAGE ANNUAL INCOME                      ║
@@ -717,9 +723,9 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar }) {
     return (
       <ResponsiveContainer width="100%" height={380}>
         <BarChart data={normData} margin={{ top:20, right:20, bottom:10, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+          <CartesianGrid {...CHART_GRID}/>
           <XAxis dataKey="demo" tick={{ fill:'#475569', fontSize:12 }}/>
-          <YAxis tickFormatter={bFmt} tick={{ fill:'#475569', fontSize:11 }} width={85}/>
+          <YAxis tickFormatter={bFmt} tick={CHART_AXIS.tick} width={85}/>
           <Tooltip content={<TTip fmt={bFmt} isBar/>}/>
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <Bar dataKey="base" stackId="s" name="Current Law" fill="#94a3b8"/>
@@ -738,9 +744,9 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar }) {
   return (
     <ResponsiveContainer width="100%" height={380}>
       <LineChart data={lData} margin={{ top:20, right:20, bottom:20, left:90 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-        <YAxis tickFormatter={fD} tick={{ fill:'#475569', fontSize:11 }} width={85} {...yAx}/>
+        <CartesianGrid {...CHART_GRID}/>
+        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+        <YAxis tickFormatter={fD} tick={CHART_AXIS.tick} width={85} {...yAx}/>
         <Tooltip content={<TTip fmt={fD}/>}/>
         <Legend wrapperStyle={{ fontSize:12 }}/>
         {demos.map(k => <Line key={k} dataKey={k} name={DEMOS[k].label} stroke={DEMOS[k].color}
@@ -785,9 +791,9 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar }) {
     return (
       <ResponsiveContainer width="100%" height={380}>
         <BarChart data={normData} margin={{ top:20, right:20, bottom:10, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+          <CartesianGrid {...CHART_GRID}/>
           <XAxis dataKey="demo" tick={{ fill:'#475569', fontSize:12 }}/>
-          <YAxis tickFormatter={bFmt} tick={{ fill:'#475569', fontSize:11 }} width={85}/>
+          <YAxis tickFormatter={bFmt} tick={CHART_AXIS.tick} width={85}/>
           <Tooltip content={<TTip fmt={bFmt} isBar/>}/>
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <Bar dataKey="base" stackId="s" name="Current Law NW" fill="#94a3b8"/>
@@ -806,9 +812,9 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar }) {
   return (
     <ResponsiveContainer width="100%" height={380}>
       <LineChart data={lData} margin={{ top:20, right:20, bottom:20, left:90 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-        <YAxis tickFormatter={fD} tick={{ fill:'#475569', fontSize:11 }} width={85} {...yAx}/>
+        <CartesianGrid {...CHART_GRID}/>
+        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+        <YAxis tickFormatter={fD} tick={CHART_AXIS.tick} width={85} {...yAx}/>
         <Tooltip content={<TTip fmt={fD}/>}/>
         <Legend wrapperStyle={{ fontSize:12 }}/>
         {demos.map(k => <Line key={k} dataKey={k} name={DEMOS[k].label} stroke={DEMOS[k].color}
@@ -855,15 +861,15 @@ function Chart3({ demos, P, stacked }) {
     const hasOther = stackData[0]?._other > 0.1;
     return (
       <div>
-        <div style={{ fontSize:11, color:'#94a3b8', marginBottom:8 }}>
-          Stacked share of national wealth. "Other" (gray) = unselected demographics. Toggle demos freely — chart always sums to 100%.
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Stacked share of national wealth. &quot;Other&quot; (gray) = unselected demographics. Toggle demos freely — chart always sums to 100%.
           Note: Q2/Q3/Q4 each span two decile bands (data limitation; splitting would require fabricated values).
-        </div>
+        </p>
         <ResponsiveContainer width="100%" height={380}>
           <AreaChart data={stackData} margin={{ top:10, right:20, bottom:20, left:60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-            <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-            <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
+            <CartesianGrid {...CHART_GRID}/>
+            <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+            <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={CHART_AXIS.tick} width={55}/>
             <Tooltip content={<TTip fmt={v => `${v.toFixed(2)}%`}/>}/>
             <Legend wrapperStyle={{ fontSize:12 }}/>
             {demos.map(k => (
@@ -883,9 +889,9 @@ function Chart3({ demos, P, stacked }) {
   return (
     <ResponsiveContainer width="100%" height={380}>
       <LineChart data={lineData} margin={{ top:20, right:20, bottom:20, left:60 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-        <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
+        <CartesianGrid {...CHART_GRID}/>
+        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+        <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={CHART_AXIS.tick} width={55}/>
         <Tooltip content={<TTip fmt={v => `${v.toFixed(2)}%`}/>}/>
         <Legend wrapperStyle={{ fontSize:12 }}/>
         {demos.map(k => <Line key={k} dataKey={k} name={DEMOS[k].label} stroke={DEMOS[k].color}
@@ -918,15 +924,15 @@ function Chart4({ demos, P, stacked }) {
     const hasOther = stackData[0]?._other > 0.1;
     return (
       <div>
-        <div style={{ fontSize:11, color:'#94a3b8', marginBottom:8 }}>
-          Stacked share of national income. "Other" (gray) = unselected demographics. Toggle demos freely — chart always sums to 100%.
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Stacked share of national income. &quot;Other&quot; (gray) = unselected demographics. Toggle demos freely — chart always sums to 100%.
           Note: Q2/Q3/Q4 each span two decile bands (data limitation; splitting would require fabricated values).
-        </div>
+        </p>
         <ResponsiveContainer width="100%" height={380}>
           <AreaChart data={stackData} margin={{ top:10, right:20, bottom:20, left:60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-            <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-            <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
+            <CartesianGrid {...CHART_GRID}/>
+            <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+            <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} tick={CHART_AXIS.tick} width={55}/>
             <Tooltip content={<TTip fmt={v => `${v.toFixed(2)}%`}/>}/>
             <Legend wrapperStyle={{ fontSize:12 }}/>
             {demos.map(k => (
@@ -946,9 +952,9 @@ function Chart4({ demos, P, stacked }) {
   return (
     <ResponsiveContainer width="100%" height={380}>
       <LineChart data={lineData} margin={{ top:20, right:20, bottom:20, left:60 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-        <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
+        <CartesianGrid {...CHART_GRID}/>
+        <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+        <YAxis tickFormatter={v => `${v.toFixed(1)}%`} tick={CHART_AXIS.tick} width={55}/>
         <Tooltip content={<TTip fmt={v => `${v.toFixed(2)}%`}/>}/>
         <Legend wrapperStyle={{ fontSize:12 }}/>
         {demos.map(k => <Line key={k} dataKey={k} name={DEMOS[k].label} stroke={DEMOS[k].color}
@@ -972,17 +978,17 @@ function Chart5({ demos, P }) {
   if (!demos.length) return noData;
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
-        ETR = taxes paid minus universal prebate/carbon offset ÷ gross income. Negative = prebate exceeds taxes.
+      <p className="text-xs text-muted-foreground mb-2">
+        ETR = taxes paid minus universal prebate/carbon offset / gross income. Negative = prebate exceeds taxes.
         T10/T1/BILL/ELON use explicit ETR anchors calibrated from Accord statutory rates (Day 1 reform applies
         immediately) growing as avoidance channels close. Lower brackets use the net income-tax reform delta.
         AMCF grants and PSU equity income are excluded — those are ownership returns shown in Chart 1.
-      </div>
+      </p>
       <ResponsiveContainer width="100%" height={360}>
         <LineChart data={data} margin={{ top:10, right:20, bottom:20, left:60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-          <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-          <YAxis tickFormatter={v => `${v.toFixed(0)}%`} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
+          <CartesianGrid {...CHART_GRID}/>
+          <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+          <YAxis tickFormatter={v => `${v.toFixed(0)}%`} tick={CHART_AXIS.tick} width={55}/>
           <Tooltip content={<TTip fmt={v => `${v.toFixed(1)}%`}/>}/>
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <ReferenceLine y={0} stroke="#64748b" strokeDasharray="4 4" label={{ value:'0%', position:'right', fontSize:11 }}/>
@@ -1045,17 +1051,6 @@ function Chart6({ P }) {
     };
   }), [[...P].sort().join(',')]);
 
-  const toggleBtn = (key, label, color) => (
-    <button key={key} onClick={() => setShowCountries(s => ({ ...s, [key]: !s[key] }))}
-      style={{
-        padding: '3px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-        border: showCountries[key] ? `2px solid ${color}` : '1px solid #d1d5db',
-        background: showCountries[key] ? `${color}15` : '#fff',
-        color: showCountries[key] ? color : '#9ca3af', fontWeight: showCountries[key] ? 600 : 400,
-        fontFamily: "'DM Sans', sans-serif",
-      }}>{label}</button>
-  );
-
   const refLines = (type) => GINI_COMPARISONS[type]
     .filter(c => showCountries[c.key])
     .map(c => <ReferenceLine key={c.key} y={c.value} stroke={c.color} strokeDasharray="3 3"
@@ -1063,20 +1058,27 @@ function Chart6({ P }) {
 
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:6 }}>
-        0 = perfect equality · 1 = perfect inequality. Anchored to empirical US baselines (BLS/SCF 2022).
+      <p className="text-xs text-muted-foreground mb-1.5">
+        0 = perfect equality, 1 = perfect inequality. Anchored to empirical US baselines (BLS/SCF 2022).
         Provision toggles show each mechanism's contribution to inequality reduction.
+      </p>
+      <div className="flex gap-1.5 flex-wrap mb-3 items-center">
+        <span className="text-[11px] text-muted-foreground font-semibold">Compare:</span>
+        {GINI_COMPARISONS.income.map(c => (
+          <Button key={c.key} variant={showCountries[c.key] ? 'outline' : 'ghost'} size="xs"
+            onClick={() => setShowCountries(s => ({ ...s, [c.key]: !s[c.key] }))}
+            className={cn('text-[11px]', showCountries[c.key] ? 'font-semibold' : 'opacity-60')}
+            style={showCountries[c.key] ? { borderColor: c.color, color: c.color, background: `${c.color}15` } : undefined}>
+            {c.label}
+          </Button>
+        ))}
       </div>
-      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12, alignItems:'center' }}>
-        <span style={{ fontSize:11, color:'#64748b', fontWeight:600 }}>Compare:</span>
-        {GINI_COMPARISONS.income.map(c => toggleBtn(c.key, c.label, c.color))}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>Income Gini</div>
+          <div className="text-sm font-bold text-foreground mb-1">Income Gini</div>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={data} margin={{ top:10, right:80, bottom:20, left:10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+              <CartesianGrid {...CHART_GRID}/>
               <XAxis dataKey="year" tick={{ fill:'#475569', fontSize:10 }}/>
               <YAxis domain={[0.20, 0.55]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:10 }} width={40}/>
               <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
@@ -1086,10 +1088,10 @@ function Chart6({ P }) {
           </ResponsiveContainer>
         </div>
         <div>
-          <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>Wealth Gini</div>
+          <div className="text-sm font-bold text-foreground mb-1">Wealth Gini</div>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={data} margin={{ top:10, right:80, bottom:20, left:10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+              <CartesianGrid {...CHART_GRID}/>
               <XAxis dataKey="year" tick={{ fill:'#475569', fontSize:10 }}/>
               <YAxis domain={[0.60, 0.90]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:10 }} width={40}/>
               <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
@@ -1137,16 +1139,16 @@ function Chart7({ demos, P, snYear, normalizedBar }) {
 
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+      <p className="text-xs text-muted-foreground mb-2">
         Components of household wealth at Year {snYear}. AMCF, PSU Dividends, and PSU Cashouts appear
         only when those provisions are active. Lower brackets shift from financial assets toward
         AMCF + PSU over time.{normalizedBar ? ' Normalized to 100% of total NW.' : ''}
-      </div>
+      </p>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={normData} margin={{ top:10, right:20, bottom:10, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+          <CartesianGrid {...CHART_GRID}/>
           <XAxis dataKey="demo" tick={{ fill:'#475569', fontSize:12 }}/>
-          <YAxis tickFormatter={bFmt} tick={{ fill:'#475569', fontSize:11 }} width={85}/>
+          <YAxis tickFormatter={bFmt} tick={CHART_AXIS.tick} width={85}/>
           <Tooltip content={<TTip fmt={bFmt} isBar/>}/>
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <Bar dataKey="homeEquity" stackId="s" name="Home Equity"    fill="#f97316"/>
@@ -1239,19 +1241,19 @@ function Chart8({ demos, P, snYear, view, normalizedBar }) {
 
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+      <p className="text-xs text-muted-foreground mb-2">
         {view === 'time'
           ? `${demoLabel} — cash flow components over 30 years.`
           : `All selected demographics — cash flow at Year ${snYear}.`}
         {' '}Positive bars = income & benefits. Negative bars = tax burdens. Line = net disposable
         {normalizedBar ? ' (% of gross income).' : '.'}
-      </div>
+      </p>
       <ResponsiveContainer width="100%" height={390}>
         <ComposedChart data={data} margin={{ top:20, right:24, bottom: view==='demos' ? 10 : 30, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-          <XAxis dataKey={xKey} tick={{ fill:'#475569', fontSize:11 }}
+          <CartesianGrid {...CHART_GRID}/>
+          <XAxis dataKey={xKey} tick={CHART_AXIS.tick}
             label={view==='time' ? { value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 } : undefined}/>
-          <YAxis tickFormatter={fmt} tick={{ fill:'#475569', fontSize:11 }} width={85}/>
+          <YAxis tickFormatter={fmt} tick={CHART_AXIS.tick} width={85}/>
           <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5}/>
           <Tooltip content={<TTip fmt={fmt} isBar={view==='demos'}/>}/>
           <Legend wrapperStyle={{ fontSize:11 }}/>
@@ -1374,19 +1376,19 @@ function Chart10({ demos, P, snYear, view, normalizedBar, logScale }) {
 
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+      <p className="text-xs text-muted-foreground mb-2">
         {view === 'time'
           ? `${demoLabel} — wealth accumulation components over 30 years.`
           : `All selected demographics — wealth flow at Year ${snYear}.`}
         {' '}Positive = wealth gains. Negative = tax drag. Line = net worth total.
         {normalizedBar ? ' Normalized to current-law NW at each year = 100%. Net line above 100% = richer than CL path; below = less wealthy than CL.' : ''}
-      </div>
+      </p>
       <ResponsiveContainer width="100%" height={390}>
         <ComposedChart data={data} margin={{ top:20, right:24, bottom: view==='demos' ? 10 : 30, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-          <XAxis dataKey={xKey} tick={{ fill:'#475569', fontSize:11 }}
+          <CartesianGrid {...CHART_GRID}/>
+          <XAxis dataKey={xKey} tick={CHART_AXIS.tick}
             label={view==='time' ? { value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 } : undefined}/>
-          <YAxis tickFormatter={fmt} tick={{ fill:'#475569', fontSize:11 }} width={85} {...yAxProps}/>
+          <YAxis tickFormatter={fmt} tick={CHART_AXIS.tick} width={85} {...yAxProps}/>
           <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5}/>
           <Tooltip content={<TTip fmt={fmt} isBar={view==='demos'}/>}/>
           <Legend wrapperStyle={{ fontSize:11 }}/>
@@ -1437,15 +1439,15 @@ function Chart9({ demos, P, logScale }) {
 
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
+      <p className="text-xs text-muted-foreground mb-2">
         Solid lines = Accord net worth. Dashed lines = current law. Vertical markers show when
         Accord permanently overtakes status quo. Negative-wealth demographics cross immediately.
-      </div>
+      </p>
       <ResponsiveContainer width="100%" height={360}>
         <LineChart data={data} margin={{ top:10, right:20, bottom:20, left:90 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-          <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-          <YAxis tickFormatter={fD} tick={{ fill:'#475569', fontSize:11 }} width={85} {...yAx}/>
+          <CartesianGrid {...CHART_GRID}/>
+          <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={CHART_AXIS.tick}/>
+          <YAxis tickFormatter={fD} tick={CHART_AXIS.tick} width={85} {...yAx}/>
           <Tooltip content={<TTip fmt={fD}/>}/>
           <Legend wrapperStyle={{ fontSize:12 }}/>
           {Object.entries(crossovers).map(([k, yr]) =>
@@ -1475,7 +1477,7 @@ const CHART_TITLES = {
   2:  { title:'Average Net Worth', desc:'Cumulative household wealth compounded over 30 years. Includes reinvested provision benefits. Log scale recommended for comparing across brackets.' },
   3:  { title:'Share of National Wealth', desc:'Each demographic\'s fraction of total US household wealth. AMCF + PSU provisions visibly expand lower-bracket shares over time.' },
   4:  { title:'Share of National Income', desc:'Each demographic\'s fraction of total US household income. Progressive provisions shift shares from top to bottom over 30 years.' },
-  5:  { title:'Effective Tax Rate', desc:'(All taxes paid − all benefits received) ÷ gross income. Negative rates mean households receive more than they contribute. Toggle provisions to isolate each one\'s contribution.' },
+  5:  { title:'Effective Tax Rate', desc:'(All taxes paid - all benefits received) / gross income. Negative rates mean households receive more than they contribute. Toggle provisions to isolate each one\'s contribution.' },
   6:  { title:'Gini Coefficient', desc:'Income and wealth inequality side by side. Toggle country comparisons to see where the Accord places the US relative to peer nations.' },
   7:  { title:'Wealth Composition Breakdown', desc:'What household wealth is made of at the selected snapshot year. Lower brackets shift from thin financial holdings toward AMCF custodial + PSU equity.' },
   8:  { title:'Cash Flow Diverging Bar', desc:'Income sources (above 0) vs. tax burdens (below 0). Two views: one demographic over time, or all demographics at a snapshot year. Net line shows disposable income.' },
@@ -1525,53 +1527,6 @@ export default function Dashboard() {
   const showNormBar    = (CHART_HAS_BAR.has(activeChart) && mode === 'bar') || [7,8,10].includes(activeChart);
   const currentMode    = CHART_HAS_BAR.has(activeChart) ? mode : 'line';
 
-  const s = {
-    outer: { fontFamily:'system-ui,sans-serif', background:'#f1f5f9', minHeight:'100vh' },
-    header: { background:'#0f172a', color:'#f8fafc', padding:'14px 24px', display:'flex',
-      alignItems:'center', justifyContent:'space-between', gap:12 },
-    title: { fontSize:17, fontWeight:800, letterSpacing:-0.3, color:'#f8fafc' },
-    subtitle: { fontSize:11, color:'#94a3b8', marginTop:2 },
-    tabs: { display:'flex', gap:4, overflowX:'auto', paddingBottom:2 },
-    tab: (active) => ({
-      padding:'5px 11px', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600, border:'none',
-      background: active ? '#3b82f6' : '#1e293b',
-      color: active ? '#fff' : '#94a3b8',
-    }),
-    body: { display:'flex', gap:0, minHeight:'calc(100vh - 56px)' },
-    sidebar: { width:224, flexShrink:0, background:'#fff', borderRight:'1px solid #e2e8f0',
-      overflowY:'auto', padding:'16px 12px' },
-    sectionHead: { fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase',
-      letterSpacing:0.8, marginBottom:8, marginTop:16 },
-    main: { flex:1, padding:20, overflowY:'auto' },
-    card: { background:'#fff', borderRadius:12, border:'1px solid #e2e8f0',
-      padding:'20px 24px', marginBottom:16, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' },
-    controls: { display:'flex', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:16 },
-    btn: (active, color) => ({
-      padding:'5px 12px', borderRadius:6, border:`1.5px solid ${color || '#e2e8f0'}`,
-      background: active ? (color || '#3b82f6') : '#fff',
-      color: active ? '#fff' : (color || '#374151'),
-      cursor:'pointer', fontSize:12, fontWeight:600,
-    }),
-    demoChip: (active, color) => ({
-      display:'inline-flex', alignItems:'center', gap:5, padding:'4px 10px',
-      borderRadius:20, border:`2px solid ${color}`, cursor:'pointer', fontSize:12, fontWeight:600,
-      background: active ? color : '#fff',
-      color: active ? '#fff' : color,
-      marginBottom:5, marginRight:5, userSelect:'none',
-    }),
-    provRow: (active, color) => ({
-      display:'flex', alignItems:'center', gap:8, padding:'6px 8px',
-      borderRadius:6, cursor:'pointer', marginBottom:4,
-      background: active ? `${color}18` : 'transparent',
-      border: `1px solid ${active ? color : '#e2e8f0'}`,
-    }),
-    provDot: color => ({
-      width:10, height:10, borderRadius:'50%', background:color, flexShrink:0,
-    }),
-    label: { fontSize:12, fontWeight:600, color:'#374151' },
-    note: { fontSize:11, color:'#94a3b8', marginTop:4, lineHeight:1.5 },
-  };
-
   const renderChart = () => {
     switch (activeChart) {
       case 1:  return <Chart1  demos={demos} P={P} mode={currentMode} snYear={snYear} logScale={logScale} normalizedBar={normalizedBar}/>;
@@ -1583,10 +1538,12 @@ export default function Dashboard() {
       case 7:  return <Chart7  demos={demos} P={P} snYear={snYear} normalizedBar={normalizedBar}/>;
       case 8:  return (
         <div>
-          <div style={{ display:'flex', gap:10, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-            <span style={{ fontSize:12, fontWeight:600, color:'#374151' }}>View:</span>
-            <button style={s.btn(chart8View==='time')}  onClick={() => setChart8View('time')}>Over Time</button>
-            <button style={s.btn(chart8View==='demos', '#6366f1')} onClick={() => setChart8View('demos')}>All Demos (Yr {snYear})</button>
+          <div className="flex gap-2.5 mb-3.5 flex-wrap items-center">
+            <span className="text-xs font-semibold text-foreground">View:</span>
+            <Button variant={chart8View==='time' ? 'default' : 'outline'} size="sm"
+              onClick={() => setChart8View('time')}>Over Time</Button>
+            <Button variant={chart8View==='demos' ? 'default' : 'outline'} size="sm"
+              onClick={() => setChart8View('demos')}>All Demos (Yr {snYear})</Button>
           </div>
           <Chart8 demos={demos} P={P} snYear={snYear} view={chart8View} normalizedBar={normalizedBar}/>
         </div>
@@ -1594,10 +1551,12 @@ export default function Dashboard() {
       case 9:  return <Chart9  demos={demos} P={P} logScale={logScale}/>;
       case 10: return (
         <div>
-          <div style={{ display:'flex', gap:10, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-            <span style={{ fontSize:12, fontWeight:600, color:'#374151' }}>View:</span>
-            <button style={s.btn(chart10View==='time')}  onClick={() => setChart10View('time')}>Over Time</button>
-            <button style={s.btn(chart10View==='demos', '#6366f1')} onClick={() => setChart10View('demos')}>All Demos (Yr {snYear})</button>
+          <div className="flex gap-2.5 mb-3.5 flex-wrap items-center">
+            <span className="text-xs font-semibold text-foreground">View:</span>
+            <Button variant={chart10View==='time' ? 'default' : 'outline'} size="sm"
+              onClick={() => setChart10View('time')}>Over Time</Button>
+            <Button variant={chart10View==='demos' ? 'default' : 'outline'} size="sm"
+              onClick={() => setChart10View('demos')}>All Demos (Yr {snYear})</Button>
           </div>
           <Chart10 demos={demos} P={P} snYear={snYear} view={chart10View} normalizedBar={normalizedBar} logScale={logScale}/>
         </div>
@@ -1606,372 +1565,423 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div style={s.outer}>
-      {/* Header */}
-      <div style={s.header}>
-        <div>
-          <div style={s.title}>Household Impact</div>
-          <div style={s.subtitle}>10-chart interactive suite · 30-year trajectories · 2024 real dollars</div>
-        </div>
-        <div style={s.tabs}>
-          {CHARTS.map(c => (
-            <button key={c.id} style={s.tab(activeChart === c.id)}
-              onClick={() => { setActiveChart(c.id); if (!CHART_HAS_BAR.has(c.id)) setMode('line'); }}>
-              {c.id}. {c.label}
-            </button>
-          ))}
+  // Sidebar content
+  const sidebarContent = (
+    <div className="p-4 space-y-4">
+      {/* Demographics */}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Demographics</div>
+        <p className="text-[10px] text-muted-foreground mb-2">
+          {CHART_DEMO_AGNOSTIC.has(activeChart)
+          ? 'Chart 6 uses full distribution — demo toggles affect provisions only.'
+          : (showStackShare && stackedShare)
+            ? 'Stacked: demo toggles control which bands are shown. Unselected = gray "Other".'
+            : [8,10].includes(activeChart)
+              ? '"Over Time" uses first selected demo. "All Demos" shows all selected at snapshot year.'
+              : 'Multi-select. Each adds a line or bar group.'}
+        </p>
+        <DemoChips
+          demos={DEMOS}
+          demoKeys={DEMO_KEYS}
+          enabled={[...activeDemos]}
+          onToggle={toggleDemo}
+        />
+      </div>
+
+      {/* Provisions */}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2 mt-4">Accord Provisions</div>
+        <p className="text-[10px] text-muted-foreground mb-2">Cumulative layers. Each adds its marginal effect.</p>
+        <div className="space-y-1">
+          {PROVS_CONFIG.map(p => {
+            const active = activeProvs.has(p.key);
+            return (
+              <div key={p.key}
+                role="button"
+                tabIndex="0"
+                onClick={() => toggleProv(p.key)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProv(p.key); } }}
+                className={cn(
+                  'flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors border',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  active ? 'border-current' : 'border-border',
+                )}
+                style={active ? { borderColor: p.color, background: `${p.color}18` } : undefined}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }}/>
+                <span className={cn('text-xs text-foreground', active ? 'font-semibold' : 'font-normal')}>
+                  {p.label}
+                </span>
+                {p.fixed && <span className="text-[10px] text-muted-foreground ml-auto">always on</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div style={s.body}>
-        {/* Sidebar */}
-        <div style={s.sidebar}>
-          {/* Demographics */}
-          <div style={s.sectionHead}>Demographics</div>
-          <div style={{ fontSize:10, color:'#94a3b8', marginBottom:8 }}>
-            {CHART_DEMO_AGNOSTIC.has(activeChart)
-            ? 'Chart 6 uses full distribution — demo toggles affect provisions only.'
-            : (showStackShare && stackedShare)
-              ? 'Stacked: demo toggles control which bands are shown. Unselected = gray "Other".'
-              : [8,10].includes(activeChart)
-                ? '"Over Time" uses first selected demo. "All Demos" shows all selected at snapshot year.'
-                : 'Multi-select. Each adds a line or bar group.'}
-          </div>
-          {DEMO_KEYS.map(k => (
-            <div key={k} style={s.demoChip(activeDemos.has(k), DEMOS[k].color)}
-              onClick={() => toggleDemo(k)}>
-              <span>{DEMOS[k].short}</span>
-            </div>
-          ))}
-
-          {/* Provisions */}
-          <div style={s.sectionHead}>Accord Provisions</div>
-          <div style={{ fontSize:10, color:'#94a3b8', marginBottom:8 }}>Cumulative layers. Each adds its marginal effect.</div>
-          {PROVS_CONFIG.map(p => (
-            <div key={p.key} style={s.provRow(activeProvs.has(p.key), p.color)}
-              onClick={() => toggleProv(p.key)}>
-              <div style={s.provDot(p.color)}/>
-              <span style={{ fontSize:12, color:'#374151', fontWeight: activeProvs.has(p.key) ? 600 : 400 }}>
-                {p.label}
-              </span>
-              {p.fixed && <span style={{ fontSize:10, color:'#94a3b8', marginLeft:'auto' }}>always on</span>}
-            </div>
-          ))}
-
-          {/* Snapshot year */}
-          {(showSnYear || true) && (
-            <div style={{ marginTop:16 }}>
-              <div style={{ ...s.sectionHead, marginTop:0 }}>Snapshot Year: {snYear}</div>
-              <input type="range" min={1} max={30} step={1} value={snYear}
-                onChange={e => setSnYear(+e.target.value)}
-                style={{ width:'100%' }}/>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#94a3b8' }}>
-                <span>Yr 1</span><span>Yr 15</span><span>Yr 30</span>
-              </div>
-              <div style={{ fontSize:10, color:'#94a3b8', marginTop:4 }}>
-                Used by bar charts, Charts 7/8/10 "All Demos" view.
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Main content */}
-        <div style={s.main}>
-          {/* Chart card */}
-          <div style={s.card}>
-            {/* Chart controls bar */}
-            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
-              <div>
-                <div style={{ fontSize:16, fontWeight:700, color:'#0f172a' }}>{chartTitle?.title}</div>
-                <div style={{ fontSize:12, color:'#64748b', marginTop:3, maxWidth:600 }}>{chartTitle?.desc}</div>
-              </div>
-              <div style={{ display:'flex', gap:8, flexShrink:0, marginLeft:16, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                {showStackShare && (
-                  <>
-                    <button style={s.btn(!stackedShare)} onClick={() => setStackedShare(false)}>Line</button>
-                    <button style={s.btn(stackedShare, '#6366f1')} onClick={() => setStackedShare(true)}>Stacked</button>
-                  </>
-                )}
-                {showMode && (
-                  <>
-                    <button style={s.btn(mode==='line')} onClick={() => setMode('line')}>Line</button>
-                    <button style={s.btn(mode==='bar')}  onClick={() => setMode('bar')}>Bar (Yr {snYear})</button>
-                  </>
-                )}
-                {showNormBar && (
-                  <button style={s.btn(normalizedBar, '#7c3aed')} onClick={() => setNormalizedBar(v => !v)}>
-                    {normalizedBar ? '% ✓' : '100% / %'}
-                  </button>
-                )}
-                {showLogScale && (
-                  <button style={s.btn(logScale, '#0f172a')} onClick={() => setLogScale(v => !v)}>
-                    {logScale ? 'Log ✓' : 'Log Scale'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {renderChart()}
-          </div>
-
-          {/* Key numbers reference */}
-          {activeChart === 1 && (
-            <div style={s.card}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:10 }}>Year {snYear} Income Snapshot</div>
-              <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-                {demos.map(k => {
-                  const l   = getInc(k, snYear, P);
-                  const cl  = getInc(k, snYear, BASE_ONLY);
-                  const delta = l.total - cl.total;
-                  const pct = cl.total > 0 ? delta / cl.total * 100 : null;
-                  const pos = delta >= 0;
-                  return (
-                    <div key={k} style={{ padding:'10px 14px', borderRadius:8, border:`2px solid ${DEMOS[k].color}20`,
-                      background:`${DEMOS[k].color}08`, minWidth:140 }}>
-                      <div style={{ fontSize:11, color:DEMOS[k].color, fontWeight:700 }}>{DEMOS[k].label}</div>
-                      <div style={{ fontSize:16, fontWeight:800, color:'#0f172a', marginTop:2 }}>{fD(l.total)}</div>
-                      <div style={{ fontSize:11, color: pos ? '#16a34a' : '#dc2626', marginTop:3 }}>
-                        vs CL: {pos ? '+' : ''}{fD(delta)}
-                      </div>
-                      <div style={{ fontSize:11, color: pos ? '#16a34a' : '#dc2626', marginTop:1 }}>
-                        {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {activeChart === 2 && (
-            <div style={s.card}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:10 }}>Year {snYear} Net Worth Snapshot</div>
-              <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-                {demos.map(k => {
-                  const l   = getNW(k, snYear, P);
-                  const cl  = getNW(k, snYear, BASE_ONLY);
-                  const delta = l.total - cl.total;
-                  const pct = cl.total > 0 ? delta / cl.total * 100 : null;
-                  const pos = delta >= 0;
-                  return (
-                    <div key={k} style={{ padding:'10px 14px', borderRadius:8, border:`2px solid ${DEMOS[k].color}20`,
-                      background:`${DEMOS[k].color}08`, minWidth:140 }}>
-                      <div style={{ fontSize:11, color:DEMOS[k].color, fontWeight:700 }}>{DEMOS[k].label}</div>
-                      <div style={{ fontSize:16, fontWeight:800, color:'#0f172a', marginTop:2 }}>{fD(l.total)}</div>
-                      <div style={{ fontSize:11, color: pos ? '#16a34a' : '#dc2626', marginTop:3 }}>
-                        vs CL: {pos ? '+' : ''}{fD(delta)}
-                      </div>
-                      <div style={{ fontSize:11, color: pos ? '#16a34a' : '#dc2626', marginTop:1 }}>
-                        {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {(activeChart === 3 || activeChart === 4) && (
-            <div style={s.card}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:10 }}>
-                Year {snYear} {activeChart === 3 ? 'Wealth' : 'Income'} Share Snapshot
-              </div>
-              <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-                {(() => {
-                  const snapDemos = stackedShare ? DEMO_KEYS : demos;
-                  let total = 0;
-                  const vals = {};
-                  DEMO_KEYS.forEach(k => {
-                    const v = Math.max(
-                      activeChart === 3 ? getNW(k, snYear, P).total : getInc(k, snYear, P).total, 0
-                    ) * POP[k];
-                    vals[k] = v; total += v;
-                  });
-                  return snapDemos.map(k => {
-                    const share = total > 0 ? vals[k] / total * 100 : 0;
-                    const clTotal = DEMO_KEYS.reduce((s, j) => s + Math.max(
-                      activeChart === 3 ? getNW(j, snYear, BASE_ONLY).total : getInc(j, snYear, BASE_ONLY).total, 0
-                    ) * POP[j], 0);
-                    const clShare = clTotal > 0 ? Math.max(
-                      activeChart === 3 ? getNW(k, snYear, BASE_ONLY).total : getInc(k, snYear, BASE_ONLY).total, 0
-                    ) * POP[k] / clTotal * 100 : 0;
-                    const delta = share - clShare;
-                    return (
-                      <div key={k} style={{ padding:'10px 14px', borderRadius:8,
-                        border:`2px solid ${DEMOS[k].color}20`, background:`${DEMOS[k].color}08`, minWidth:120 }}>
-                        <div style={{ fontSize:11, color:DEMOS[k].color, fontWeight:700 }}>{DEMOS[k].label}</div>
-                        <div style={{ fontSize:18, fontWeight:800, color:'#0f172a', marginTop:2 }}>
-                          {share.toFixed(2)}%
-                        </div>
-                        <div style={{ fontSize:11, color: delta >= 0 ? '#16a34a' : '#dc2626', marginTop:2 }}>
-                          vs CL: {delta >= 0 ? '+' : ''}{delta.toFixed(2)}pp
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          )}
-
-          {activeChart === 9 && (
-            <div style={s.card}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:10 }}>Crossover Years (Accord NW exceeds Current Law)</div>
-              <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-                {demos.map(k => {
-                  let crossover = null;
-                  const clP = new Set(['BASE']);
-                  for (let y = 1; y <= 30; y++) {
-                    if (getNW(k, y, P).total > getNW(k, y, clP).total) { crossover = y; break; }
-                  }
-                  return (
-                    <div key={k} style={{ padding:'8px 14px', borderRadius:8, border:`2px solid ${DEMOS[k].color}30`,
-                      background:`${DEMOS[k].color}08`, minWidth:130 }}>
-                      <div style={{ fontSize:11, color:DEMOS[k].color, fontWeight:700 }}>{DEMOS[k].label}</div>
-                      <div style={{ fontSize:15, fontWeight:800, color: crossover !== null ? '#16a34a' : '#dc2626', marginTop:2 }}>
-                        {crossover !== null ? `Year ${crossover}${crossover === 1 ? ' (immediate)' : ''}` : 'Beyond Yr 30'}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ═══ SNAPSHOT MATRIX TABLES & MINI CHARTS — trajectory view per active chart ═══ */}
-
-          {activeChart === 1 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Annual Income Trajectory"
-                demos={demos}
-                getValue={(k, y) => getInc(k, y, P).total}
-                getCL={(k, y) => getInc(k, y, BASE_ONLY).total}
-                fmt={fD}/>
-            </div>
-          )}
-
-          {activeChart === 2 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Net Worth Trajectory"
-                demos={demos}
-                getValue={(k, y) => getNW(k, y, P).total}
-                getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
-                fmt={fD}/>
-            </div>
-          )}
-
-          {activeChart === 3 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Wealth Share Trajectory"
-                note="Each demo's % of total national wealth. vs CL in percentage points."
-                demos={demos}
-                getValue={(k, y) => {
-                  let t = 0; const v = {};
-                  DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
-                  return t > 0 ? v[k]/t*100 : 0;
-                }}
-                getCL={(k, y) => {
-                  let t = 0; const v = {};
-                  DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
-                  return t > 0 ? v[k]/t*100 : 0;
-                }}
-                fmt={v => v.toFixed(2)+'%'}
-                deltaFmt={d => `${d>=0?'+':''}${d.toFixed(2)}pp`}/>
-            </div>
-          )}
-
-          {activeChart === 4 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Income Share Trajectory"
-                note="Each demo's % of total national income. vs CL in percentage points."
-                demos={demos}
-                getValue={(k, y) => {
-                  let t = 0; const v = {};
-                  DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
-                  return t > 0 ? v[k]/t*100 : 0;
-                }}
-                getCL={(k, y) => {
-                  let t = 0; const v = {};
-                  DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
-                  return t > 0 ? v[k]/t*100 : 0;
-                }}
-                fmt={v => v.toFixed(2)+'%'}
-                deltaFmt={d => `${d>=0?'+':''}${d.toFixed(2)}pp`}/>
-            </div>
-          )}
-
-          {activeChart === 5 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Effective Tax Rate Trajectory"
-                note="ETR = taxes minus prebate offset ÷ gross income. AMCF/PSU excluded (equity income). Negative = prebate > taxes. vs CL = change in ETR (pp)."
-                demos={demos}
-                getValue={(k, y) => getETR(k, y, P)}
-                getCL={(k, y) => getETR(k, y, BASE_ONLY)}
-                fmt={v => v.toFixed(1)+'%'}
-                deltaFmt={d => `${d>=0?'+':''}${d.toFixed(1)}pp`}/>
-            </div>
-          )}
-
-
-          {activeChart === 7 && demos.length > 0 && (
-            <div style={s.card}>
-              <CompositionTable
-                title="Wealth Composition Breakdown — Component × Year"
-                demos={demos}
-                getRows={(k, y) => wealthMixRows(k, y, y === 0 ? BASE_ONLY : P)}
-                note="Bars show relative magnitude within each component row across snapshot years. Values in 2024 real dollars."
-              />
-            </div>
-          )}
-
-          {activeChart === 8 && demos.length > 0 && (
-            <div style={s.card}>
-              <CompositionTable
-                title="Cash Flow Breakdown — Component × Year"
-                demos={demos}
-                getRows={(k, y) => cfRows(k, y, y === 0 ? BASE_ONLY : P)}
-                note="Negative values (taxes, burdens) shown in red. Positive values (income, benefits) in green. Bars scale to each row's peak across snapshot years."
-              />
-            </div>
-          )}
-
-          {activeChart === 9 && demos.length > 0 && (
-            <div style={s.card}>
-              <SnapshotTable title="Accord vs Current Law Net Worth Trajectory"
-                demos={demos}
-                getValue={(k, y) => getNW(k, y, P).total}
-                getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
-                fmt={fD}/>
-            </div>
-          )}
-
-          {activeChart === 10 && demos.length > 0 && (
-            <div style={s.card}>
-              <CompositionTable
-                title="Wealth Flow Breakdown — Component × Year"
-                demos={demos}
-                getRows={(k, y) => wfRows(k, y, y === 0 ? BASE_ONLY : P)}
-                note="Tax Impact is negative for most demographics (Growth Tax drag on capital appreciation). AMCF and PSU rows show cumulative wealth added vs current law baseline."
-              />
-            </div>
-          )}
-
-          {/* Methodology footer */}
-          <div style={{ ...s.card, background:'#f8fafc' }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>Model Notes & Assumptions</div>
-            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.7, columns:2, gap:24 }}>
-              <p style={{ marginTop:0 }}>All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0→1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
-              <p>AMCF grants follow Sim-6 validated trajectory: $500/person (Yr 1) → $25,924/person (Yr 30). Custodial account: universal $10K at Year 0, 5% real return.</p>
-              <p>PSU provisions ramp from 0→100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
-              <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 4% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
-              <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%→12%/yr; Billionaires: 12%→9.5%/yr).</p>
-              <p>Charts 8 &amp; 10 (diverging bar): positive values stack above zero (income, benefits, wealth gains), negative values stack below zero (taxes, burdens). Net line shows total. "% / 100%" toggle normalizes to % of gross income (Ch.8) or base CL net worth (Ch.10). "All Demos" view shows all selected demographics at snapshot year.</p>
-              <p>Gini: computed from full 13-point distribution (B10→Elon) for both income and wealth Gini. Population weights: deciles at 10% each, T10 9%, T1 0.94%, Billionaires 6e-6, Elon 7.5e-9. Anchor-calibrated to match official US statistics at Year 0. Lorenz trapezoid method.</p>
-            </div>
-          </div>
-        </div>
+      {/* Snapshot year */}
+      <div className="mt-4">
+        <SliderControl
+          label={`Snapshot Year: ${snYear}`}
+          value={snYear}
+          onChange={setSnYear}
+          min={1}
+          max={30}
+          step={1}
+          helpText="Used by bar charts, Charts 7/8/10 'All Demos' view."
+        />
       </div>
     </div>
+  );
+
+  return (
+    <DashboardShell sidebar={sidebarContent}>
+      {/* Header bar with title + chart tabs */}
+      <div className="bg-zinc-900 text-zinc-50 rounded-lg px-5 py-3 mb-6 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[17px] font-extrabold tracking-tight text-zinc-50">Household Impact</h1>
+          <p className="text-[11px] text-zinc-300 mt-0.5">10-chart interactive suite · 30-year trajectories · 2024 real dollars</p>
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
+          {CHARTS.map(c => (
+            <Button key={c.id}
+              variant={activeChart === c.id ? 'default' : 'ghost'}
+              size="xs"
+              className={cn(
+                'text-xs whitespace-nowrap',
+                activeChart === c.id
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800'
+              )}
+              onClick={() => { setActiveChart(c.id); if (!CHART_HAS_BAR.has(c.id)) setMode('line'); }}>
+              {c.id}. {c.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart card */}
+      <Card className="mb-4">
+        <CardContent>
+          {/* Chart controls bar */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-base font-bold text-foreground">{chartTitle?.title}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-[600px]">{chartTitle?.desc}</p>
+            </div>
+            <div className="flex gap-2 shrink-0 ml-4 flex-wrap justify-end">
+              {showStackShare && (
+                <>
+                  <Button variant={!stackedShare ? 'default' : 'outline'} size="sm"
+                    onClick={() => setStackedShare(false)}>Line</Button>
+                  <Button variant={stackedShare ? 'default' : 'outline'} size="sm"
+                    onClick={() => setStackedShare(true)}>Stacked</Button>
+                </>
+              )}
+              {showMode && (
+                <>
+                  <Button variant={mode==='line' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setMode('line')}>Line</Button>
+                  <Button variant={mode==='bar' ? 'default' : 'outline'} size="sm"
+                    onClick={() => setMode('bar')}>Bar (Yr {snYear})</Button>
+                </>
+              )}
+              {showNormBar && (
+                <Button variant={normalizedBar ? 'default' : 'outline'} size="sm"
+                  onClick={() => setNormalizedBar(v => !v)}>
+                  {normalizedBar ? '% ON' : '100% / %'}
+                </Button>
+              )}
+              {showLogScale && (
+                <Button variant={logScale ? 'default' : 'outline'} size="sm"
+                  onClick={() => setLogScale(v => !v)}>
+                  {logScale ? 'Log ON' : 'Log Scale'}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {renderChart()}
+        </CardContent>
+      </Card>
+
+      {/* Key numbers reference */}
+      {activeChart === 1 && (
+        <Card className="mb-4">
+          <CardContent>
+            <div className="text-sm font-bold text-foreground mb-2.5">Year {snYear} Income Snapshot</div>
+            <div className="flex gap-3 flex-wrap">
+              {demos.map(k => {
+                const l   = getInc(k, snYear, P);
+                const cl  = getInc(k, snYear, BASE_ONLY);
+                const delta = l.total - cl.total;
+                const pct = cl.total > 0 ? delta / cl.total * 100 : null;
+                const pos = delta >= 0;
+                return (
+                  <div key={k} className="px-3.5 py-2.5 rounded-lg min-w-[140px] border-2"
+                    style={{ borderColor: `${DEMOS[k].color}20`, background: `${DEMOS[k].color}08` }}>
+                    <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
+                    <div className="text-base font-extrabold text-foreground mt-0.5">{fD(l.total)}</div>
+                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-green-600' : 'text-red-600')}>
+                      vs CL: {pos ? '+' : ''}{fD(delta)}
+                    </div>
+                    <div className={cn('text-[11px]', pos ? 'text-green-600' : 'text-red-600')}>
+                      {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 2 && (
+        <Card className="mb-4">
+          <CardContent>
+            <div className="text-sm font-bold text-foreground mb-2.5">Year {snYear} Net Worth Snapshot</div>
+            <div className="flex gap-3 flex-wrap">
+              {demos.map(k => {
+                const l   = getNW(k, snYear, P);
+                const cl  = getNW(k, snYear, BASE_ONLY);
+                const delta = l.total - cl.total;
+                const pct = cl.total > 0 ? delta / cl.total * 100 : null;
+                const pos = delta >= 0;
+                return (
+                  <div key={k} className="px-3.5 py-2.5 rounded-lg min-w-[140px] border-2"
+                    style={{ borderColor: `${DEMOS[k].color}20`, background: `${DEMOS[k].color}08` }}>
+                    <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
+                    <div className="text-base font-extrabold text-foreground mt-0.5">{fD(l.total)}</div>
+                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-green-600' : 'text-red-600')}>
+                      vs CL: {pos ? '+' : ''}{fD(delta)}
+                    </div>
+                    <div className={cn('text-[11px]', pos ? 'text-green-600' : 'text-red-600')}>
+                      {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(activeChart === 3 || activeChart === 4) && (
+        <Card className="mb-4">
+          <CardContent>
+            <div className="text-sm font-bold text-foreground mb-2.5">
+              Year {snYear} {activeChart === 3 ? 'Wealth' : 'Income'} Share Snapshot
+            </div>
+            <div className="flex gap-3 flex-wrap">
+              {(() => {
+                const snapDemos = stackedShare ? DEMO_KEYS : demos;
+                let total = 0;
+                const vals = {};
+                DEMO_KEYS.forEach(k => {
+                  const v = Math.max(
+                    activeChart === 3 ? getNW(k, snYear, P).total : getInc(k, snYear, P).total, 0
+                  ) * POP[k];
+                  vals[k] = v; total += v;
+                });
+                return snapDemos.map(k => {
+                  const share = total > 0 ? vals[k] / total * 100 : 0;
+                  const clTotal = DEMO_KEYS.reduce((s, j) => s + Math.max(
+                    activeChart === 3 ? getNW(j, snYear, BASE_ONLY).total : getInc(j, snYear, BASE_ONLY).total, 0
+                  ) * POP[j], 0);
+                  const clShare = clTotal > 0 ? Math.max(
+                    activeChart === 3 ? getNW(k, snYear, BASE_ONLY).total : getInc(k, snYear, BASE_ONLY).total, 0
+                  ) * POP[k] / clTotal * 100 : 0;
+                  const delta = share - clShare;
+                  return (
+                    <div key={k} className="px-3.5 py-2.5 rounded-lg min-w-[120px] border-2"
+                      style={{ borderColor: `${DEMOS[k].color}20`, background: `${DEMOS[k].color}08` }}>
+                      <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
+                      <div className="text-lg font-extrabold text-foreground mt-0.5">
+                        {share.toFixed(2)}%
+                      </div>
+                      <div className={cn('text-[11px] mt-0.5', delta >= 0 ? 'text-green-600' : 'text-red-600')}>
+                        vs CL: {delta >= 0 ? '+' : ''}{delta.toFixed(2)}pp
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 9 && (
+        <Card className="mb-4">
+          <CardContent>
+            <div className="text-sm font-bold text-foreground mb-2.5">Crossover Years (Accord NW exceeds Current Law)</div>
+            <div className="flex gap-2.5 flex-wrap">
+              {demos.map(k => {
+                let crossover = null;
+                const clP = new Set(['BASE']);
+                for (let y = 1; y <= 30; y++) {
+                  if (getNW(k, y, P).total > getNW(k, y, clP).total) { crossover = y; break; }
+                }
+                return (
+                  <div key={k} className="px-3.5 py-2 rounded-lg min-w-[130px] border-2"
+                    style={{ borderColor: `${DEMOS[k].color}30`, background: `${DEMOS[k].color}08` }}>
+                    <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
+                    <div className={cn('text-[15px] font-extrabold mt-0.5', crossover !== null ? 'text-green-600' : 'text-red-600')}>
+                      {crossover !== null ? `Year ${crossover}${crossover === 1 ? ' (immediate)' : ''}` : 'Beyond Yr 30'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Snapshot matrix tables and composition tables */}
+
+      {activeChart === 1 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Annual Income Trajectory"
+              demos={demos}
+              getValue={(k, y) => getInc(k, y, P).total}
+              getCL={(k, y) => getInc(k, y, BASE_ONLY).total}
+              fmt={fD}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 2 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Net Worth Trajectory"
+              demos={demos}
+              getValue={(k, y) => getNW(k, y, P).total}
+              getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
+              fmt={fD}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 3 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Wealth Share Trajectory"
+              note="Each demo's % of total national wealth. vs CL in percentage points."
+              demos={demos}
+              getValue={(k, y) => {
+                let t = 0; const v = {};
+                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
+                return t > 0 ? v[k]/t*100 : 0;
+              }}
+              getCL={(k, y) => {
+                let t = 0; const v = {};
+                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
+                return t > 0 ? v[k]/t*100 : 0;
+              }}
+              fmt={v => v.toFixed(2)+'%'}
+              deltaFmt={d => `${d>=0?'+':''}${d.toFixed(2)}pp`}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 4 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Income Share Trajectory"
+              note="Each demo's % of total national income. vs CL in percentage points."
+              demos={demos}
+              getValue={(k, y) => {
+                let t = 0; const v = {};
+                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
+                return t > 0 ? v[k]/t*100 : 0;
+              }}
+              getCL={(k, y) => {
+                let t = 0; const v = {};
+                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
+                return t > 0 ? v[k]/t*100 : 0;
+              }}
+              fmt={v => v.toFixed(2)+'%'}
+              deltaFmt={d => `${d>=0?'+':''}${d.toFixed(2)}pp`}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 5 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Effective Tax Rate Trajectory"
+              note="ETR = taxes minus prebate offset / gross income. AMCF/PSU excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
+              demos={demos}
+              getValue={(k, y) => getETR(k, y, P)}
+              getCL={(k, y) => getETR(k, y, BASE_ONLY)}
+              fmt={v => v.toFixed(1)+'%'}
+              deltaFmt={d => `${d>=0?'+':''}${d.toFixed(1)}pp`}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 7 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <CompositionTable
+              title="Wealth Composition Breakdown — Component x Year"
+              demos={demos}
+              getRows={(k, y) => wealthMixRows(k, y, y === 0 ? BASE_ONLY : P)}
+              note="Bars show relative magnitude within each component row across snapshot years. Values in 2024 real dollars."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 8 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <CompositionTable
+              title="Cash Flow Breakdown — Component x Year"
+              demos={demos}
+              getRows={(k, y) => cfRows(k, y, y === 0 ? BASE_ONLY : P)}
+              note="Negative values (taxes, burdens) shown in red. Positive values (income, benefits) in green. Bars scale to each row's peak across snapshot years."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 9 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <SnapshotTable title="Accord vs Current Law Net Worth Trajectory"
+              demos={demos}
+              getValue={(k, y) => getNW(k, y, P).total}
+              getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
+              fmt={fD}/>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeChart === 10 && demos.length > 0 && (
+        <Card className="mb-4">
+          <CardContent>
+            <CompositionTable
+              title="Wealth Flow Breakdown — Component x Year"
+              demos={demos}
+              getRows={(k, y) => wfRows(k, y, y === 0 ? BASE_ONLY : P)}
+              note="Tax Impact is negative for most demographics (Growth Tax drag on capital appreciation). AMCF and PSU rows show cumulative wealth added vs current law baseline."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Methodology footer */}
+      <InfoBox className="columns-2 gap-6">
+        <div className="text-xs font-bold text-muted-foreground mb-1.5">Model Notes &amp; Assumptions</div>
+        <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
+        <p>AMCF grants follow Sim-6 validated trajectory: $500/person (Yr 1) - $25,924/person (Yr 30). Custodial account: universal $10K at Year 0, 5% real return.</p>
+        <p>PSU provisions ramp from 0-100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
+        <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 4% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
+        <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%-12%/yr; Billionaires: 12%-9.5%/yr).</p>
+        <p>Charts 8 &amp; 10 (diverging bar): positive values stack above zero (income, benefits, wealth gains), negative values stack below zero (taxes, burdens). Net line shows total. &quot;% / 100%&quot; toggle normalizes to % of gross income (Ch.8) or base CL net worth (Ch.10). &quot;All Demos&quot; view shows all selected demographics at snapshot year.</p>
+        <p>Gini: computed from full 13-point distribution (B10-Elon) for both income and wealth Gini. Population weights: deciles at 10% each, T10 9%, T1 0.94%, Billionaires 6e-6, Elon 7.5e-9. Anchor-calibrated to match official US statistics at Year 0. Lorenz trapezoid method.</p>
+      </InfoBox>
+    </DashboardShell>
   );
 }

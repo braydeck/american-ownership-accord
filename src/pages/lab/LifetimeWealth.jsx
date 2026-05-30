@@ -3,6 +3,18 @@ import {
   ComposedChart, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, BarChart, Bar, ReferenceLine,
 } from 'recharts';
+import { PageShell } from '@/components/layout/PageShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { SliderControl } from '@/components/controls/SliderControl';
+import { ControlPanel, ControlGroup } from '@/components/controls/ControlPanel';
+import { MilestoneCard } from '@/components/shared/MilestoneCard';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { Card, CardContent } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 
 // ─── Seeded PRNG ──────────────────────────────────────────────────────────────
 
@@ -280,41 +292,22 @@ function runSimulation(params) {
 const fmtK  = v => v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
 const fmtPct = v => `${(v * 100).toFixed(0)}%`;
 
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
+};
+
 const WealthTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
-  // Find median lines
   const acc = payload.find(p => p.dataKey === 'acc_p50');
   const cur = payload.find(p => p.dataKey === 'cur_p50');
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '10px 14px', fontSize: 12, borderRadius: 6, minWidth: 200 }}>
+    <div style={TOOLTIP_STYLE}>
       <p style={{ fontWeight: 700, marginBottom: 8 }}>Age {label}</p>
-      {acc && <p style={{ color: '#065F46' }}>Accord median: {fmtK(acc.value)}</p>}
-      {cur && <p style={{ color: '#1D4ED8' }}>Current median: {fmtK(cur.value)}</p>}
+      {acc && <p style={{ color: '#a7f3d0' }}>Accord median: {fmtK(acc.value)}</p>}
+      {cur && <p style={{ color: '#93c5fd' }}>Current median: {fmtK(cur.value)}</p>}
     </div>
   );
-};
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-const S = {
-  root:     { fontFamily: "'Georgia', serif", maxWidth: 1040, margin: '0 auto', padding: '40px 32px', background: '#fff', color: '#111' },
-  section:  { marginTop: 52 },
-  h1:       { fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.2 },
-  headline: { fontSize: 17, color: '#065F46', fontWeight: 600, marginTop: 10 },
-  h2:       { fontSize: 18, fontWeight: 700, marginBottom: 4, marginTop: 0 },
-  subtext:  { fontSize: 13, color: '#6B7280', marginTop: 4, marginBottom: 24 },
-  label:    { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9CA3AF', marginBottom: 2 },
-  source:   { fontSize: 11, color: '#9CA3AF', marginTop: 12, lineHeight: 1.6 },
-  table:    { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th:       { textAlign: 'left', borderBottom: '2px solid #e5e7eb', padding: '8px 12px', fontWeight: 600, background: '#F9FAFB' },
-  td:       { borderBottom: '1px solid #f3f4f6', padding: '7px 12px' },
-  slider:   { width: '100%', accentColor: '#065F46' },
-  qBtn:     (active) => ({
-    padding: '7px 16px', cursor: 'pointer', fontSize: 13, fontWeight: active ? 700 : 400,
-    color: active ? '#fff' : '#374151',
-    background: active ? '#065F46' : '#F9FAFB',
-    border: '1px solid #e5e7eb', borderRadius: 6,
-  }),
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -343,200 +336,217 @@ export default function GenerationalWealth() {
   const improvement = Math.round((medAt65Acc / medAt65Cur - 1) * 100);
 
   return (
-    <div style={S.root}>
+    <PageShell>
       {/* ── Header ── */}
-      <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord</p>
-        <h1 style={S.h1}>Lifetime Wealth</h1>
-        <p style={S.headline}>
+      <div className="border-l-4 border-emerald-500 pl-5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          American Ownership Accord
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Lifetime Wealth</h1>
+        <p className="text-base font-semibold text-emerald-700 mt-2">
           A child born today into a {qLabel.toLowerCase()} household accumulates{' '}
           {fmtK(medAt65Acc)} by age 65 under the Accord — {improvement}% more than the{' '}
           {fmtK(medAt65Cur)} median under the current system.
         </p>
-        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
-          {N_PATHS.toLocaleString()} Monte Carlo paths, age 0–65. AMCF citizen grants from birth,
+        <p className="text-sm text-muted-foreground mt-1 mb-6">
+          {N_PATHS.toLocaleString()} Monte Carlo paths, age 0-65. AMCF citizen grants from birth,
           worker Phantom Stock Units across ~11 jobs, universal prebate savings, and 401(k) continuation.
           Adjust the controls to explore different scenarios.
         </p>
       </div>
 
       {/* ── Controls ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginTop: 32, padding: '24px', background: '#F9FAFB', borderRadius: 10 }}>
+      <ControlPanel className="mt-8" columns={2}>
         {/* Income quintile */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <p style={S.label}>Income Quintile</p>
-          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <ControlGroup fullWidth>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Income Quintile
+          </p>
+          <ToggleGroup
+            type="single"
+            value={quintileKey}
+            onValueChange={(v) => { if (v) setQuintileKey(v); }}
+            className="flex flex-wrap gap-1.5"
+          >
             {Object.entries(QUINTILES).map(([key, q]) => (
-              <button key={key} onClick={() => setQuintileKey(key)} style={S.qBtn(quintileKey === key)}>
+              <ToggleGroupItem key={key} value={key} className="text-xs px-3 py-1.5">
                 {q.label}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
-        </div>
+          </ToggleGroup>
+        </ControlGroup>
 
         {/* Sliders */}
-        {[
-          {
-            label: `Mean Market Return: ${(meanReturn * 100).toFixed(0)}% nominal`,
-            min: 0.04, max: 0.14, step: 0.01,
-            value: meanReturn, onChange: setMeanReturn,
-            note: `≈ ${((meanReturn - 0.02) * 100).toFixed(0)}% real (after 2% inflation)`,
-          },
-          {
-            label: `PSU Dividend Yield: ${(psuDivYield * 100).toFixed(1)}%`,
-            min: 0.02, max: 0.05, step: 0.005,
-            value: psuDivYield, onChange: setPsuDivYield,
-            note: 'Post-CIT abolition dividend rate on phantom equity',
-          },
-          {
-            label: `401(k) Participation Rate (current system): ${Math.round(k401Part * 100)}%`,
-            min: 0.20, max: 0.80, step: 0.05,
-            value: k401Part, onChange: setK401Part,
-            note: 'Benchmark for current system comparison',
-          },
-        ].map(({ label, min, max, step, value, onChange, note }) => (
-          <div key={label}>
-            <p style={{ ...S.label, textTransform: 'none', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{label}</p>
-            <input type="range" min={min} max={max} step={step} value={value}
-              onChange={e => onChange(+e.target.value)} style={S.slider} />
-            <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{note}</p>
-          </div>
-        ))}
+        <ControlGroup>
+          <SliderControl
+            label="Mean Market Return"
+            value={meanReturn}
+            onChange={setMeanReturn}
+            min={0.04}
+            max={0.14}
+            step={0.01}
+            formatValue={(v) => `${(v * 100).toFixed(0)}% nominal`}
+            helpText={`~ ${((meanReturn - 0.02) * 100).toFixed(0)}% real (after 2% inflation)`}
+          />
+        </ControlGroup>
+
+        <ControlGroup>
+          <SliderControl
+            label="PSU Dividend Yield"
+            value={psuDivYield}
+            onChange={setPsuDivYield}
+            min={0.02}
+            max={0.05}
+            step={0.005}
+            formatValue={(v) => `${(v * 100).toFixed(1)}%`}
+            helpText="Post-CIT abolition dividend rate on phantom equity"
+          />
+        </ControlGroup>
+
+        <ControlGroup>
+          <SliderControl
+            label="401(k) Participation (current system)"
+            value={k401Part}
+            onChange={setK401Part}
+            min={0.20}
+            max={0.80}
+            step={0.05}
+            formatValue={(v) => `${Math.round(v * 100)}%`}
+            helpText="Benchmark for current system comparison"
+          />
+        </ControlGroup>
 
         {/* Grant trajectory */}
-        <div>
-          <p style={{ ...S.label, textTransform: 'none', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>AMCF Grant Trajectory</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {['conservative', 'base', 'optimistic'].map(t => (
-              <button key={t} onClick={() => setGrantTraj(t)} style={{
-                padding: '6px 14px', cursor: 'pointer', fontSize: 12, fontWeight: grantTraj === t ? 700 : 400,
-                color: grantTraj === t ? '#fff' : '#374151',
-                background: grantTraj === t ? '#059669' : '#fff',
-                border: '1px solid #e5e7eb', borderRadius: 6, textTransform: 'capitalize',
-              }}>
-                {t}
-              </button>
-            ))}
-          </div>
-          <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-            Base: $500→$800 floor (Yrs 1–9), then grows uncapped with AMCF fund — $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 (Sim 6 validated)
+        <ControlGroup>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            AMCF Grant Trajectory
           </p>
-        </div>
-      </div>
+          <ToggleGroup
+            type="single"
+            value={grantTraj}
+            onValueChange={(v) => { if (v) setGrantTraj(v); }}
+            className="flex flex-wrap gap-1.5"
+          >
+            {['conservative', 'base', 'optimistic'].map(t => (
+              <ToggleGroupItem key={t} value={t} className="text-xs px-3 py-1.5 capitalize">
+                {t}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <p className="text-xs text-muted-foreground mt-2">
+            Base: $500-$800 floor (Yrs 1-9), then grows uncapped with AMCF fund — $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 (Sim 6 validated)
+          </p>
+        </ControlGroup>
+      </ControlPanel>
 
       {/* ── Chart 1: Wealth Trajectory ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Lifetime Wealth Trajectory — {qLabel} Household</h2>
-        <p style={S.subtext}>
-          Shaded bands = 25th–75th percentile range. Lines = median path.
-          Green = American Ownership Accord &nbsp;|&nbsp; Blue = Current system
-        </p>
+      <ChartContainer
+        className="mt-12"
+        title={`Lifetime Wealth Trajectory — ${qLabel} Household`}
+        subtitle="Shaded bands = 25th-75th percentile range. Lines = median path. Green = American Ownership Accord | Blue = Current system"
+        source={`Monte Carlo simulation: ${N_PATHS.toLocaleString()} paths. Annual returns drawn from N(${(meanReturn * 100).toFixed(0)}%, ${(STD_RETURN * 100).toFixed(0)}%). AMCF grants accumulate from birth (age 0-17: custodial account, age 18+: personal account). PSU equity accumulates with each employer over 5-year ramp; cashed out at job changes and reinvested. All values in 2024 real dollars (2% annual inflation adjustment applied to nominal returns).`}
+        height={420}
+      >
+        <ComposedChart data={trajectoryData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+          <CartesianGrid {...CHART_GRID} />
+          <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottom', offset: -4, fontSize: 12 }} tick={CHART_AXIS.tick} />
+          <YAxis tickFormatter={v => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : `$${v/1000}K`} tick={CHART_AXIS.tick} width={70} />
+          <Tooltip content={<WealthTooltip />} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
 
-        <ResponsiveContainer width="100%" height={420}>
-          <ComposedChart data={trajectoryData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="age" label={{ value: 'Age', position: 'insideBottom', offset: -4, fontSize: 12 }} tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={v => v >= 1e6 ? `$${(v/1e6).toFixed(1)}M` : `$${v/1000}K`} tick={{ fontSize: 12 }} width={70} />
-            <Tooltip content={<WealthTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
+          {/* Milestone annotations */}
+          <ReferenceLine x={18} stroke="#9CA3AF" strokeDasharray="4 3"
+            label={{ value: '18th Birthday', position: 'top', fontSize: 10, fill: '#6B7280' }} />
+          <ReferenceLine x={22} stroke="#9CA3AF" strokeDasharray="4 3"
+            label={{ value: 'Typical First Job', position: 'top', fontSize: 10, fill: '#6B7280' }} />
+          <ReferenceLine x={50} stroke="#9CA3AF" strokeDasharray="4 3"
+            label={{ value: 'Peak Earnings', position: 'top', fontSize: 10, fill: '#6B7280' }} />
 
-            {/* Milestone annotations */}
-            <ReferenceLine x={18} stroke="#9CA3AF" strokeDasharray="4 3"
-              label={{ value: '18th Birthday', position: 'top', fontSize: 10, fill: '#6B7280' }} />
-            <ReferenceLine x={22} stroke="#9CA3AF" strokeDasharray="4 3"
-              label={{ value: 'Typical First Job', position: 'top', fontSize: 10, fill: '#6B7280' }} />
-            <ReferenceLine x={50} stroke="#9CA3AF" strokeDasharray="4 3"
-              label={{ value: 'Peak Earnings', position: 'top', fontSize: 10, fill: '#6B7280' }} />
+          {/* Current system: P25 base + band */}
+          <Area type="monotone" dataKey="cur_p25"  stackId="cur" fill="transparent" stroke="none" legendType="none" name="cur_base" />
+          <Area type="monotone" dataKey="cur_band"  stackId="cur" fill="#BFDBFE" fillOpacity={0.5} stroke="none" name="Current P25-P75 range" />
 
-            {/* Current system: P25 base + band */}
-            <Area type="monotone" dataKey="cur_p25"  stackId="cur" fill="transparent" stroke="none" legendType="none" name="cur_base" />
-            <Area type="monotone" dataKey="cur_band"  stackId="cur" fill="#BFDBFE" fillOpacity={0.5} stroke="none" name="Current P25–P75 range" />
+          {/* Accord: P25 base + band */}
+          <Area type="monotone" dataKey="acc_p25"  stackId="acc" fill="transparent" stroke="none" legendType="none" name="acc_base" />
+          <Area type="monotone" dataKey="acc_band"  stackId="acc" fill="#A7F3D0" fillOpacity={0.5} stroke="none" name="Accord P25-P75 range" />
 
-            {/* Accord: P25 base + band */}
-            <Area type="monotone" dataKey="acc_p25"  stackId="acc" fill="transparent" stroke="none" legendType="none" name="acc_base" />
-            <Area type="monotone" dataKey="acc_band"  stackId="acc" fill="#A7F3D0" fillOpacity={0.5} stroke="none" name="Accord P25–P75 range" />
-
-            {/* Median lines */}
-            <Line type="monotone" dataKey="cur_p50" stroke="#1D4ED8" strokeWidth={2.5} dot={false} name="Current system (median)" />
-            <Line type="monotone" dataKey="acc_p50" stroke="#065F46" strokeWidth={2.5} dot={false} name="Accord (median)" />
-          </ComposedChart>
-        </ResponsiveContainer>
-
-        <p style={S.source}>
-          Monte Carlo simulation: {N_PATHS.toLocaleString()} paths. Annual returns drawn from N({(meanReturn * 100).toFixed(0)}%,{' '}
-          {(STD_RETURN * 100).toFixed(0)}%). AMCF grants accumulate from birth (age 0–17: custodial account, age 18+: personal account).
-          PSU equity accumulates with each employer over 5-year ramp; cashed out at job changes and reinvested.
-          All values in 2024 real dollars (2% annual inflation adjustment applied to nominal returns).
-        </p>
-      </div>
+          {/* Median lines */}
+          <Line type="monotone" dataKey="cur_p50" stroke="#1D4ED8" strokeWidth={2.5} dot={false} name="Current system (median)" />
+          <Line type="monotone" dataKey="acc_p50" stroke="#065F46" strokeWidth={2.5} dot={false} name="Accord (median)" />
+        </ComposedChart>
+      </ChartContainer>
 
       {/* ── Milestone Table ── */}
-      <div style={S.section}>
-        <h2 style={S.h2}>Wealth at Key Milestones — {qLabel}</h2>
-        <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={S.th}>Age</th>
-              <th style={S.th}>Milestone</th>
-              <th style={{ ...S.th, color: '#1D4ED8' }}>Current System (Median)</th>
-              <th style={{ ...S.th, color: '#065F46' }}>Accord (Median)</th>
-              <th style={S.th}>Accord Advantage</th>
-              <th style={S.th}>Accord P25–P75</th>
-            </tr>
-          </thead>
-          <tbody>
-            {milestoneData.map((row, i) => {
-              const milestones = ['AMCF custodial transfer', 'Young professional', 'Established career', 'Peak earning years', 'Late career', 'Retirement'];
-              const adv = row.acc_p50 - row.cur_p50;
-              return (
-                <tr key={row.age} style={{ background: i % 2 === 0 ? '#fff' : '#F9FAFB' }}>
-                  <td style={{ ...S.td, fontWeight: 700 }}>{row.age}</td>
-                  <td style={S.td}>{milestones[i]}</td>
-                  <td style={{ ...S.td, color: '#1D4ED8' }}>{fmtK(row.cur_p50)}</td>
-                  <td style={{ ...S.td, color: '#065F46', fontWeight: 600 }}>{fmtK(row.acc_p50)}</td>
-                  <td style={{ ...S.td, color: adv >= 0 ? '#059669' : '#DC2626', fontWeight: 600 }}>
-                    {adv >= 0 ? '+' : ''}{fmtK(adv)}
-                  </td>
-                  <td style={{ ...S.td, fontSize: 12 }}>
-                    {fmtK(row.acc_p25)} – {fmtK(row.acc_p75)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="mt-12">
+        <h2 className="text-lg font-semibold tracking-tight">Wealth at Key Milestones — {qLabel}</h2>
+        <div className="rounded-lg border overflow-hidden mt-3">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Age</TableHead>
+                <TableHead>Milestone</TableHead>
+                <TableHead className="text-blue-700">Current System (Median)</TableHead>
+                <TableHead className="text-emerald-800">Accord (Median)</TableHead>
+                <TableHead>Accord Advantage</TableHead>
+                <TableHead>Accord P25-P75</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {milestoneData.map((row, i) => {
+                const milestones = ['AMCF custodial transfer', 'Young professional', 'Established career', 'Peak earning years', 'Late career', 'Retirement'];
+                const adv = row.acc_p50 - row.cur_p50;
+                return (
+                  <TableRow key={row.age}>
+                    <TableCell className="font-bold">{row.age}</TableCell>
+                    <TableCell>{milestones[i]}</TableCell>
+                    <TableCell className="text-blue-700">{fmtK(row.cur_p50)}</TableCell>
+                    <TableCell className="text-emerald-800 font-semibold">{fmtK(row.acc_p50)}</TableCell>
+                    <TableCell className={`font-semibold ${adv >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {adv >= 0 ? '+' : ''}{fmtK(adv)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {fmtK(row.acc_p25)} - {fmtK(row.acc_p75)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* ── Two-column: Probability Table + 18th Birthday Histogram ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginTop: S.section.marginTop }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
         {/* Probability Table */}
         <div>
-          <h2 style={S.h2}>Probability of Reaching Wealth Milestones by Age 65</h2>
-          <p style={S.subtext}>Percentage of {N_PATHS.toLocaleString()} simulated paths</p>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>Threshold</th>
-                <th style={{ ...S.th, color: '#1D4ED8' }}>Current</th>
-                <th style={{ ...S.th, color: '#065F46' }}>Accord</th>
-                <th style={S.th}>Improvement</th>
-              </tr>
-            </thead>
-            <tbody>
-              {probData.map((row, i) => {
-                const imp = row.acc - row.cur;
-                return (
-                  <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#F9FAFB' }}>
-                    <td style={{ ...S.td, fontWeight: 600 }}>{fmtK(row.threshold)}</td>
-                    <td style={{ ...S.td, color: '#1D4ED8' }}>{fmtPct(row.cur)}</td>
-                    <td style={{ ...S.td, color: '#065F46', fontWeight: 600 }}>{fmtPct(row.acc)}</td>
-                    <td style={{ ...S.td, color: '#059669', fontWeight: 600 }}>+{Math.round(imp * 100)}pp</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p style={S.source}>
+          <h2 className="text-lg font-semibold tracking-tight">Probability of Reaching Wealth Milestones by Age 65</h2>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">Percentage of {N_PATHS.toLocaleString()} simulated paths</p>
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Threshold</TableHead>
+                  <TableHead className="text-blue-700">Current</TableHead>
+                  <TableHead className="text-emerald-800">Accord</TableHead>
+                  <TableHead>Improvement</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {probData.map((row, i) => {
+                  const imp = row.acc - row.cur;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="font-semibold">{fmtK(row.threshold)}</TableCell>
+                      <TableCell className="text-blue-700">{fmtPct(row.cur)}</TableCell>
+                      <TableCell className="text-emerald-800 font-semibold">{fmtPct(row.acc)}</TableCell>
+                      <TableCell className="text-emerald-600 font-semibold">+{Math.round(imp * 100)}pp</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
             Using {(meanReturn * 100).toFixed(0)}% nominal return, {grantTraj} grant trajectory,{' '}
             {(psuDivYield * 100).toFixed(1)}% PSU yield, {Math.round(k401Part * 100)}% 401k participation.
           </p>
@@ -544,47 +554,51 @@ export default function GenerationalWealth() {
 
         {/* 18th Birthday Histogram */}
         <div>
-          <h2 style={S.h2}>18th Birthday: AMCF Custodial Account</h2>
-          <p style={S.subtext}>
+          <h2 className="text-lg font-semibold tracking-tight">18th Birthday: AMCF Custodial Account</h2>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
             Distribution across {N_PATHS.toLocaleString()} paths.
             Median: <strong>{fmtK(amcfAt18Median)}</strong> &nbsp;|&nbsp;
-            Range: {fmtK(amcfAt18P25)}–{fmtK(amcfAt18P75)}
+            Range: {fmtK(amcfAt18P25)}-{fmtK(amcfAt18P75)}
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={amcfAt18Hist} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="range" tick={{ fontSize: 10 }} interval={2} />
-              <YAxis tickFormatter={v => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 11 }} width={40} />
-              <Tooltip formatter={(v) => [`${(v * 100).toFixed(1)}%`, 'Share of paths']}
-                contentStyle={{ fontSize: 12 }} />
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="range" tick={{ ...CHART_AXIS.tick, fontSize: 10 }} interval={2} />
+              <YAxis tickFormatter={v => `${(v * 100).toFixed(0)}%`} tick={CHART_AXIS.tick} width={40} />
+              <Tooltip
+                formatter={(v) => [`${(v * 100).toFixed(1)}%`, 'Share of paths']}
+                contentStyle={TOOLTIP_STYLE}
+                itemStyle={{ color: '#fafafa' }}
+                labelStyle={{ color: '#fafafa', fontWeight: 600 }}
+              />
               <Bar dataKey="pct" name="Share of paths" fill="#10B981" radius={[2, 2, 0, 0]} />
               <ReferenceLine x={fmtK(amcfAt18Median)} stroke="#065F46" strokeDasharray="4 3" />
             </BarChart>
           </ResponsiveContainer>
-          <p style={S.source}>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
             AMCF custodial account value at age 18 transfer. Variance comes from 18 years of
             market-linked AMCF returns. The $500 annual floor means even bad-luck paths have
             meaningful balances. "{fmtK(amcfAt18Median)} median" matches spec estimate of{' '}
-            $15K–$17K (conservative) to $20K+ (base/optimistic).
+            $15K-$17K (conservative) to $20K+ (base/optimistic).
           </p>
         </div>
       </div>
 
       {/* ── Methodology ── */}
-      <div style={{ marginTop: 48, padding: '16px 20px', background: '#F9FAFB', borderRadius: 8, fontSize: 11, color: '#6B7280', lineHeight: 1.7 }}>
-        <strong style={{ color: '#374151' }}>Methodology:</strong>{' '}
-        Monte Carlo simulation: {N_PATHS.toLocaleString()} paths, age 0–{AGE_MAX}.
+      <InfoBox className="mt-12">
+        <strong className="text-foreground">Methodology:</strong>{' '}
+        Monte Carlo simulation: {N_PATHS.toLocaleString()} paths, age 0-{AGE_MAX}.
         Annual real returns: N({((meanReturn - 0.02) * 100).toFixed(0)}%, 16%), drawn from seeded LCG + Box-Muller.
         Employment start age drawn from empirical distribution (10%@16, 15%@18, 40%@22, 25%@25, 10%@28).
-        Wages use BLS age-earnings profile (annualized) × quintile multiplier.
-        Job changes drawn stochastically (probability 42% age &lt;25, 28% age 25–34, 20% age 35–44, 12% age 45–54, 8% age 55+);
+        Wages use BLS age-earnings profile (annualized) x quintile multiplier.
+        Job changes drawn stochastically (probability 42% age &lt;25, 28% age 25-34, 20% age 35-44, 12% age 45-54, 8% age 55+);
         at each change, PSU cashed out at FMV and reinvested. Employer type drawn at each job from quintile-specific
         distribution (large/mid/exempt firms per Census Statistics of US Businesses).
         AMCF grows at the same annual return as household portfolio (AMCF holds passive equity).
-        Prebate net savings = max(0, $5,000 − 4% VAT on quintile consumption, New Accord rate) × income-appropriate savings rate.
+        Prebate net savings = max(0, $5,000 - 4% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
         Current system: 401(k) at quintile participation rate (9% combined, slider-adjustable) + minimal personal savings.
         All values in 2024 real dollars.
-      </div>
-    </div>
+      </InfoBox>
+    </PageShell>
   );
 }

@@ -9,6 +9,20 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ReferenceLine
 } from 'recharts';
+import { PageShell } from '@/components/layout/PageShell';
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { SliderControl } from '@/components/controls/SliderControl';
+import { ControlPanel, ControlGroup } from '@/components/controls/ControlPanel';
+import { InfoBox } from '@/components/shared/InfoBox';
+import { MilestoneCard } from '@/components/shared/MilestoneCard';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
+import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
@@ -505,13 +519,13 @@ function runValidation(params) {
   // 2. Single owner: all wealth in one group → Gini ≈ 1
   const soPts = DEMO_KEYS.map((_, i) => ({ v: i === 0 ? 1e12 : 0, w: WGTS[i] }));
   const soGini = computeGini(soPts);
-  results.push({ test: 'Single owner (max concentration)', expected: '≥ 0.85', actual: soGini.toFixed(4), pass: soGini > 0.85 });
+  results.push({ test: 'Single owner (max concentration)', expected: '\u2265 0.85', actual: soGini.toFixed(4), pass: soGini > 0.85 });
 
   // 3. Annuity sanity: r → 0 → factor → remaining life expectancy
   const afLow = annuityFactor(42, 0.001, SURV_BASE);
   const remainingLE = SURV_BASE.slice(43).reduce((s, v) => s + v / SURV_BASE[42], 0);
   const afDiff = Math.abs(afLow - remainingLE);
-  results.push({ test: 'Annuity factor (r≈0) ≈ remaining LE', expected: remainingLE.toFixed(1), actual: afLow.toFixed(1), pass: afDiff < 1 });
+  results.push({ test: 'Annuity factor (r\u22480) \u2248 remaining LE', expected: remainingLE.toFixed(1), actual: afLow.toFixed(1), pass: afDiff < 1 });
 
   // 4. Year 0 identity: CL and Accord Ginis must be identical at Year 0
   const cl0 = computeSuite(0, ALL_PROVS, params);
@@ -526,8 +540,8 @@ function runValidation(params) {
   // 6. NW Gini decreases under Accord (Year 0 vs Year 30)
   const nw0 = computeSuite(0, ALL_PROVS, params).find(m => m.key === 'netWorth').gini;
   const nw30 = computeSuite(30, ALL_PROVS, params).find(m => m.key === 'netWorth').gini;
-  results.push({ test: 'NW Gini decreases Yr0→30 (Accord)', expected: 'Pass',
-    actual: nw30 < nw0 ? `Pass (${nw0.toFixed(3)}→${nw30.toFixed(3)})` : 'FAIL', pass: nw30 < nw0 });
+  results.push({ test: 'NW Gini decreases Yr0\u219230 (Accord)', expected: 'Pass',
+    actual: nw30 < nw0 ? `Pass (${nw0.toFixed(3)}\u2192${nw30.toFixed(3)})` : 'FAIL', pass: nw30 < nw0 });
 
   // 7. No Gini > 0.98 (ceiling check)
   const suite30 = computeSuite(30, ALL_PROVS, params);
@@ -548,6 +562,11 @@ function runValidation(params) {
 // ║  UI COMPONENTS                                                           ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 
+const TOOLTIP_STYLE = {
+  backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8,
+  padding: '10px 14px', fontSize: 12, color: '#fafafa',
+};
+
 const fD = n => {
   if (n === null || n === undefined || isNaN(n)) return '$0';
   const a = Math.abs(n), s = n < 0 ? '-' : '';
@@ -556,25 +575,6 @@ const fD = n => {
   if (a >= 1e6) return `${s}$${(a/1e6).toFixed(1)}M`;
   if (a >= 1e3) return `${s}$${(a/1e3).toFixed(0)}K`;
   return `${s}$${a.toFixed(0)}`;
-};
-
-const S = {
-  card: { background: '#fff', borderRadius: 10, padding: 20, marginBottom: 16, boxShadow: '0 1px 4px rgba(15,29,47,0.06)', border: '1px solid #e8e4df' },
-  h2: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#0f1d2f', marginBottom: 12 },
-  label: { fontSize: 12, fontWeight: 600, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 },
-  th: { padding: '8px 10px', fontWeight: 600, borderBottom: '2px solid #e5e7eb', fontSize: 11, textAlign: 'left', whiteSpace: 'nowrap' },
-  td: { padding: '7px 10px', borderBottom: '1px solid #f3f4f6', fontSize: 12 },
-  tabBtn: (active) => ({
-    padding: '8px 18px', fontSize: 13, borderRadius: 6, cursor: 'pointer', border: 'none', fontWeight: active ? 700 : 400,
-    background: active ? '#0f1d2f' : '#f3f4f6', color: active ? '#fff' : '#374151',
-    fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s',
-  }),
-  toggle: (on) => ({
-    padding: '4px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-    border: on ? '2px solid #0f1d2f' : '1px solid #d1d5db',
-    background: on ? '#0f1d2f10' : '#fff', color: on ? '#0f1d2f' : '#9ca3af',
-    fontWeight: on ? 600 : 400, fontFamily: "'DM Sans', sans-serif",
-  }),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -646,14 +646,14 @@ function OverviewTab({ P, params }) {
     const mainKey = dataKeys[0];
     const countryRefs = refs.filter(c => c[mainKey] != null);
     return (
-      <div style={{ background: '#faf8f5', borderRadius: 8, padding: '12px 8px' }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 4, paddingLeft: 8 }}>{title}</div>
+      <div className="rounded-lg bg-muted/30 p-3">
+        <div className="text-[13px] font-bold pl-2 mb-1" style={{ color }}>{title}</div>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={timeData} margin={{ top: 5, right: 80, bottom: 15, left: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid {...CHART_GRID} />
             <XAxis dataKey="year" tick={{ fontSize: 9 }} />
             <YAxis domain={domain} tickFormatter={v => v.toFixed(2)} tick={{ fontSize: 9 }} width={40} />
-            <Tooltip formatter={v => v.toFixed(3)} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={v => v.toFixed(3)} />
             {countryRefs.map(c => (
               <ReferenceLine key={c.key} y={c[mainKey]} stroke={c.color} strokeDasharray="3 3"
                 label={{ value: c.label, position: 'right', fontSize: 9, fill: c.color }} />
@@ -680,113 +680,121 @@ function OverviewTab({ P, params }) {
   return (
     <div>
       {/* Metric definitions */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>What Each Metric Measures</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {GINI_META.map(m => (
-            <div key={m.key} style={{ padding: '14px 12px', borderRadius: 8, border: `2px solid ${m.color}20`, background: `${m.color}06` }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: m.color, marginBottom: 6 }}>{m.label}</div>
-              <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>{m.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card>
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-3">What Each Metric Measures</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {GINI_META.map(m => (
+              <div key={m.key} className="rounded-lg p-3.5" style={{ border: `2px solid ${m.color}20`, background: `${m.color}06` }}>
+                <div className="text-xs font-bold mb-1.5" style={{ color: m.color }}>{m.label}</div>
+                <div className="text-[11px] text-muted-foreground leading-relaxed">{m.desc}</div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 30-year line charts */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>30-Year Gini Trajectories</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-          <strong style={{ color: '#94a3b8' }}>Dashed = Current Law</strong>, <strong>Solid = With Accord</strong>.
-          Disposable Income and Consumption Capacity share axes for comparison.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 16 }}>
-          {renderChart('Disposable Income Gini', '#f97316', ['dispInc'], domainFor('dispInc'))}
-          {renderChart('Consumption Capacity Gini — solid=illiquid, dashed=liquid', '#22c55e', ['consCap'], domainFor('consCap'), ccExtraLines)}
-          {renderChart('Net Worth Gini', '#8b5cf6', ['netWorth'], domainFor('netWorth'))}
-        </div>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-1">30-Year Gini Trajectories</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            <strong className="text-slate-400">Dashed = Current Law</strong>, <strong>Solid = With Accord</strong>.
+            Disposable Income and Consumption Capacity share axes for comparison.
+          </p>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
+            {renderChart('Disposable Income Gini', '#f97316', ['dispInc'], domainFor('dispInc'))}
+            {renderChart('Consumption Capacity Gini \u2014 solid=illiquid, dashed=liquid', '#22c55e', ['consCap'], domainFor('consCap'), ccExtraLines)}
+            {renderChart('Net Worth Gini', '#8b5cf6', ['netWorth'], domainFor('netWorth'))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* International context */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>International Context</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-          Comparisons shown only for metrics with published, comparable OECD data.
-        </p>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr>
-              <th style={S.th}>Country</th>
-              <th style={S.th}>Archetype</th>
-              <th style={{ ...S.th, textAlign: 'center', color: '#f97316' }}>Disposable Inc</th>
-              <th style={{ ...S.th, textAlign: 'center', color: '#8b5cf6' }}>Net Worth</th>
-              <th style={S.th}>Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            {COUNTRIES.map((c, i) => (
-              <tr key={c.key} style={{ background: i % 2 === 0 ? '#fff' : '#faf8f5' }}>
-                <td style={{ ...S.td, fontWeight: 600, color: c.color }}>{c.label}</td>
-                <td style={{ ...S.td, fontSize: 11 }}>{c.arch}</td>
-                <td style={{ ...S.td, textAlign: 'center' }}>{c.dispInc?.toFixed(3) ?? '—'}</td>
-                <td style={{ ...S.td, textAlign: 'center' }}>{c.netWorth?.toFixed(3) ?? '—'}</td>
-                <td style={S.td}>
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600,
-                    background: c.type === 'like' ? '#dcfce7' : '#fef3c7',
-                    color: c.type === 'like' ? '#166534' : '#92400e' }}>
-                    {c.type === 'like' ? 'Like-for-like' : 'Indicative'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-1">International Context</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Comparisons shown only for metrics with published, comparable OECD data.
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Country</TableHead>
+                <TableHead>Archetype</TableHead>
+                <TableHead className="text-center text-orange-500">Disposable Inc</TableHead>
+                <TableHead className="text-center text-violet-500">Net Worth</TableHead>
+                <TableHead>Type</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {COUNTRIES.map(c => (
+                <TableRow key={c.key}>
+                  <TableCell className="font-semibold" style={{ color: c.color }}>{c.label}</TableCell>
+                  <TableCell className="text-[11px]">{c.arch}</TableCell>
+                  <TableCell className="text-center">{c.dispInc?.toFixed(3) ?? '\u2014'}</TableCell>
+                  <TableCell className="text-center">{c.netWorth?.toFixed(3) ?? '\u2014'}</TableCell>
+                  <TableCell>
+                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${c.type === 'like' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {c.type === 'like' ? 'Like-for-like' : 'Indicative'}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Security Floor — line chart with threshold slider */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Security Floor: Who Can Afford Basic Needs?</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-          Share of households whose sustainable consumption capacity falls below the basic-needs threshold.
-          Lower = fewer households in precarity = better.
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0f1d2f' }}>
-            Basic Needs Threshold: ${(ccThreshold / 1000).toFixed(0)}K/yr
-          </div>
-          <input type="range" min={15000} max={60000} step={1000} value={ccThreshold}
-            onChange={e => setCcThreshold(+e.target.value)} style={{ width: 200 }} />
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>
-            Default: MIT Living Wage (~$30K/yr, single adult). Range: $15K (poverty line, single) to $60K (living wage, family of 4).
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={secFloorData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} label={{ value: 'Year', position: 'insideBottom', offset: -8, fontSize: 11 }} />
-            <YAxis tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }} width={45} />
-            <Tooltip formatter={v => `${v}%`} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line dataKey="cl" name="Current Law" stroke="#94a3b8" strokeWidth={2} dot={false} strokeDasharray="6 3" />
-            <Line dataKey="accord" name="With Accord" stroke="#1d4ed8" strokeWidth={2.5} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-        <div style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic', marginTop: 4 }}>
-          Step pattern reflects 13-bracket model resolution. Actual transition would be gradual.
-        </div>
-        {zeroYear != null && (
-          <div style={{ marginTop: 12, padding: 16, background: '#f0fdf4', borderRadius: 8, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Every American household can afford basic needs by
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-1">Security Floor: Who Can Afford Basic Needs?</h3>
+          <p className="text-xs text-muted-foreground mb-2">
+            Share of households whose sustainable consumption capacity falls below the basic-needs threshold.
+            Lower = fewer households in precarity = better.
+          </p>
+          <ControlPanel columns={1} className="mb-4">
+            <SliderControl
+              label={`Basic Needs Threshold: $${(ccThreshold / 1000).toFixed(0)}K/yr`}
+              value={ccThreshold}
+              onChange={setCcThreshold}
+              min={15000}
+              max={60000}
+              step={1000}
+              formatValue={v => `$${(v/1000).toFixed(0)}K`}
+              helpText="Default: MIT Living Wage (~$30K/yr, single adult). Range: $15K (poverty line, single) to $60K (living wage, family of 4)."
+            />
+          </ControlPanel>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={secFloorData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="year" tick={CHART_AXIS.tick} label={{ value: 'Year', position: 'insideBottom', offset: -8, fontSize: 11 }} />
+              <YAxis tickFormatter={v => `${v}%`} tick={CHART_AXIS.tick} width={45} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={v => `${v}%`} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line dataKey="cl" name="Current Law" stroke="#94a3b8" strokeWidth={2} dot={false} strokeDasharray="6 3" />
+              <Line dataKey="accord" name="With Accord" stroke="#1d4ed8" strokeWidth={2.5} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+          <p className="text-[10px] text-muted-foreground italic mt-1">
+            Step pattern reflects 13-bracket model resolution. Actual transition would be gradual.
+          </p>
+          {zeroYear != null && (
+            <div className="mt-3 rounded-lg bg-green-50 p-4 text-center">
+              <div className="text-[11px] font-semibold text-green-800 uppercase tracking-widest">
+                Every American household can afford basic needs by
+              </div>
+              <div className="text-[42px] font-extrabold text-green-600 font-serif">
+                Year {zeroYear}
+              </div>
+              <div className="text-xs text-green-800">
+                Consumption capacity above ${(ccThreshold/1000).toFixed(0)}K/yr for 100% of households
+              </div>
             </div>
-            <div style={{ fontSize: 42, fontWeight: 800, color: '#16a34a', fontFamily: "'Playfair Display', serif" }}>
-              Year {zeroYear}
-            </div>
-            <div style={{ fontSize: 12, color: '#166534' }}>
-              Consumption capacity above ${(ccThreshold/1000).toFixed(0)}K/yr for 100% of households
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -806,112 +814,116 @@ function TablesTab({ P, params }) {
   return (
     <div>
       {/* Absolute levels */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Absolute Levels: What Households Can Actually Afford</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-          Gini measures <em>relative</em> inequality. This table shows actual dollar amounts — <strong>everyone gets richer</strong>.
-        </p>
-        {['consCap', 'netWorth'].map(metric => {
-          const isCC = metric === 'consCap';
-          const mLabel = isCC ? 'Consumption Capacity ($/yr per household)' : 'Net Worth ($ per household)';
-          const getVal = isCC
-            ? (k, y, pSet) => getConsumptionCapacity(k, y, pSet, params)
-            : (k, y, pSet) => getNW(k, y, pSet).total;
-          return (
-            <div key={metric} style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: isCC ? '#22c55e' : '#8b5cf6', marginBottom: 6 }}>{mLabel}</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...S.th, fontSize: 10 }}>Demo</th>
-                    {SNAP_YRS.map(y => <th key={y} style={{ ...S.th, textAlign: 'center', fontSize: 10 }}>Yr {y}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {keyDemos.map((k, ki) => (
-                    <tr key={k} style={{ background: ki % 2 === 0 ? '#fff' : '#faf8f5' }}>
-                      <td style={{ ...S.td, fontWeight: 600, color: DEMOS[k].color, fontSize: 10 }}>{DEMOS[k].label}</td>
-                      {SNAP_YRS.map(y => {
-                        const cl = getVal(k, y, BASE_ONLY);
-                        const acc = getVal(k, y, P);
-                        const pctChg = cl > 0 ? ((acc / cl - 1) * 100) : acc > 0 ? 999 : 0;
-                        return (
-                          <td key={y} style={{ ...S.td, textAlign: 'center', fontSize: 10, lineHeight: 1.4 }}>
-                            <div style={{ color: '#94a3b8' }}>{fD(cl)}</div>
-                            <div style={{ fontWeight: 700, color: '#0f1d2f' }}>{fD(acc)}</div>
-                            <div style={{ fontSize: 9, color: pctChg > 1 ? '#16a34a' : pctChg < -1 ? '#dc2626' : '#64748b', fontWeight: 600 }}>
-                              {pctChg > 0 ? '+' : ''}{pctChg > 500 ? 'n/a' : pctChg.toFixed(0) + '%'}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Distribution shape supplements */}
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Distribution Shape Supplements Over Time</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-          Each cell shows <strong style={{ color: '#94a3b8' }}>CL</strong> / <strong style={{ color: '#1d4ed8' }}>Accord</strong> (delta).
-        </p>
-        {GINI_META.map((m) => (
-          <div key={m.key} style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: m.color, marginBottom: 6, borderLeft: `3px solid ${m.color}`, paddingLeft: 10 }}>{m.label}</div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...S.th, fontSize: 10 }}>Supplement</th>
-                    {SNAP_YRS.map(y => <th key={y} style={{ ...S.th, textAlign: 'center', fontSize: 10 }}>Yr {y}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {['gini','b50','medMean','p90p10','p90p50','nonPosShare'].map(sup => {
-                    if (sup === 'p90p10' && m.key === 'netWorth') return null;
-                    if (sup === 'p90p50' && m.key === 'netWorth') return null;
-                    if (sup === 'nonPosShare' && m.key !== 'netWorth') return null;
-                    const labels = { gini: 'Gini', b50: 'Bottom 50% Share', medMean: 'Median / Mean', p90p10: 'P90 / P10', p90p50: 'P90 / P50', nonPosShare: 'Non-positive NW' };
-                    return (
-                      <tr key={sup} style={{ background: sup === 'gini' ? `${m.color}06` : 'transparent' }}>
-                        <td style={{ ...S.td, fontWeight: sup === 'gini' ? 700 : 400, fontSize: 10 }}>{labels[sup]}</td>
+      <Card>
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-1">Absolute Levels: What Households Can Actually Afford</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Gini measures <em>relative</em> inequality. This table shows actual dollar amounts — <strong>everyone gets richer</strong>.
+          </p>
+          {['consCap', 'netWorth'].map(metric => {
+            const isCC = metric === 'consCap';
+            const mLabel = isCC ? 'Consumption Capacity ($/yr per household)' : 'Net Worth ($ per household)';
+            const getVal = isCC
+              ? (k, y, pSet) => getConsumptionCapacity(k, y, pSet, params)
+              : (k, y, pSet) => getNW(k, y, pSet).total;
+            return (
+              <div key={metric} className="mb-5">
+                <div className="text-xs font-bold mb-1.5" style={{ color: isCC ? '#22c55e' : '#8b5cf6' }}>{mLabel}</div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px]">Demo</TableHead>
+                      {SNAP_YRS.map(y => <TableHead key={y} className="text-center text-[10px]">Yr {y}</TableHead>)}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {keyDemos.map(k => (
+                      <TableRow key={k}>
+                        <TableCell className="font-semibold text-[10px]" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</TableCell>
                         {SNAP_YRS.map(y => {
-                          const cl = snapSuites[y].cl[GINI_META.indexOf(m)];
-                          const acc = snapSuites[y].acc[GINI_META.indexOf(m)];
-                          let clV, accV, delta, good;
-                          if (sup === 'gini') { clV = cl.gini; accV = acc.gini; delta = accV - clV; good = delta < -0.003; }
-                          else if (sup === 'b50') { clV = cl.b50*100; accV = acc.b50*100; delta = accV - clV; good = delta > 0.1; }
-                          else if (sup === 'medMean') { clV = cl.medMean; accV = acc.medMean; delta = accV - clV; good = delta > 0.003; }
-                          else if (sup === 'p90p10') { clV = cl.p90p10; accV = acc.p90p10; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.1; }
-                          else if (sup === 'p90p50') { clV = cl.p90p50; accV = acc.p90p50; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.01; }
-                          else if (sup === 'nonPosShare') { clV = cl.nonPosShare != null ? cl.nonPosShare*100 : null; accV = acc.nonPosShare != null ? acc.nonPosShare*100 : null; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.1; }
-                          const fmt = v => { if (v == null) return '—'; if (sup === 'gini' || sup === 'medMean') return v.toFixed(3); if (sup === 'b50' || sup === 'nonPosShare') return v.toFixed(1)+'%'; if (sup === 'p90p50') return v.toFixed(2); return isFinite(v) ? v.toFixed(1) : '\u221e'; };
-                          const dColor = isFinite(delta) && good ? '#16a34a' : isFinite(delta) && !good && Math.abs(delta) > 0.001 ? '#dc2626' : '#64748b';
+                          const cl = getVal(k, y, BASE_ONLY);
+                          const acc = getVal(k, y, P);
+                          const pctChg = cl > 0 ? ((acc / cl - 1) * 100) : acc > 0 ? 999 : 0;
                           return (
-                            <td key={y} style={{ ...S.td, textAlign: 'center', fontSize: 10, lineHeight: 1.4 }}>
-                              <span style={{ color: '#94a3b8' }}>{fmt(clV)}</span>
-                              {' / '}
-                              <span style={{ fontWeight: 600, color: '#0f1d2f' }}>{fmt(accV)}</span>
-                              <div style={{ fontSize: 9, color: dColor, fontWeight: 600 }}>
-                                {isFinite(delta) ? (delta >= 0 ? '+' : '') + (sup === 'b50' || sup === 'nonPosShare' ? delta.toFixed(1)+'pp' : sup === 'gini' || sup === 'medMean' ? delta.toFixed(3) : delta.toFixed(1)) : ''}
+                            <TableCell key={y} className="text-center text-[10px] leading-snug">
+                              <div className="text-slate-400">{fD(cl)}</div>
+                              <div className="font-bold text-foreground">{fD(acc)}</div>
+                              <div className={`text-[9px] font-semibold ${pctChg > 1 ? 'text-green-600' : pctChg < -1 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                {pctChg > 0 ? '+' : ''}{pctChg > 500 ? 'n/a' : pctChg.toFixed(0) + '%'}
                               </div>
-                            </td>
+                            </TableCell>
                           );
                         })}
-                      </tr>
-                    );
-                  }).filter(Boolean)}
-                </tbody>
-              </table>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Distribution shape supplements */}
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-1">Distribution Shape Supplements Over Time</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Each cell shows <strong className="text-slate-400">CL</strong> / <strong className="text-foreground">Accord</strong> (delta).
+          </p>
+          {GINI_META.map((m) => (
+            <div key={m.key} className="mb-5">
+              <div className="text-[13px] font-bold mb-1.5 border-l-[3px] pl-2.5" style={{ color: m.color, borderColor: m.color }}>{m.label}</div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[10px]">Supplement</TableHead>
+                      {SNAP_YRS.map(y => <TableHead key={y} className="text-center text-[10px]">Yr {y}</TableHead>)}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {['gini','b50','medMean','p90p10','p90p50','nonPosShare'].map(sup => {
+                      if (sup === 'p90p10' && m.key === 'netWorth') return null;
+                      if (sup === 'p90p50' && m.key === 'netWorth') return null;
+                      if (sup === 'nonPosShare' && m.key !== 'netWorth') return null;
+                      const labels = { gini: 'Gini', b50: 'Bottom 50% Share', medMean: 'Median / Mean', p90p10: 'P90 / P10', p90p50: 'P90 / P50', nonPosShare: 'Non-positive NW' };
+                      return (
+                        <TableRow key={sup} style={sup === 'gini' ? { background: `${m.color}06` } : undefined}>
+                          <TableCell className={`text-[10px] ${sup === 'gini' ? 'font-bold' : ''}`}>{labels[sup]}</TableCell>
+                          {SNAP_YRS.map(y => {
+                            const cl = snapSuites[y].cl[GINI_META.indexOf(m)];
+                            const acc = snapSuites[y].acc[GINI_META.indexOf(m)];
+                            let clV, accV, delta, good;
+                            if (sup === 'gini') { clV = cl.gini; accV = acc.gini; delta = accV - clV; good = delta < -0.003; }
+                            else if (sup === 'b50') { clV = cl.b50*100; accV = acc.b50*100; delta = accV - clV; good = delta > 0.1; }
+                            else if (sup === 'medMean') { clV = cl.medMean; accV = acc.medMean; delta = accV - clV; good = delta > 0.003; }
+                            else if (sup === 'p90p10') { clV = cl.p90p10; accV = acc.p90p10; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.1; }
+                            else if (sup === 'p90p50') { clV = cl.p90p50; accV = acc.p90p50; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.01; }
+                            else if (sup === 'nonPosShare') { clV = cl.nonPosShare != null ? cl.nonPosShare*100 : null; accV = acc.nonPosShare != null ? acc.nonPosShare*100 : null; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.1; }
+                            const fmt = v => { if (v == null) return '\u2014'; if (sup === 'gini' || sup === 'medMean') return v.toFixed(3); if (sup === 'b50' || sup === 'nonPosShare') return v.toFixed(1)+'%'; if (sup === 'p90p50') return v.toFixed(2); return isFinite(v) ? v.toFixed(1) : '\u221e'; };
+                            const dColor = isFinite(delta) && good ? 'text-green-600' : isFinite(delta) && !good && Math.abs(delta) > 0.001 ? 'text-red-600' : 'text-muted-foreground';
+                            return (
+                              <TableCell key={y} className="text-center text-[10px] leading-snug">
+                                <span className="text-slate-400">{fmt(clV)}</span>
+                                {' / '}
+                                <span className="font-semibold text-foreground">{fmt(accV)}</span>
+                                <div className={`text-[9px] font-semibold ${dColor}`}>
+                                  {isFinite(delta) ? (delta >= 0 ? '+' : '') + (sup === 'b50' || sup === 'nonPosShare' ? delta.toFixed(1)+'pp' : sup === 'gini' || sup === 'medMean' ? delta.toFixed(3) : delta.toFixed(1)) : ''}
+                                </div>
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    }).filter(Boolean)}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -950,36 +962,38 @@ function ProvisionDecomp({ params }) {
 
   return (
     <div>
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 18 }}>Where Does the Equalizing Power Come From?</h3>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>
-          Each segment shows one provision's marginal contribution to Gini reduction at each year.
-          Provisions are added cumulatively: Tax Reform first, then Prebate, then AMCF, then PSU.
-          Taller bars = more total inequality reduction. The composition shows which mechanism does the heavy lifting.
-        </p>
+      <Card>
+        <CardContent className="pt-4">
+          <h3 className="text-lg font-semibold tracking-tight mb-1">Where Does the Equalizing Power Come From?</h3>
+          <p className="text-xs text-muted-foreground mb-5">
+            Each segment shows one provision's marginal contribution to Gini reduction at each year.
+            Provisions are added cumulatively: Tax Reform first, then Prebate, then AMCF, then PSU.
+            Taller bars = more total inequality reduction. The composition shows which mechanism does the heavy lifting.
+          </p>
 
-        {GINI_META.map((m, mi) => (
-          <div key={m.key} style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: m.color, marginBottom: 8, borderLeft: `4px solid ${m.color}`, paddingLeft: 10 }}>
-              {m.label} — Gini Reduction by Provision
+          {GINI_META.map((m, mi) => (
+            <div key={m.key} className="mb-6">
+              <div className="text-sm font-bold mb-2 border-l-4 pl-2.5" style={{ color: m.color, borderColor: m.color }}>
+                {m.label} — Gini Reduction by Provision
+              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={data[mi]} margin={{ top: 10, right: 30, bottom: 5, left: 10 }}>
+                  <CartesianGrid {...CHART_GRID} />
+                  <XAxis dataKey="year" tick={CHART_AXIS.tick} />
+                  <YAxis tickFormatter={v => v.toFixed(3)} tick={CHART_AXIS.tick} width={45}
+                    label={{ value: 'Gini reduction', angle: -90, position: 'insideLeft', offset: 5, fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [v.toFixed(4), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {PROV_LAYERS.map(layer => (
+                    <Bar key={layer.key} dataKey={layer.key} name={layer.label} stackId="a"
+                      fill={layer.color} radius={layer.key === 'PSU_C' ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={data[mi]} margin={{ top: 10, right: 30, bottom: 5, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="year" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={v => v.toFixed(3)} tick={{ fontSize: 10 }} width={45}
-                  label={{ value: 'Gini reduction', angle: -90, position: 'insideLeft', offset: 5, fontSize: 10, fill: '#94a3b8' }} />
-                <Tooltip formatter={(v, name) => [v.toFixed(4), name]} contentStyle={{ fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {PROV_LAYERS.map(layer => (
-                  <Bar key={layer.key} dataKey={layer.key} name={layer.label} stackId="a"
-                    fill={layer.color} radius={layer.key === 'PSU_C' ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ))}
-      </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -991,64 +1005,77 @@ function MethodologyTab({ params }) {
 
   return (
     <div>
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Measurement Framework</h3>
-        <div style={{ fontSize: 12, lineHeight: 1.8, color: '#374151' }}>
-          <p><strong>The core problem:</strong> The AOA delivers benefits as held wealth (AMCF scrip, PSUs) and income streams (prebate) — forms that conventional metrics handle badly. No single Gini tells the truth. This module reports five variants and makes the gaps between them legible.</p>
-          <p style={{ marginTop: 12 }}><strong>Annuity factor:</strong> AF(age, r) = Sum_t [ P(alive at age+t | alive at age) / (1+r)^t ]. Converts streams to stocks and stocks to sustainable flows.</p>
-          <p style={{ marginTop: 12 }}><strong>Why no Augmented Wealth time series:</strong> Augmented wealth (NW + PV of Social Security and other entitlements) is a useful cross-sectional concept but cannot be reliably tracked in a 13-bracket model. The fixed-dollar PV additions get diluted as NW compounds, causing the augmented Gini to rise even when NW Gini falls. The Net Worth Gini directly measures ownership inequality, and the Consumption Capacity Gini captures affordability including drawdown value. Together they cover what augmented wealth was intended to measure.</p>
-          <p style={{ marginTop: 12 }}><strong>Model structure:</strong> 13 representative brackets (B10 through Elon Musk) with population-weighted Gini computation. Each bracket has a fixed cross-sectional age (SCF/CPS demographic profiles, e.g. B10=48, BILL=65) — Gini is computed as a population snapshot, not a cohort tracked over time. Brackets track policy-year evolution, not individual aging. Population shares are held constant.</p>
-          <p style={{ marginTop: 12 }}><strong>Consumption capacity:</strong> Disposable income + annuitized drawdown of liquid wealth + dividends from illiquid wealth. Guard: if scrip is liquid, include principal drawdown but DROP dividends. If illiquid, include dividends but NO principal drawdown.</p>
-          <p style={{ marginTop: 12 }}><strong>Life table:</strong> SSA 2024 Period Life Table (unisex average). SES-differentiated variant shifts survival curve ±3 years per Chetty et al. (2016).</p>
-          <p style={{ marginTop: 12 }}><strong>Gini method:</strong> Weighted Lorenz trapezoid. 13-point distribution (B10 through Elon, exact population weights). Anchor-calibrated to US empirical baselines (income 0.490, wealth 0.850) at Year 0.</p>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-3">Measurement Framework</h3>
+          <InfoBox>
+            <div className="space-y-3 text-xs leading-relaxed text-foreground/80">
+              <p><strong>The core problem:</strong> The AOA delivers benefits as held wealth (AMCF scrip, PSUs) and income streams (prebate) — forms that conventional metrics handle badly. No single Gini tells the truth. This module reports five variants and makes the gaps between them legible.</p>
+              <p><strong>Annuity factor:</strong> AF(age, r) = Sum_t [ P(alive at age+t | alive at age) / (1+r)^t ]. Converts streams to stocks and stocks to sustainable flows.</p>
+              <p><strong>Why no Augmented Wealth time series:</strong> Augmented wealth (NW + PV of Social Security and other entitlements) is a useful cross-sectional concept but cannot be reliably tracked in a 13-bracket model. The fixed-dollar PV additions get diluted as NW compounds, causing the augmented Gini to rise even when NW Gini falls. The Net Worth Gini directly measures ownership inequality, and the Consumption Capacity Gini captures affordability including drawdown value. Together they cover what augmented wealth was intended to measure.</p>
+              <p><strong>Model structure:</strong> 13 representative brackets (B10 through Elon Musk) with population-weighted Gini computation. Each bracket has a fixed cross-sectional age (SCF/CPS demographic profiles, e.g. B10=48, BILL=65) — Gini is computed as a population snapshot, not a cohort tracked over time. Brackets track policy-year evolution, not individual aging. Population shares are held constant.</p>
+              <p><strong>Consumption capacity:</strong> Disposable income + annuitized drawdown of liquid wealth + dividends from illiquid wealth. Guard: if scrip is liquid, include principal drawdown but DROP dividends. If illiquid, include dividends but NO principal drawdown.</p>
+              <p><strong>Life table:</strong> SSA 2024 Period Life Table (unisex average). SES-differentiated variant shifts survival curve ±3 years per Chetty et al. (2016).</p>
+              <p><strong>Gini method:</strong> Weighted Lorenz trapezoid. 13-point distribution (B10 through Elon, exact population weights). Anchor-calibrated to US empirical baselines (income 0.490, wealth 0.850) at Year 0.</p>
+            </div>
+          </InfoBox>
+        </CardContent>
+      </Card>
 
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Validation Checks</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr>
-              {['Test', 'Expected', 'Actual', 'Status'].map(h => <th key={h} style={S.th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {validation.map((v, i) => (
-              <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#faf8f5' }}>
-                <td style={{ ...S.td, fontWeight: 500 }}>{v.test}</td>
-                <td style={S.td}>{v.expected}</td>
-                <td style={S.td}>{v.actual}</td>
-                <td style={S.td}>
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
-                    background: v.pass ? '#dcfce7' : '#fef2f2', color: v.pass ? '#166534' : '#991b1b' }}>
-                    {v.pass ? 'PASS' : 'FAIL'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-3">Validation Checks</h3>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {['Test', 'Expected', 'Actual', 'Status'].map(h => <TableHead key={h}>{h}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {validation.map((v, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{v.test}</TableCell>
+                  <TableCell>{v.expected}</TableCell>
+                  <TableCell>{v.actual}</TableCell>
+                  <TableCell>
+                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${v.pass ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                      {v.pass ? 'PASS' : 'FAIL'}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Fixed Parameters</h3>
-        <div style={{ fontSize: 12, lineHeight: 1.8, color: '#374151' }}>
-          <p><strong>Discount rate:</strong> 2.0% real (Wolff-Haveman standard for augmented wealth literature).</p>
-          <p style={{ marginTop: 8 }}><strong>Mortality:</strong> Uniform (SSA 2024 Period Life Table, unisex average). Each bracket uses a fixed cross-sectional representative age (SCF/CPS demographic profiles).</p>
-          <p style={{ marginTop: 12, padding: 12, background: '#f8fafc', borderRadius: 6, color: '#64748b' }}>
-            SES-differentiated mortality (±3 year shift per Chetty et al. 2016) and discount rate variation (1.0%–3.5%) produce negligible sensitivity at this model's 13-bracket resolution. These parameters would matter in a microsimulation with 100K+ synthetic households; at the bracket level, extreme top-tail values dominate the Gini and swamp annuity-factor perturbations.
-          </p>
-        </div>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-3">Fixed Parameters</h3>
+          <InfoBox>
+            <div className="space-y-2 text-xs leading-relaxed text-foreground/80">
+              <p><strong>Discount rate:</strong> 2.0% real (Wolff-Haveman standard for augmented wealth literature).</p>
+              <p><strong>Mortality:</strong> Uniform (SSA 2024 Period Life Table, unisex average). Each bracket uses a fixed cross-sectional representative age (SCF/CPS demographic profiles).</p>
+              <div className="mt-3 rounded-md bg-muted/80 p-3 text-muted-foreground">
+                SES-differentiated mortality (±3 year shift per Chetty et al. 2016) and discount rate variation (1.0%–3.5%) produce negligible sensitivity at this model's 13-bracket resolution. These parameters would matter in a microsimulation with 100K+ synthetic households; at the bracket level, extreme top-tail values dominate the Gini and swamp annuity-factor perturbations.
+              </div>
+            </div>
+          </InfoBox>
+        </CardContent>
+      </Card>
 
-      <div style={S.card}>
-        <h3 style={{ ...S.h2, fontSize: 16 }}>Cross-Country Comparability</h3>
-        <div style={{ fontSize: 12, lineHeight: 1.8, color: '#374151' }}>
-          <p><strong>Like-for-like:</strong> US, Norway, Germany, Australia, UK — all use OECD-harmonized disposable income Gini methodology (post-tax, post-transfer). Wealth Ginis from national wealth surveys (SCF, HFCS, ONS WAS, HILDA).</p>
-          <p style={{ marginTop: 8 }}><strong>Indicative only:</strong> Singapore (different survey methodology, sparse wealth microdata). These comparisons are directional, not statistically precise.</p>
-          <p style={{ marginTop: 8 }}><strong>Key caveat:</strong> Countries with generous state pensions (Norway, Germany) have artificially high measured wealth inequality because pension wealth is invisible to surveys.</p>
-        </div>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <h3 className="text-base font-semibold tracking-tight mb-3">Cross-Country Comparability</h3>
+          <InfoBox>
+            <div className="space-y-2 text-xs leading-relaxed text-foreground/80">
+              <p><strong>Like-for-like:</strong> US, Norway, Germany, Australia, UK — all use OECD-harmonized disposable income Gini methodology (post-tax, post-transfer). Wealth Ginis from national wealth surveys (SCF, HFCS, ONS WAS, HILDA).</p>
+              <p><strong>Indicative only:</strong> Singapore (different survey methodology, sparse wealth microdata). These comparisons are directional, not statistically precise.</p>
+              <p><strong>Key caveat:</strong> Countries with generous state pensions (Norway, Germany) have artificially high measured wealth inequality because pension wealth is invisible to surveys.</p>
+            </div>
+          </InfoBox>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1056,13 +1083,6 @@ function MethodologyTab({ params }) {
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  MAIN COMPONENT                                                          ║
 // ╚═══════════════════════════════════════════════════════════════════════════╝
-
-const TABS = [
-  { id: 1, label: 'Overview' },
-  { id: 2, label: 'Tables' },
-  { id: 3, label: 'Provision Decomp' },
-  { id: 4, label: 'Methodology' },
-];
 
 const PROVS = [
   { key: 'BASE', label: 'Current Law', fixed: true },
@@ -1074,7 +1094,6 @@ const PROVS = [
 ];
 
 export default function InequalityMeasurement() {
-  const [activeTab, setActiveTab] = useState(1);
   const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
   const discountRate = 0.02;
   const mortality = 'uniform';
@@ -1089,48 +1108,64 @@ export default function InequalityMeasurement() {
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", background: '#faf8f5', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 1300, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 28, fontWeight: 800, color: '#0f1d2f', marginBottom: 4 }}>
-          Inequality Measurement Module
-        </h1>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+    <PageShell className="max-w-[1300px]">
+      {/* Header */}
+      <div className="border-l-4 border-emerald-600 pl-4 mb-6">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Inequality</p>
+        <h1 className="text-2xl font-bold tracking-tight">Inequality Measurement Module</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Three Gini variants capturing what conventional metrics miss about the American Ownership Accord.
         </p>
+      </div>
 
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-          {/* Sidebar — sticky */}
-          <div style={{ width: 220, flexShrink: 0, alignSelf: 'flex-start', position: 'sticky', top: 72 }}>
-            <div style={S.card}>
-              <div style={S.label}>Accord Provisions</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="flex gap-5 items-start">
+        {/* Sidebar — sticky */}
+        <div className="w-[220px] shrink-0 self-start sticky top-[72px]">
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Accord Provisions</p>
+              <div className="flex flex-col gap-1">
                 {PROVS.map(p => (
-                  <button key={p.key} onClick={() => toggleProv(p.key)}
-                    style={{ ...S.toggle(provs.has(p.key)), opacity: p.fixed ? 0.5 : 1, cursor: p.fixed ? 'default' : 'pointer' }}>
+                  <Button
+                    key={p.key}
+                    variant={provs.has(p.key) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleProv(p.key)}
+                    className={`justify-start text-xs ${p.fixed ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
                     {p.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Main Content */}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-              {TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)} style={S.tabBtn(activeTab === t.id)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
+        {/* Main Content */}
+        <div className="flex-1 min-w-0">
+          <Tabs defaultValue="overview">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="tables">Tables</TabsTrigger>
+              <TabsTrigger value="decomp">Provision Decomp</TabsTrigger>
+              <TabsTrigger value="methodology">Methodology</TabsTrigger>
+            </TabsList>
 
-            {activeTab === 1 && <OverviewTab P={P} params={params} />}
-            {activeTab === 2 && <TablesTab P={P} params={params} />}
-            {activeTab === 3 && <ProvisionDecomp params={params} />}
-            {activeTab === 4 && <MethodologyTab params={params} />}
-          </div>
+            <TabsContent value="overview" className="mt-4">
+              <OverviewTab P={P} params={params} />
+            </TabsContent>
+            <TabsContent value="tables" className="mt-4">
+              <TablesTab P={P} params={params} />
+            </TabsContent>
+            <TabsContent value="decomp" className="mt-4">
+              <ProvisionDecomp params={params} />
+            </TabsContent>
+            <TabsContent value="methodology" className="mt-4">
+              <MethodologyTab params={params} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
