@@ -203,7 +203,9 @@ function runSimulation() {
       psuBal = psuTarget;
 
       // AMCF: citizen grant deposits grow at fund return rate
-      const grant = amcfGrantPerCapita(y) * g.hhSize;
+      // Only count adult grants (~2/household); children's custodial accounts are
+      // locked until 18 and leave the household when the child does.
+      const grant = amcfGrantPerCapita(y) * 2;
       amcf = amcf * (1 + AMCF_RETURN) + grant;
 
       // Full Accord base wealth
@@ -214,12 +216,36 @@ function runSimulation() {
       dPrebate = dPrebate * (1 + retA) + prebateSave;
       dRent    = dRent    * (1 + retA) + rentSave;
 
+      // Custodial component: each year one cohort turns 18 with childhood AMCF.
+      // Year 1: 17-year-old had 1 year of grants. Year 18: first full 18-year cohort.
+      // Averaged over working-age span (47 years).
+      let custodial = 0;
+      for (let c = 1; c <= y; c++) {
+        const grantYears = Math.min(c, 18);
+        let acct = 0;
+        for (let t = c - grantYears + 1; t <= c; t++) acct = acct * (1 + AMCF_RETURN) + amcfGrantPerCapita(t);
+        acct *= Math.pow(1 + AMCF_RETURN, y - c);
+        custodial += acct;
+      }
+      custodial /= 47;
+
       chartData[y][`${key}_c`] = Math.round(bwC);
-      chartData[y][`${key}_a`] = Math.round(bwA + amcf + psuBal);
+      chartData[y][`${key}_a`] = Math.round(bwA + amcf + custodial + psuBal);
     }
 
+    // Compute final custodial at Year 30 for decomposition
+    let finalCustodial = 0;
+    for (let c = 1; c <= YEARS; c++) {
+      const grantYears = Math.min(c, 18);
+      let acct = 0;
+      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * (1 + AMCF_RETURN) + amcfGrantPerCapita(t);
+      acct *= Math.pow(1 + AMCF_RETURN, YEARS - c);
+      finalCustodial += acct;
+    }
+    finalCustodial /= 47;
+
     const finalC = bwC;
-    const finalA = bwA + amcf + psuBal;
+    const finalA = bwA + amcf + finalCustodial + psuBal;
     const totalGain = finalA - finalC;
 
     // Stock drag = wealth lost due to lower stock returns on existing base
@@ -228,7 +254,7 @@ function runSimulation() {
     decompData.push({
       name: g.label,
       'Base Wealth':        Math.round(finalC),
-      'AMCF Grants':        Math.round(amcf),
+      'AMCF Grants':        Math.round(amcf + finalCustodial),
       'PSU Equity':         Math.round(psuBal),
       'PSU Dividends':      Math.round(dPsuDiv),
       'Prebate / Net VAT':  Math.round(dPrebate),
@@ -378,12 +404,12 @@ export default function RacialWealthGap() {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <h2 style={{ ...S.h2, marginBottom: 0 }}>
             {decompMode === 'advantage'
-              ? 'What Closes the Gap — Accord Wealth Advantage by Source, Year 30'
+              ? 'Why the Gap Closes — Net Accord Benefit by Group, Year 30'
               : 'Full Wealth at Year 30 — All Sources by Group'}
           </h2>
           <div style={{ display: 'flex', gap: 6 }}>
             {[
-              { id: 'advantage', label: 'Gap Closure View' },
+              { id: 'advantage', label: 'Net Accord Benefit' },
               { id: 'full',      label: 'Full Breakdown' },
             ].map(({ id, label }) => (
               <button key={id} onClick={() => setDecompMode(id)} style={{
@@ -397,7 +423,7 @@ export default function RacialWealthGap() {
         </div>
         <p style={{ ...S.subtext, marginTop: 6 }}>
           {decompMode === 'advantage'
-            ? 'Dollar value of each Accord mechanism\'s net gain (or loss) vs. the current system at Year 30. Red bar is negative for White households due to stock return drag.'
+            ? 'Additional wealth each group gains from the Accord vs. current law at Year 30. The gap closes because minorities gain more — not because White wealth falls. All groups are wealthier under the Accord, but the net benefit is larger for Black and Hispanic households due to equal per-capita AMCF grants and greater rent savings from LVT.'
             : 'Total Accord wealth at Year 30 decomposed by source. Blue base = what the current system would produce; colored segments = additional wealth from each Accord mechanism.'}
         </p>
         <ResponsiveContainer width="100%" height={300}>
@@ -412,14 +438,17 @@ export default function RacialWealthGap() {
             {decompMode === 'full' && (
               <Bar key="Base Wealth" dataKey="Base Wealth" stackId="a" fill={DECOMP_COLORS['Base Wealth']} name="Base Wealth (Current System)" />
             )}
-            {Object.entries(DECOMP_COLORS).filter(([k]) => k !== 'Base Wealth').map(([key, color]) => (
+            {Object.entries(DECOMP_COLORS)
+              .filter(([k]) => k !== 'Base Wealth')
+              .filter(([k]) => decompMode === 'full' || k !== 'Stock Return Drag')
+              .map(([key, color]) => (
               <Bar key={key} dataKey={key} stackId="a" fill={color} />
             ))}
           </BarChart>
         </ResponsiveContainer>
         <p style={S.source}>
           {decompMode === 'advantage'
-            ? 'AMCF grants compound at 5% real (Sim-6 validated anchor points). PSU equity builds to equilibrium over 5 years (Tier 3: 4%/yr Equity Excise → 20% PSU; blended with Tier 1 sectoral fund and Tier 2 phantom equity = ~$65K weighted average for eligible workers). Prebate/VAT net is positive for all groups (4% VAT, New Accord rate). Rent savings reflect 25% reduction in renter costs from LVT-driven housing supply expansion over 10 years (calibrated to 10% LVT rate; 25% is conservative vs ~40% theoretical ceiling). Stock drag applies the 2% annual reduction in equity returns to each group\'s stock portfolio fraction.'
+            ? 'Wealth-building mechanisms only — each bar shows what the Accord adds vs. current law. AMCF grants compound at 5% real. PSU equity builds to equilibrium over 5 years (~$65K weighted average). Prebate/VAT net is positive for all groups at 4% VAT. Rent savings reflect 25% reduction in renter costs from LVT-driven housing supply expansion. The gap closes because these mechanisms deliver more absolute benefit to lower-wealth households.'
             : 'Blue base = current system wealth at Year 30 (starting wealth + savings compounded). Colored segments = additional Accord sources. Sum = total Accord wealth. White\'s base wealth (~$1.1M) dwarfs minority bases, illustrating the structural compounding advantage the Accord mechanisms work against.'}
         </p>
       </div>

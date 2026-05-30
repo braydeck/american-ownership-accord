@@ -315,7 +315,8 @@ function computeAccordDistrib(mR, tR, stdS, stdJ, vatRate, lvtRate, etiM, etiT, 
     const prebate = PREBATE_PER_PERSON * b.hhSz;
 
     // AMCF dividend: per-capita investment return from AMCF equity × payout yield
-    const amcfBenefit = amcfPerCap * b.hhSz;
+    // Adults only; children's AMCF is custodial (locked until 18)
+    const amcfBenefit = amcfPerCap * Math.min(b.hhSz, 2);
 
     // Total cash benefits from the Accord
     const totalBenefits = prebate + amcfBenefit;
@@ -500,7 +501,7 @@ export default function IncomeTaxSimulation() {
 
   const TABS = [
     'Rate Optimizer', 'Revenue Heat Map', 'Income Tax Distributional',
-    'Full Accord Table', 'Std Deduction Sensitivity', 'Capital Gains Scenarios', 'Fiscal Trajectory',
+    'Full Accord Table', 'Std Deduction Sensitivity', 'Capital Gains Scenarios',
   ];
 
   return (
@@ -1175,132 +1176,6 @@ export default function IncomeTaxSimulation() {
           </div>
         )}
 
-        {/* ===== TAB 6: FISCAL TRAJECTORY ===== */}
-        {activeTab === 6 && (
-          <div style={card}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>Fiscal Trajectory Integration</h3>
-            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
-              How the two-rate income tax reform integrates with Sim-6 fiscal projections. Base: LVT {fmtPct(lvtRate)} + VAT {fmtPct(vatRate)} + income tax reform.
-              CG: {cgScenario === 'current' ? 'A (pref rates)' : cgScenario === 'pref' ? 'B (partial)' : 'C (full unification)'}.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-              {metBox('Income Tax Revenue', fmt(revenue.total, 2), `${fmtPct(revenue.total / 28.7e12)} of GDP`, true)}
-              {metBox('CG Reform Premium', cgExtra > 0 ? `+${fmt(cgExtra, 0)}` : '—', cgScenario === 'unified' ? 'Full unification' : cgScenario === 'pref' ? 'Carried interest fix' : 'No CG reform', cgExtra > 0)}
-              {metBox('Combined Income Rev', fmt(totalRevWithCG, 2), `vs CL: ${totalRevWithCG >= CL_REVENUE ? '+' : ''}${fmt(totalRevWithCG - CL_REVENUE, 2)}`, totalRevWithCG > CL_REVENUE)}
-              {metBox('Crossover Acceleration', `~${Math.max(0, Math.round((totalRevWithCG - CL_REVENUE) / 500e9))} yrs earlier`, 'vs Sim-6 base (incl. carbon + stable taxes)', totalRevWithCG > CL_REVENUE)}
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f9fafb' }}>
-                  {['Scenario', 'Income Tax', 'CG Premium', 'Total', 'vs CL', '% of GDP', 'Sim-6 Impact'].map(h => (
-                    <th key={h} style={{ padding: '9px 10px', fontWeight: 600, borderBottom: '2px solid #e5e7eb', fontSize: 11, textAlign: 'left' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { name: 'Current Law (baseline)', incRev: CL_REVENUE, cgP: 0 },
-                  { name: 'Prior Accord (unchanged income tax)', incRev: CL_REVENUE, cgP: 0 },
-                  { name: '25/50 + CG A (pref)', incRev: sweetRev, cgP: 0 },
-                  { name: '25/50 + CG C (unified)  ← sweet spot', incRev: sweetRev, cgP: 585e9 },
-                  { name: '30/60 + CG A (pref)', incRev: optRev, cgP: 0 },
-                  { name: '30/60 + CG C (unified)  ← revenue max', incRev: optRev, cgP: 585e9 },
-                  { name: `Current: ${Math.round(midRate*100)}/${Math.round(topRate*100)} + ${cgScenario === 'unified' ? 'CG C' : cgScenario === 'pref' ? 'CG B' : 'CG A'}`, incRev: revenue.total, cgP: cgExtra },
-                ].map((sc, i) => {
-                  const total = sc.incRev + sc.cgP;
-                  const vs = total - CL_REVENUE;
-                  const crossShift = Math.max(0, Math.round(vs / 500e9));
-                  const isCurrent = i === 6;
-                  return (
-                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6', background: isCurrent ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa', fontWeight: isCurrent ? 700 : 400 }}>
-                      <td style={{ padding: '8px 10px' }}>{sc.name}</td>
-                      <td style={{ padding: '8px 10px' }}>{fmt(sc.incRev, 2)}</td>
-                      <td style={{ padding: '8px 10px', color: sc.cgP > 0 ? '#059669' : '#9ca3af' }}>
-                        {sc.cgP > 0 ? `+${fmt(sc.cgP, 0)}` : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', fontWeight: 700 }}>{fmt(total, 2)}</td>
-                      <td style={{ padding: '8px 10px', color: vs > 0 ? '#059669' : '#9ca3af' }}>{vs > 0 ? '+' : ''}{fmt(vs, 2)}</td>
-                      <td style={{ padding: '8px 10px' }}>{(total / 28.7e12 * 100).toFixed(1)}%</td>
-                      <td style={{ padding: '8px 10px', color: crossShift > 0 ? '#059669' : '#9ca3af' }}>
-                        {crossShift > 0 ? `~${crossShift} yr earlier fiscal crossover` : 'New Accord baseline'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div style={{ marginTop: 20, padding: '14px 16px', background: '#f0fdf4', borderRadius: 8, fontSize: 12, lineHeight: 1.8 }}>
-              <strong>Integration notes:</strong> The Sim-6 base now includes 4% VAT + 10% LVT + $100/ton carbon + 0.76% stable taxes (FTT, FSL, royalties, spectrum, water). Income tax = 7.8% of GDP; capital gains = 1.2% of GDP. Under the 25/50 two-rate system, income tax rises to ~10.3% of GDP (+$585B/yr). With full CG unification (Scenario C), combined income/CG revenue reaches ~12.3% (+$1.27T vs CL). Each $500B in additional income tax revenue advances the fiscal crossover by approximately 1 year. See Sim-6 for the current base crossover year — it reflects the full tax package including carbon and stable taxes.
-            </div>
-
-            {/* Prior Accord vs New Accord: full fiscal package comparison */}
-            <div style={{ marginTop: 24, padding: '16px 20px', background: '#fafafa', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>Prior Accord vs. New Accord: Full Tax Package (Year 1)</h4>
-              <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 12 }}>
-                Accord-specific revenues only (GDP = $28.7T, VAT compliance 75%). Prior Accord = 10% VAT + 3% LVT, no carbon, no stable taxes.
-                New Accord = 4% VAT + 10% LVT + $100/ton carbon + 0.76% stable taxes. Both use same base income, payroll, and CG tax structure.
-              </p>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ background: '#f3f4f6' }}>
-                    {['Tax Instrument', 'Prior Accord', 'New Accord', 'Δ Revenue', 'Design Advantage'].map(h => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #e5e7eb', fontSize: 11 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { instrument: 'VAT (consumption tax)', prior: 1181, newAccord: 473, note: 'Less regressive at 4%; broader tax mix' },
-                    { instrument: 'LVT (land value tax)', prior: 172, newAccord: 574, note: 'Non-distortionary; suppresses rent-seeking' },
-                    { instrument: 'Carbon tax ($100/ton)', prior: 0, newAccord: 348, note: 'Pigouvian; declines as clean-up proceeds' },
-                    { instrument: 'Stable taxes (FTT + FSL + royalties)', prior: 0, newAccord: 218, note: 'Non-distortionary; broadens base' },
-                  ].map((row, i) => {
-                    const delta = row.newAccord - row.prior;
-                    return (
-                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                        <td style={{ padding: '8px 10px', fontWeight: 500 }}>{row.instrument}</td>
-                        <td style={{ padding: '8px 10px', color: '#6b7280' }}>{row.prior > 0 ? `$${row.prior}B` : '—'}</td>
-                        <td style={{ padding: '8px 10px' }}>{row.newAccord > 0 ? `$${row.newAccord}B` : '—'}</td>
-                        <td style={{ padding: '8px 10px', fontWeight: 700, color: delta >= 0 ? '#059669' : '#dc2626' }}>
-                          {delta >= 0 ? '+' : ''}{delta}B
-                        </td>
-                        <td style={{ padding: '8px 10px', fontSize: 11, color: '#374151' }}>{row.note}</td>
-                      </tr>
-                    );
-                  })}
-                  <tr style={{ background: '#dbeafe', fontWeight: 700, borderTop: '2px solid #93c5fd' }}>
-                    <td style={{ padding: '8px 10px' }}>Total Accord-specific (Yr 1)</td>
-                    <td style={{ padding: '8px 10px' }}>$1,353B</td>
-                    <td style={{ padding: '8px 10px' }}>$1,613B</td>
-                    <td style={{ padding: '8px 10px', color: '#059669' }}>+$260B / yr</td>
-                    <td style={{ padding: '8px 10px', fontSize: 11 }}>New Accord generates more Year 1 revenue</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                {[
-                  { label: 'Prior Accord crossover', value: '~Year 16', sub: '10% VAT dominant; high compliance ramp boosts later years', color: '#f59e0b' },
-                  { label: 'New Accord base crossover', value: 'See Sim-6', sub: '4% VAT + 10% LVT + carbon + stable — computed dynamically', color: '#2563eb' },
-                  { label: 'With income tax reform (+CG C)', value: `~${Math.max(0, Math.round((sweetRev + 585e9 - CL_REVENUE) / 500e9))} yrs earlier`, sub: '25/50 + full CG unification adds ~$1.27T/yr income rev', color: '#059669' },
-                ].map((card, i) => (
-                  <div key={i} style={{ padding: '10px 14px', background: '#fff', borderRadius: 6, border: '1px solid #e5e7eb', borderLeft: `4px solid ${card.color}` }}>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{card.label}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: card.color }}>{card.value}</div>
-                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{card.sub}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 12, padding: '10px 14px', background: '#eff6ff', borderRadius: 6, fontSize: 11, color: '#1e40af' }}>
-                <strong>Key finding:</strong> The New Accord raises <em>more</em> Accord-specific revenue in Year 1 (+$260B) than the Prior Accord — driven by LVT tripling, plus entirely new carbon and stable tax streams.
-                The Prior Accord's later crossover advantage (Year 16 vs New Accord base) reflects VAT compliance ramp dynamics (75%→90%), not structural superiority.
-                Carbon revenue self-liquidates as decarbonization proceeds; LVT + stable taxes grow with GDP indefinitely.
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

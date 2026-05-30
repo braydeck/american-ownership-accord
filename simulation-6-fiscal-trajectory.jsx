@@ -62,6 +62,7 @@ const PRESET_OVERRIDES = {
   popGrowth:           { populationGrowthRate: 0.008 },
   highLvt:             { lvtRate: 0.15 },
   originalAccord:      { vatRate: 0.10, lvtRate: 0.03, carbonRate: 0, stableTaxFrac: 0 },
+  npGrowthAssessment:  { stableTaxFrac: 0.0084 },
 };
 
 const PRESET_LABELS = {
@@ -73,6 +74,7 @@ const PRESET_LABELS = {
   lowRates: "Low Rates", highRates: "High Rates",
   popGrowth: "Pop. Growth", highLvt: "High LVT (15%)",
   originalAccord: "Original Accord",
+  npGrowthAssessment: "NP Growth Assessment",
 };
 
 const CHART_TABS = [
@@ -344,6 +346,7 @@ function runFiscalSimulation(p) {
       clGrossDebt:     +(clDebt / 1e12).toFixed(1),
       clDebtToGdp:     +(clDtG * 100).toFixed(1),
       clRev:           +(clRev / 1e12).toFixed(2),
+      clInterest:      +(clInterest / 1e12).toFixed(2),
     });
   }
 
@@ -527,7 +530,7 @@ function InterestChart({ rows, compareRows }) {
   const data = rows.map(r => ({
     year: r.year,
     "Accord": r.intToRev,
-    "Current Law (est.)": r.clRev > 0 ? +(r.interest / r.clRev * 100).toFixed(1) : 0,
+    "Current Law (est.)": r.clRev > 0 ? +(r.clInterest / r.clRev * 100).toFixed(1) : 0,
     ...(compareRows ? { "Compare": compareRows[r.year - 1]?.intToRev } : {}),
   }));
   return (

@@ -252,7 +252,6 @@ const CHARTS = [
   { id:3,  label:'Wealth Share' },
   { id:4,  label:'Income Share' },
   { id:5,  label:'Tax Rate' },
-  { id:6,  label:'Gini' },
   { id:7,  label:'Wealth Mix' },
   { id:8,  label:'Cash Flow' },
   { id:9,  label:'Crossover' },
@@ -324,7 +323,8 @@ function getInc(k, y, P) {
   const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
   const pre  = P.has('PRE')   ? (5000 * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF: only the liquidated fraction is cash income. Retained units go to wealth (getNW).
-  const ag   = P.has('AMCF')  ? amcfG(y) * d.hhSz * liqRate(k, y) : 0;
+  const adults = Math.min(d.hhSz, 2); // children's AMCF is custodial
+  const ag   = P.has('AMCF')  ? amcfG(y) * adults * liqRate(k, y) : 0;
   const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
   const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
   return { base, tax, pre, amcf:ag, psuD:pd, psuC:pc, total: base+tax+pre+ag+pd+pc };
@@ -355,14 +355,28 @@ function getNW(k, y, P) {
     pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
   }
   if (P.has('AMCF')) {
-    // AMCF custodial account (universal birth account, 5% real = 7.5% nominal − 2.5% inflation)
-    const cust = 10000 * Math.pow(1.05, y);
-    // Annual grants split: retained units accumulate at AMCF NAV (5% real);
-    // liquidated portion is cash income, savings fraction of that reinvested at d.ret.
-    let retainedAcc = 0;  // AMCF units held, compounding at fund rate
-    let liqSavings  = 0;  // saved fraction of liquidated grants, compounding at household ret rate
+    // Custodial component: each year, one cohort turns 18 and enters the workforce
+    // with AMCF wealth accumulated during childhood. Year 1: a 17-year-old gets 1 year
+    // of grants then turns 18. Year 18: first cohort with full 18 years of grants.
+    // Average across working-age span (47 years, ages 18–65).
+    const WORK_SPAN = 47;
+    let cust = 0;
+    for (let c = 1; c <= y; c++) {
+      // Cohort turning 18 in Accord Year c had min(c, 18) years of childhood grants
+      const grantYears = Math.min(c, 18);
+      let acct = 0;
+      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t);
+      acct *= Math.pow(1.05, y - c); // compound growth since turning 18
+      cust += acct;
+    }
+    cust /= WORK_SPAN;
+    // Annual adult grants split: retained units compound at AMCF NAV (5% real);
+    // liquidated portion is cash income, savings fraction reinvested at household ret rate.
+    let retainedAcc = 0;
+    let liqSavings  = 0;
+    const adults = Math.min(d.hhSz, 2);
     for (let t = 1; t <= y; t++) {
-      const grant = amcfG(t) * d.hhSz;
+      const grant = amcfG(t) * adults;
       const lr = liqRate(k, t);
       retainedAcc = retainedAcc * 1.05 + grant * (1 - lr);
       liqSavings  = liqSavings  * (1 + r) + grant * lr * d.save;
@@ -994,10 +1008,29 @@ const _gAnchor = (() => {
   return { inc: US_GINI_INC - computeGini(ip), nw: US_GINI_NW - computeGini(np) };
 })();
 
+// Country comparison Gini data (OECD/World Bank, post-tax post-transfer, latest available)
+const GINI_COMPARISONS = {
+  income: [
+    { key: 'us',   label: 'US Baseline',    value: 0.490, color: '#94a3b8' },
+    { key: 'oecd', label: 'OECD Average',   value: 0.315, color: '#22c55e' },
+    { key: 'gb',   label: 'Great Britain',   value: 0.350, color: '#8b5cf6' },
+    { key: 'au',   label: 'Australia',       value: 0.320, color: '#f59e0b' },
+    { key: 'dk',   label: 'Denmark',          value: 0.280, color: '#06b6d4' },
+    { key: 'de',   label: 'Germany',         value: 0.296, color: '#3b82f6' },
+  ],
+  wealth: [
+    { key: 'us',   label: 'US Baseline',    value: 0.850, color: '#94a3b8' },
+    { key: 'oecd', label: 'OECD Average',   value: 0.740, color: '#22c55e' },
+    { key: 'gb',   label: 'Great Britain',   value: 0.710, color: '#8b5cf6' },
+    { key: 'au',   label: 'Australia',       value: 0.650, color: '#f59e0b' },
+    { key: 'dk',   label: 'Denmark',         value: 0.840, color: '#06b6d4' },
+    { key: 'de',   label: 'Germany',         value: 0.780, color: '#3b82f6' },
+  ],
+};
+
 function Chart6({ P }) {
+  const [showCountries, setShowCountries] = useState({ us: true, oecd: true, gb: false, au: false, dk: false, de: false });
   const data = useMemo(() => YEARS.map(y => {
-    // Year 0 = current law baseline regardless of active provisions,
-    // so both lines anchor cleanly at the empirical US starting point.
     const Q = y === 0 ? BASE_ONLY : P;
     const incPts = GINI_INC_DEMOS.map((k, i) => ({
       v: Math.max(getInc(k, y, Q).total, 0), w: GINI_INC_WGTS[i]
@@ -1012,31 +1045,60 @@ function Chart6({ P }) {
     };
   }), [[...P].sort().join(',')]);
 
+  const toggleBtn = (key, label, color) => (
+    <button key={key} onClick={() => setShowCountries(s => ({ ...s, [key]: !s[key] }))}
+      style={{
+        padding: '3px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+        border: showCountries[key] ? `2px solid ${color}` : '1px solid #d1d5db',
+        background: showCountries[key] ? `${color}15` : '#fff',
+        color: showCountries[key] ? color : '#9ca3af', fontWeight: showCountries[key] ? 600 : 400,
+        fontFamily: "'DM Sans', sans-serif",
+      }}>{label}</button>
+  );
+
+  const refLines = (type) => GINI_COMPARISONS[type]
+    .filter(c => showCountries[c.key])
+    .map(c => <ReferenceLine key={c.key} y={c.value} stroke={c.color} strokeDasharray="3 3"
+      label={{ value: `${c.label} (${c.value.toFixed(2)})`, position: 'right', fontSize: 10, fill: c.color }} />);
+
   return (
     <div>
-      <div style={{ fontSize:12, color:'#64748b', marginBottom:8 }}>
-        0 = perfect equality · 1 = perfect inequality. Anchored to empirical US baselines (BLS/SCF 2022):
-        income 0.490, wealth 0.850. Provision toggles show each one's contribution to inequality reduction.
+      <div style={{ fontSize:12, color:'#64748b', marginBottom:6 }}>
+        0 = perfect equality · 1 = perfect inequality. Anchored to empirical US baselines (BLS/SCF 2022).
+        Provision toggles show each mechanism's contribution to inequality reduction.
       </div>
-      <ResponsiveContainer width="100%" height={360}>
-        <LineChart data={data} margin={{ top:10, right:20, bottom:20, left:60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
-          <XAxis dataKey="year" label={{ value:'Year', position:'insideBottom', offset:-8, fill:'#64748b', fontSize:12 }} tick={{ fill:'#475569', fontSize:11 }}/>
-          <YAxis domain={[0, 0.95]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:11 }} width={55}/>
-          <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
-          <Legend wrapperStyle={{ fontSize:12 }}/>
-          <ReferenceLine y={0.49} stroke="#94a3b8" strokeDasharray="3 3"
-            label={{ value:'US income (0.49)', position:'right', fontSize:10, fill:'#94a3b8' }}/>
-          <ReferenceLine y={0.32} stroke="#22c55e" strokeDasharray="3 3"
-            label={{ value:'OECD avg (0.32)', position:'right', fontSize:10, fill:'#22c55e' }}/>
-          <ReferenceLine y={0.28} stroke="#3b82f6" strokeDasharray="3 3"
-            label={{ value:'Denmark (0.28)', position:'right', fontSize:10, fill:'#3b82f6' }}/>
-          <ReferenceLine y={0.85} stroke="#ef4444" strokeDasharray="3 3"
-            label={{ value:'US wealth (0.85)', position:'right', fontSize:10, fill:'#ef4444' }}/>
-          <Line dataKey="incomeGini" name="Income Gini" stroke="#0f172a" dot={false} strokeWidth={2.5}/>
-          <Line dataKey="wealthGini" name="Wealth Gini" stroke="#dc2626" dot={false} strokeWidth={2.5} strokeDasharray="6 3"/>
-        </LineChart>
-      </ResponsiveContainer>
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12, alignItems:'center' }}>
+        <span style={{ fontSize:11, color:'#64748b', fontWeight:600 }}>Compare:</span>
+        {GINI_COMPARISONS.income.map(c => toggleBtn(c.key, c.label, c.color))}
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>Income Gini</div>
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={data} margin={{ top:10, right:80, bottom:20, left:10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+              <XAxis dataKey="year" tick={{ fill:'#475569', fontSize:10 }}/>
+              <YAxis domain={[0.20, 0.55]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:10 }} width={40}/>
+              <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
+              {refLines('income')}
+              <Line dataKey="incomeGini" name="US Accord" stroke="#0f172a" dot={false} strokeWidth={2.5}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>Wealth Gini</div>
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={data} margin={{ top:10, right:80, bottom:20, left:10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/>
+              <XAxis dataKey="year" tick={{ fill:'#475569', fontSize:10 }}/>
+              <YAxis domain={[0.60, 0.90]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:10 }} width={40}/>
+              <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
+              {refLines('wealth')}
+              <Line dataKey="wealthGini" name="US Accord" stroke="#dc2626" dot={false} strokeWidth={2.5}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1133,7 +1195,7 @@ function cashFlowPt(k, y, P, norm) {
   const pre  = P.has('PRE') ? (5000 * d.hhSz) : 0;
   const cdiv = P.has('PRE') ? CARBON_DIV_PER_CAP * d.hhSz : 0;
   // AMCF: only liquidated fraction is cash income in cash flow chart
-  const ag   = P.has('AMCF')  ? amcfG(y) * d.hhSz * liqRate(k, y) : 0;
+  const ag   = P.has('AMCF')  ? amcfG(y) * Math.min(d.hhSz, 2) * liqRate(k, y) : 0;
   const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
   const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
   const net  = gross + clTax + taxRef + vat + lvt + carb + progLost + pre + cdiv + ag + pd + pc;
@@ -1414,7 +1476,7 @@ const CHART_TITLES = {
   3:  { title:'Share of National Wealth', desc:'Each demographic\'s fraction of total US household wealth. AMCF + PSU provisions visibly expand lower-bracket shares over time.' },
   4:  { title:'Share of National Income', desc:'Each demographic\'s fraction of total US household income. Progressive provisions shift shares from top to bottom over 30 years.' },
   5:  { title:'Effective Tax Rate', desc:'(All taxes paid − all benefits received) ÷ gross income. Negative rates mean households receive more than they contribute. Toggle provisions to isolate each one\'s contribution.' },
-  6:  { title:'Gini Coefficient', desc:'Whole-distribution inequality. Not demographic-specific — provision toggles show each one\'s contribution to equality. Solid = income Gini; dashed = wealth Gini.' },
+  6:  { title:'Gini Coefficient', desc:'Income and wealth inequality side by side. Toggle country comparisons to see where the Accord places the US relative to peer nations.' },
   7:  { title:'Wealth Composition Breakdown', desc:'What household wealth is made of at the selected snapshot year. Lower brackets shift from thin financial holdings toward AMCF custodial + PSU equity.' },
   8:  { title:'Cash Flow Diverging Bar', desc:'Income sources (above 0) vs. tax burdens (below 0). Two views: one demographic over time, or all demographics at a snapshot year. Net line shows disposable income.' },
   9:  { title:'Crossover Moment', desc:'When does the Accord make each demographic permanently wealthier than the status quo? Year 0 = shared current law baseline. Accord provisions kick in at Year 1. Solid = Accord; dashed = current law.' },
@@ -1430,7 +1492,7 @@ export default function Dashboard() {
   const [mode, setMode]                 = useState('line');
   const [snYear, setSnYear]             = useState(10);
   const [logScale, setLogScale]         = useState(false);
-  const [activeDemos, setActiveDemos]   = useState(new Set(['P10','P50','T1']));
+  const [activeDemos, setActiveDemos]   = useState(new Set(['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON']));
   // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
   const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
   const [stackedShare, setStackedShare] = useState(false);
@@ -1517,7 +1579,7 @@ export default function Dashboard() {
       case 3:  return <Chart3  demos={demos} P={P} stacked={stackedShare}/>;
       case 4:  return <Chart4  demos={demos} P={P} stacked={stackedShare}/>;
       case 5:  return <Chart5  demos={demos} P={P}/>;
-      case 6:  return <Chart6  P={P}/>;
+      case 6:  return null; // Gini moved to standalone Inequality module
       case 7:  return <Chart7  demos={demos} P={P} snYear={snYear} normalizedBar={normalizedBar}/>;
       case 8:  return (
         <div>
@@ -1742,7 +1804,7 @@ export default function Dashboard() {
                         <div style={{ fontSize:18, fontWeight:800, color:'#0f172a', marginTop:2 }}>
                           {share.toFixed(2)}%
                         </div>
-                        <div style={{ fontSize:11, color: delta <= 0 ? '#16a34a' : '#dc2626', marginTop:2 }}>
+                        <div style={{ fontSize:11, color: delta >= 0 ? '#16a34a' : '#dc2626', marginTop:2 }}>
                           vs CL: {delta >= 0 ? '+' : ''}{delta.toFixed(2)}pp
                         </div>
                       </div>
@@ -1851,44 +1913,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activeChart === 6 && (
-            <div style={s.card}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:8 }}>Gini Coefficient Trajectory</div>
-              <div style={{ overflowX:'auto' }}>
-                <table style={{ borderCollapse:'collapse', width:'100%' }}>
-                  <thead>
-                    <tr>
-                      {['Year','Income Gini','Wealth Gini','Δ Income','Δ Wealth'].map((h, i) => (
-                        <th key={h} style={{ padding:'5px 12px', fontWeight:700, borderBottom:'2px solid #e2e8f0',
-                          textAlign: i===0 ? 'left' : 'right', background:'#f8fafc', fontSize:11, color:'#64748b', whiteSpace:'nowrap' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SNAP_YEARS.map((y, i) => {
-                      const Q_ = y === 0 ? BASE_ONLY : P;
-                      const mk = (demos_, wgts_, pFn) => demos_.map((k, ii) => ({ v: Math.max(pFn(k, y).total, 0), w: wgts_[ii] }));
-                      const incG  = Math.max(0, Math.min(0.99, computeGini(mk(GINI_INC_DEMOS, GINI_INC_WGTS, (k,y)=>getInc(k,y,Q_)))        + _gAnchor.inc));
-                      const nwG_  = Math.max(0, Math.min(0.99, computeGini(mk(GINI_NW_DEMOS,  GINI_NW_WGTS,  (k,y)=>getNW(k,y,Q_)))         + _gAnchor.nw));
-                      const clInc = Math.max(0, Math.min(0.99, computeGini(mk(GINI_INC_DEMOS, GINI_INC_WGTS, (k,y)=>getInc(k,y,BASE_ONLY))) + _gAnchor.inc));
-                      const clNw  = Math.max(0, Math.min(0.99, computeGini(mk(GINI_NW_DEMOS,  GINI_NW_WGTS,  (k,y)=>getNW(k,y,BASE_ONLY)))  + _gAnchor.nw));
-                      const dI = incG - clInc, dW = nwG_ - clNw;
-                      const td = (v, color) => ({ padding:'4px 12px', textAlign:'right', fontSize:11, borderBottom:'1px solid #f1f5f9', color, fontWeight: color ? 600 : 'normal' });
-                      return (
-                        <tr key={y} style={{ background: i%2 ? '#f8fafc' : '#fff' }}>
-                          <td style={{ padding:'4px 12px', fontWeight:600, color:'#64748b', fontSize:11, borderBottom:'1px solid #f1f5f9' }}>Yr {y}</td>
-                          <td style={td(incG)}>{incG.toFixed(3)}</td>
-                          <td style={td(nwG_)}>{nwG_.toFixed(3)}</td>
-                          <td style={td(dI, dI<=0?'#16a34a':'#dc2626')}>{dI>=0?'+':''}{dI.toFixed(3)}</td>
-                          <td style={td(dW, dW<=0?'#16a34a':'#dc2626')}>{dW>=0?'+':''}{dW.toFixed(3)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {activeChart === 7 && demos.length > 0 && (
             <div style={s.card}>

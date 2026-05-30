@@ -148,7 +148,7 @@ function computeDistrib(vatRate, lvtRate, year) {
 
     const vatBurden  = vatRate * b.cRat * avgInc;
     const prebate    = PREBATE_PER_PERSON * b.hhSz;
-    const amcfBenefit = amcfPerCap * b.hhSz;
+    const amcfBenefit = amcfPerCap * Math.min(b.hhSz, 2); // adults only; children's AMCF is custodial
     const lvtBurden  = LVT_NET_BASE[i] * (lvtRate / 0.10);
 
     const carbonPaid     = CARBON_TONS[i] * 100;
