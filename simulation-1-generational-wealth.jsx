@@ -346,8 +346,8 @@ export default function GenerationalWealth() {
     <div style={S.root}>
       {/* ── Header ── */}
       <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord — Simulation 1</p>
-        <h1 style={S.h1}>The American Birthright</h1>
+        <p style={S.label}>American Ownership Accord</p>
+        <h1 style={S.h1}>Lifetime Wealth</h1>
         <p style={S.headline}>
           A child born today into a {qLabel.toLowerCase()} household accumulates{' '}
           {fmtK(medAt65Acc)} by age 65 under the Accord — {improvement}% more than the{' '}

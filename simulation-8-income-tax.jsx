@@ -510,7 +510,7 @@ export default function IncomeTaxSimulation() {
 
         {/* Header */}
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', marginBottom: 4 }}>
-          Income Tax Simplification — Revenue-Optimal Two-Rate System
+          Income Tax Design
         </h1>
         <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 20 }}>
           Zero-deduction two-rate income tax with unified capital gains. Standard deduction: ${stdS.toLocaleString()} single / ${stdJ.toLocaleString()} joint. No itemized deductions. All income taxed equally.

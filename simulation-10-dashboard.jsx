@@ -1,5 +1,5 @@
 // simulation-10-dashboard.jsx
-// American Ownership Accord — Interactive Visualization Dashboard
+// American Ownership Accord — Household Impact
 // 9-chart suite: income, wealth, inequality, tax rates, and crossover analysis over 30 years
 // All values in 2024 real (inflation-adjusted) dollars
 
@@ -1611,7 +1611,7 @@ export default function Dashboard() {
       {/* Header */}
       <div style={s.header}>
         <div>
-          <div style={s.title}>American Ownership Accord · Visualization Dashboard</div>
+          <div style={s.title}>Household Impact</div>
           <div style={s.subtitle}>10-chart interactive suite · 30-year trajectories · 2024 real dollars</div>
         </div>
         <div style={s.tabs}>

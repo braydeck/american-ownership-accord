@@ -328,8 +328,8 @@ export default function RacialWealthGap() {
     <div style={S.root}>
       {/* ── Header ── */}
       <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord — Simulation 3</p>
-        <h1 style={S.h1}>Closing the Racial Wealth Divide</h1>
+        <p style={S.label}>American Ownership Accord</p>
+        <h1 style={S.h1}>Racial Wealth Gap</h1>
         <p style={S.headline}>
           The Accord's universal mechanisms narrow the white-to-Black wealth ratio
           from 6.3:1 today to {wb_accord}:1 by Year 30 — compared to {wb_current}:1 under the current system.

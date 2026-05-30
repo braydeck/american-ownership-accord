@@ -400,11 +400,10 @@ export default function RentTaxOptimizer() {
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", fontSize: 13, background: bg, minHeight: "100vh", padding: 16 }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: "#1f2937" }}>
-        Task 7 — Rent Tax Portfolio Optimizer
+        Rent Tax Optimizer
       </h2>
       <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 16px" }}>
         Find the minimum VAT rate achievable by maximizing economically non-distortionary rent taxes.
-        Fiscal engine is identical to Simulation 6 — only the revenue parameters change.
       </p>
 
       {/* Tab bar */}
@@ -904,7 +903,7 @@ export default function RentTaxOptimizer() {
       </>}
 
       <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 16, textAlign: "center", lineHeight: 1.6 }}>
-        Fiscal engine derived from Simulation 6 — identical AMCF mechanics, EV growth model, codetermination credit waterfall, and spending structure.
+        Fiscal engine derived from the National Balance Sheet model — identical AMCF mechanics, EV growth model, codetermination credit waterfall, and spending structure.
         Only the revenue section is extended: VAT rate, LVT rate, carbon tax (declining formula), and stable rent taxes (GDP-scaled) added as parameters.
         All Sim-6 validated milestones reproduced exactly with default settings.
       </div>

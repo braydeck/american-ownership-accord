@@ -222,8 +222,8 @@ export default function MarketStabilization() {
     <div style={S.root}>
       {/* ── Header ── */}
       <div style={{ borderLeft: '4px solid #3B82F6', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord — Simulation 5</p>
-        <h1 style={S.h1}>The Steady Hand: AMCF as Market Stabilizer</h1>
+        <p style={S.label}>American Ownership Accord</p>
+        <h1 style={S.h1}>Market Stabilization</h1>
         <p style={S.headline}>
           The 2008 crash would have been {fmtPct(stats.newDepth)} instead of{' '}
           {fmtPct(crash.actualDepth)} with {amcfShare}% AMCF passive ownership —

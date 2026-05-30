@@ -302,8 +302,8 @@ export default function RetirementSecurity() {
     <div style={S.root}>
       {/* ── Header ── */}
       <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord — Simulation 4</p>
-        <h1 style={S.h1}>The New Retirement Safety Net</h1>
+        <p style={S.label}>American Ownership Accord</p>
+        <h1 style={S.h1}>Retirement Security</h1>
         <p style={S.headline}>
           A worker entering the workforce today will accumulate {q1Improvement}% more retirement wealth
           under the Accord than the current system — with a universal AMCF floor that eliminates the

@@ -4,7 +4,7 @@ import {
   Cell, LineChart, Line, ReferenceLine,
 } from 'recharts';
 
-// ─── BRACKETS (IRS SOI + Census, 2024 estimates — from Sim-8) ─────────────────
+// ─── BRACKETS (IRS SOI + Census, 2024 estimates — from Income Tax Design) ─────────────────
 // 15 brackets covering all ~162M filers
 const BRACKETS = [
   { label: '$0–10K',    filers: 25.00e6, agi:   130e9, effCL: 0.000, cgShare: 0.02, jFrac: 0.20, hhSz: 1.4, cRat: 1.20, own: 0.15 },
@@ -35,7 +35,7 @@ const LVT_NET_BASE = [0, 0, 0, 0, 0, 0, 400, 1200, 2500, 5500, 14000, 28000, 550
 
 const TOTAL_POP = BRACKETS.reduce((s, b) => s + b.filers * b.hhSz, 0); // ~330M
 
-// ─── THREE-TIER WORKER EQUITY (from Sim-8) ─────────────────────────────────────
+// ─── THREE-TIER WORKER EQUITY (from Income Tax Design) ─────────────────────────────────────
 // Tier 1 (<$10M EV): $1K/yr sectoral fund at 6% gross; 3.5% distributed as dividends
 // Tier 2 ($10M–$100M): phantom equity; company routes dividends to sectoral fund; cashout at departure
 // Tier 3 (>$100M): 4% annual Equity Excise → 20% PSU by Year 5; appreciates at EV_GROWTH/yr
@@ -108,7 +108,7 @@ function psuCashoutPerFiler(bracketIndex, year) {
   return (t2 * t2Cashout + t3 * t3Cashout) * PARTTIME_FTE[bracketIndex];
 }
 
-// ─── AMCF (from Sim-8, anchored to Sim-6 validated outputs) ──────────────────
+// ─── AMCF (from Income Tax Design, anchored to National Balance Sheet validated outputs) ──────────────────
 const PREBATE_PER_PERSON = 5000;
 
 const AMCF_EQUITY_ANCHORS = [
@@ -448,8 +448,8 @@ export default function DistributionalImpact() {
     <div style={S.root}>
       {/* ── Header ── */}
       <div style={{ borderLeft: '4px solid #10B981', paddingLeft: 20 }}>
-        <p style={S.label}>American Ownership Accord — Simulation 2</p>
-        <h1 style={S.h1}>Who Pays, Who Gains</h1>
+        <p style={S.label}>American Ownership Accord</p>
+        <h1 style={S.h1}>Distributional Impact</h1>
         <p style={S.headline}>
           {(pctBetter * 100).toFixed(0)}% of American households are better off under the Accord at Year {snapshotYear} —
           driven by the universal $5,000/person prebate and growing AMCF dividend offsetting the {(vatRate * 100).toFixed(0)}% VAT.
@@ -547,7 +547,7 @@ export default function DistributionalImpact() {
             <p style={S.source}>
               Sources: IRS Statistics of Income (2024 estimates); EPA household carbon survey; BLS Consumer Expenditure Survey.
               Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}%, carbon $100/ton (80% recycled as equal per-capita dividend),
-              $5,000/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Sim-6 validated equity base).
+              $5,000/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
               {showPSU ? ' Worker equity (PSU dividends + annualized cashout) included.' : ' Worker equity not included — toggle above.'}
             </p>
           </div>
@@ -708,8 +708,8 @@ export default function DistributionalImpact() {
             </div>
           )}
           <p style={S.source}>
-            Accord parameters: VAT {(vatRate * 100).toFixed(0)}% on consumption (BLS consumption ratios by bracket) + LVT {(lvtRate * 100).toFixed(0)}% (net burden — renters receive rent relief; homeowners pay LVT on land value) + carbon $100/ton (80% recycled as equal per-capita dividend = ~${Math.round(5e9 * 100 * 0.80 / 330e6 * 2.5).toLocaleString()}/avg-household) + $5,000/person/yr universal prebate + AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Year {snapshotYear}, Sim-6 validated equity base ${(amcfEquity / 1e12).toFixed(1)}T × {(amcfYield * 100).toFixed(1)}% yield).
-            Income tax unchanged vs current law in this base distributional view (see Sim-8 for income tax reform scenarios).
+            Accord parameters: VAT {(vatRate * 100).toFixed(0)}% on consumption (BLS consumption ratios by bracket) + LVT {(lvtRate * 100).toFixed(0)}% (net burden — renters receive rent relief; homeowners pay LVT on land value) + carbon $100/ton (80% recycled as equal per-capita dividend = ~${Math.round(5e9 * 100 * 0.80 / 330e6 * 2.5).toLocaleString()}/avg-household) + $5,000/person/yr universal prebate + AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Year {snapshotYear}, National Balance Sheet validated equity base ${(amcfEquity / 1e12).toFixed(1)}T × {(amcfYield * 100).toFixed(1)}% yield).
+            Income tax unchanged vs current law in this base distributional view (see Income Tax Design for income tax reform scenarios).
           </p>
         </>
       )}
@@ -837,8 +837,8 @@ export default function DistributionalImpact() {
                 LVT net burden estimated as 1.5% of income above $75K (rough owner-weighted average at 10% LVT; renters net zero or positive from rent relief).
                 Carbon tax = ${estimatedCarbonTons(calcIncome)} estimated tons × $100/ton, less $1,212 per-person annual carbon dividend (80% of revenue recycled equally).
                 Worker equity dividends use income-bracket approximation ($1,200–$4,000/yr; executives excluded).
-                AMCF uses ~$600/person base (Year 1–2); dividend grows substantially by Year 10+ (see Sim-6 for trajectory).
-                Capital gains reform not modeled here — see Sim-8 for full income tax + CG reform analysis.
+                AMCF uses ~$600/person base (Year 1–2); dividend grows substantially by Year 10+ (see National Balance Sheet for trajectory).
+                Capital gains reform not modeled here — see Income Tax Design for full income tax + CG reform analysis.
               </div>
             </div>
           </div>
@@ -851,10 +851,10 @@ export default function DistributionalImpact() {
         Bracket data: IRS Statistics of Income 2024 estimates (15 brackets, 162M filers). Effective current-law rates calibrated to IRS SOI.
         Accord parameters (base): VAT 4% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
         carbon $100/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~$1,212/person/yr);
-        $5,000/person/yr universal prebate; AMCF equity dividend from Sim-6 validated equity trajectory.
+        $5,000/person/yr universal prebate; AMCF equity dividend from National Balance Sheet validated equity trajectory.
         Worker equity (three-tier): Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed); Tier 2 phantom equity ($25K–$100K/worker) via sectoral fund contributions;
         Tier 3 PSU (4%/yr Equity Excise → 20% ownership, appreciates at 7.5%/yr after Year 5 ramp, 3.5% dividend yield).
-        Part-time FTE adjustment applied by bracket. All values in 2024 real dollars. Income tax unchanged vs current law in this view (see Sim-8 for income tax reform).
+        Part-time FTE adjustment applied by bracket. All values in 2024 real dollars. Income tax unchanged vs current law in this view (see Income Tax Design for income tax reform).
       </div>
     </div>
   );

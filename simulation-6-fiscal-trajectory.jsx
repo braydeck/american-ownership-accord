@@ -51,30 +51,11 @@ const PRESET_OVERRIDES = {
   optimistic:          { startingEV: 60e12, amcfReturn: 0.09, baseRealGdpGrowth: 0.035, codetermBonus: 0.006, baselineSpendingFrac: 0.155 },
   slowCodetermination: { equityExciseRate: 0.01, creditCapFrac: 0.10 },
   fastCodetermination: { equityExciseRate: 0.08, creditCapFrac: 0.50 },
-  noCredit:            { creditCapFrac: 0 },
-  fullCarryforward:    { creditCapFrac: 1.0 },
-  recessionYr3:        { recessionYear: 3 },
-  recessionYr10:       { recessionYear: 10 },
-  highDebt:            { startingDebt: 42e12 },
-  currentLaw:          { vatRate: 0, lvtRate: 0, carbonRate: 0, stableTaxFrac: 0, equityExciseRate: 0, growthTaxRate: 0, prebatePerCapita: 0, grantPhaseMultiplier: 0 },
-  lowRates:            { baseInterestRate: 0.02, interestReflexivity: 2 },
-  highRates:           { baseInterestRate: 0.055, interestReflexivity: 10 },
-  popGrowth:           { populationGrowthRate: 0.008 },
-  highLvt:             { lvtRate: 0.15 },
-  originalAccord:      { vatRate: 0.10, lvtRate: 0.03, carbonRate: 0, stableTaxFrac: 0 },
-  npGrowthAssessment:  { stableTaxFrac: 0.0084 },
 };
 
 const PRESET_LABELS = {
   base: "Base Case", conservative: "Conservative", optimistic: "Optimistic",
   slowCodetermination: "Slow Codet.", fastCodetermination: "Fast Codet.",
-  noCredit: "No Credit (Old)", fullCarryforward: "Full Carryforward",
-  recessionYr3: "Recession Yr 3", recessionYr10: "Recession Yr 10",
-  highDebt: "High Starting Debt", currentLaw: "Current Law",
-  lowRates: "Low Rates", highRates: "High Rates",
-  popGrowth: "Pop. Growth", highLvt: "High LVT (15%)",
-  originalAccord: "Original Accord",
-  npGrowthAssessment: "NP Growth Assessment",
 };
 
 const CHART_TABS = [
@@ -844,10 +825,10 @@ export default function FiscalTrajectorySimulator() {
       {/* Header */}
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" }}>
-          American Ownership Accord — Fiscal Trajectory Simulator
+          National Balance Sheet
         </h1>
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>
-          35-year forward projection · All values in 2024 dollars · {yr6Validation}
+          35-year forward projection · All values in 2024 dollars
         </p>
       </div>
 
