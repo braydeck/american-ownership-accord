@@ -24,9 +24,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import {
-  lvtNetIncidenceArray, investmentLandLvtTotal,
+  lvtNetIncidenceArray, investmentLandLvtTotal, capitalizationLoss,
   HOUSEHOLD_LAND_SHARE, INVESTMENT_LAND_SHARE,
-  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT, LVT_RENT_RAMP_YRS,
+  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -213,14 +213,13 @@ function psuCashoutPerFiler(bi, y) {
   return (t2 * t2C + t3 * t3C) * PARTTIME_FTE[bi];
 }
 
-function computeAccordNWG(k, P) {
+function computeAccordNWG(k) {
   const d = DEMOS[k];
   const finDrag = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
   const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  // Steady-state residential LVT drag (full rent ramp); investment-land LVT excluded (it's a
-  // cash-flow/ETR cost, not a perpetual compounding haircut on total net-worth growth).
-  const lvtDrag = d.nw > 50000 ? Math.max(0, lvtResidential(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
-  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag - lvtDrag);
+  // No LVT growth-rate drag: LVT reprices land ONCE (one-time capitalization haircut in getNW),
+  // it does not perpetually erode the growth rate.
+  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag);
 }
 
 function getInc(k, y, P) {
@@ -228,7 +227,7 @@ function getInc(k, y, P) {
   const base = d.income * Math.pow(1 + d.incG, y);
   let tax = 0;
   if (P.has('TAX')) {
-    if (d.accordIncG != null) { tax = d.income * Math.pow(1 + d.accordIncG, y) - base; }
+    if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P); }
     else {
       const vatCost = 0.04 * DIST_BRACKETS[bi].cRat * base;
       const lvtCost = lvtNetBr(k, y, P);
@@ -247,8 +246,11 @@ function getInc(k, y, P) {
 
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
-  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
-  const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
+  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  // One-time LVT capitalization haircut on investment-land holdings (owner-occupied ~neutral).
+  const capLoss = (P.has('TAX') && P.has('LVT_INV')) ? capitalizationLoss(invLandPerFiler(k)) : 0;
+  const startNW = Math.max(0, d.nw - capLoss);
+  const base = d.nw >= 0 ? startNW * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
   if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k) * d.save); tax = c; }
   if (P.has('PRE')) {

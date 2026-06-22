@@ -278,6 +278,18 @@ export function investmentLandLvtTotal({ rate = 0.10, groundRentYield = GROUND_R
   return nonRes * rate * capFactor;
 }
 
+// ONE-TIME capitalization loss to a landowner from imposing a permanent LVT. The land's
+// market price falls once to P = P0·capFactor; the owner eats P0 − P. Given the annual LVT
+// they pay (= rate·P), the pre-tax value is P0 = annualLvt/(rate·capFactor), so the loss is
+// annualLvt·(1−capFactor)/(rate·capFactor) — i.e. the present value of the perpetual tax
+// stream (≈25× the annual LVT at 10%). This is the CORRECT wealth-channel of an LVT: a
+// one-time repricing, NOT an ongoing growth-rate drag (post-repricing the owner earns the
+// normal market return on the smaller base).
+export function capitalizationLoss(annualLvt, rate = 0.10, groundRentYield = GROUND_RENT_YIELD) {
+  const capFactor = groundRentYield / (groundRentYield + rate);
+  return annualLvt * (1 - capFactor) / (rate * capFactor);
+}
+
 // Share of non-residential land DIRECTLY owned by US households (rest = REITs/PE/pension/
 // foreign/corporate). Blended from: rental ~80% household/individual+LLC (CRS R47332),
 // commercial mostly REIT/PE/institutional with only ~16% of even top earners directly

@@ -21,9 +21,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { cn } from '@/lib/utils';
 import {
-  lvtNetIncidenceArray, investmentLandLvtTotal,
+  lvtNetIncidenceArray, investmentLandLvtTotal, capitalizationLoss,
   HOUSEHOLD_LAND_SHARE, INVESTMENT_LAND_SHARE,
-  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT, LVT_RENT_RAMP_YRS,
+  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -256,15 +256,14 @@ const CG_FRAC = 0.75;  // fraction of portfolio return that's capital gain (vs d
 //   finDrag      — cap gains reform reduces after-tax return on financial portfolio
 //   psuExciseDrag — 4%/yr PSU equity excise on large-company business equity (BILL/ELON)
 //   lvtDrag      — annual LVT net burden as a fraction of NW
-function computeAccordNWG(k, P) {
+function computeAccordNWG(k) {
   const d  = DEMOS[k];
   const finDrag       = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
   const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  // Steady-state residential LVT drag (full rent ramp); floor at $0 so renter net-benefits never
-  // boost NW growth. Investment-land LVT is excluded here — it's a cash-flow/ETR cost, not a
-  // perpetual compounding haircut on the household's total net-worth growth.
-  const lvtDrag       = d.nw > 50000 ? Math.max(0, lvtResidential(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
-  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag - lvtDrag);
+  // No LVT growth-rate drag: an LVT reprices land ONCE (see the one-time capitalization haircut
+  // in getNW), it does not perpetually erode the growth rate — post-repricing the owner earns
+  // the normal market return on the smaller base.
+  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag);
 }
 
 const YEARS      = Array.from({ length:31 }, (_, i) => i);
@@ -351,8 +350,9 @@ function getInc(k, y, P) {
   let tax = 0;
   if (P.has('TAX')) {
     if (d.accordIncG != null) {
-      // High-wealth demos (T1/BILL/ELON): income compression model from capital reform
-      tax = d.income * Math.pow(1 + d.accordIncG, y) - base;
+      // High-wealth demos (T1/BILL/ELON): income compression from capital reform, plus the
+      // LVT they bear (residential + investment-land) — the latter is large for these personas.
+      tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P);
     } else {
       // Model-derived: income tax reform + VAT (4%, scales with income) + LVT + carbon cost
       const vatCost    = 0.04 * DIST_BRACKETS[bi].cRat * base;
@@ -375,10 +375,15 @@ function getInc(k, y, P) {
 // Returns layered NW components — compounded cumulative effects
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
-  // Accord NW growth rate derived from model (cap gains reform + PSU excise + LVT drag)
-  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
+  // Accord NW growth rate (cap gains reform + PSU excise).
+  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  // One-time LVT capitalization haircut on investment-land holdings (≈25× the annual investment
+  // LVT). Owner-occupied home land is left ~neutral (its capital loss is offset by lower lifetime
+  // housing costs). Concentrates on land-rich personas; ~0 for renters/modest owners.
+  const capLoss = (P.has('TAX') && P.has('LVT_INV')) ? capitalizationLoss(invLandPerFiler(k)) : 0;
+  const startNW = Math.max(0, d.nw - capLoss);
   const base = d.nw >= 0
-    ? d.nw * Math.pow(1 + nwGr, y)
+    ? startNW * Math.pow(1 + nwGr, y)
     : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
 
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
@@ -454,7 +459,7 @@ function getNW(k, y, P) {
 // current-law 9% and Accord 30–55%+ are directly comparable on the same basis.
 function billionaireETR(k, y, P) {
   const d    = DEMOS[k];
-  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
+  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
   const nwY  = d.nw * Math.pow(1 + nwGr, y);
   const incY = d.income * Math.pow(1 + d.incG, y);
 
@@ -471,6 +476,7 @@ function billionaireETR(k, y, P) {
     taxes += 0.04 * d.bizPct * nwY;                   // (2) PSU equity excise on business equity
     const mtmRate = Math.max(0, Math.min(1, (y - 5) / 10));  // ramp 0→1 from Year 5 to Year 15
     taxes += mtmRate * 0.50 * (unrealBiz + unrealFin); // (3) MTM at 50% rate (Accord >$1M rate)
+    taxes += lvtNetBr(k, y, P);                        // (4) LVT (residential + investment land)
   }
   if (P.has('PRE')) {
     taxes -= (prebatePC(P) * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k]);
