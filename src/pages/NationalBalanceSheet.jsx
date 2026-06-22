@@ -751,6 +751,25 @@ function ParameterPanel({ params, setParam }) {
 
       <div className="pt-2">
         <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          $500k Homeowner Exemption
+        </label>
+        <Button
+          variant={params.lvtExemption > 0 ? "default" : "outline"}
+          size="sm"
+          className="mt-1 w-full text-xs font-semibold"
+          onClick={() => setParam("lvtExemption", params.lvtExemption > 0 ? 0 : 500000)}
+        >
+          {params.lvtExemption > 0 ? "✓ Exemption On ($500k)" : "Exemption Off"}
+        </Button>
+        <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+          Exemption only — set the prebate and rates yourself. On shields owner-occupied land
+          (LVT ≈$567B at 10%); Off taxes the full base (≈$943B). Lower the prebate slider to
+          keep the swap deficit-neutral.
+        </p>
+      </div>
+
+      <div className="pt-2">
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Recession Year
         </label>
         <select

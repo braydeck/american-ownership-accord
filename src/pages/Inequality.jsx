@@ -1110,7 +1110,8 @@ const PROVS = [
   { key: 'AMCF', label: 'AMCF Grants' },
   { key: 'PSU_D', label: 'PSU Dividends' },
   { key: 'PSU_C', label: 'PSU Cashouts' },
-  { key: 'LVT_EX', label: '$500k Homeowner Exemption' },
+  { key: 'LVT_EX', label: '$500k Homeowner Exemption',
+    tip: 'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,123 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
 
 export default function InequalityMeasurement() {
@@ -1150,6 +1151,7 @@ export default function InequalityMeasurement() {
                     key={p.key}
                     variant={provs.has(p.key) ? 'default' : 'outline'}
                     size="sm"
+                    title={p.tip}
                     onClick={() => toggleProv(p.key)}
                     className={`justify-start text-xs ${p.fixed ? 'opacity-50 pointer-events-none' : ''}`}
                   >

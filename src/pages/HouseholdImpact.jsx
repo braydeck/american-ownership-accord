@@ -277,7 +277,8 @@ const PROVS_CONFIG = [
   { key:'AMCF',  label:'AMCF Citizen Grants',   color:'#3b82f6', fixed:false },
   { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
   { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
-  { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false },
+  { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false,
+    tip:'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,123 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
 
 const CHARTS = [
@@ -1627,6 +1628,7 @@ export default function Dashboard() {
               <div key={p.key}
                 role="button"
                 tabIndex="0"
+                title={p.tip}
                 onClick={() => toggleProv(p.key)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleProv(p.key); } }}
                 className={cn(
