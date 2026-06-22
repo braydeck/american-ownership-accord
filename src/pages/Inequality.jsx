@@ -24,8 +24,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import {
-  lvtNetIncidenceArray, investmentLandLvtTotal, capitalizationLoss,
-  HOUSEHOLD_LAND_SHARE, INVESTMENT_LAND_SHARE,
+  lvtNetIncidenceArray,
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 
@@ -120,23 +119,15 @@ const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.0
 const CARBON_DIV_PER_CAP = 5e9 * 100 * 0.80 / 330e6;
 const DEMO_BRACKET = { B10:1,P10:3,P20:4,P30:4,P40:5,P50:6,P60:6,P70:7,P80:8,T10:9,T1:11,BILL:14,ELON:14 };
 
-// ─── LVT INCIDENCE (owner/renter split + optional investment-land attribution) ──
-// Investment-land LVT per filer: directly-household-owned slice of the non-residential pool,
-// distributed by the DFA business-equity concentration (INVESTMENT_LAND_SHARE) ÷ households.
-const _invLandPool = investmentLandLvtTotal({ rate: 0.10 }) * HOUSEHOLD_LAND_SHARE;
-const invLandPerFiler = k => {
-  const i = DEMO_KEYS.indexOf(k);
-  return _invLandPool * (INVESTMENT_LAND_SHARE[k] || 0) / (WGTS[i] * 133e6);
-};
-// Residential owner/renter net LVT per filer (signed; drives the NW-growth drag).
-function lvtResidential(k, y, P) {
+// ─── LVT INCIDENCE (residential owner/renter split only) ────────────────────
+// Per-filer net LVT = homeowner LVT − renter rent-relief on the PRIMARY residence.
+// Non-residential ("investment") land LVT is NOT attributed per-persona: it's borne by a
+// ~7–10% landlord minority that cuts across brackets plus REITs/pensions/foreign/corporate
+// owners — not the median household of any bracket. That ~$529B is real and lives in the
+// fiscal/revenue aggregate (which taxes the full land base), not in these per-persona charts.
+function lvtNetBr(k, y, P) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
   return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
-}
-// Income/ETR lens = residential + investment land (investment is a cash-flow cost only;
-// computeAccordNWG uses lvtResidential alone, so it never compounds into the wealth path).
-function lvtNetBr(k, y, P) {
-  return lvtResidential(k, y, P) + (P.has('LVT_INV') ? invLandPerFiler(k) : 0);
 }
 // Prebate per person: redirected $6,101 by default; base $5,000 when the exemption is on.
 const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
@@ -247,10 +238,9 @@ function getInc(k, y, P) {
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  // One-time LVT capitalization haircut on investment-land holdings (owner-occupied ~neutral).
-  const capLoss = (P.has('TAX') && P.has('LVT_INV')) ? capitalizationLoss(invLandPerFiler(k)) : 0;
-  const startNW = Math.max(0, d.nw - capLoss);
-  const base = d.nw >= 0 ? startNW * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
+  // LVT has no per-persona wealth effect (owner-occ capitalization ~offset by lower housing
+  // costs; investment-land capitalization falls on the landlord minority / institutions).
+  const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
   if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k) * d.save); tax = c; }
   if (P.has('PRE')) {
@@ -1121,11 +1111,10 @@ const PROVS = [
   { key: 'PSU_D', label: 'PSU Dividends' },
   { key: 'PSU_C', label: 'PSU Cashouts' },
   { key: 'LVT_EX', label: '$500k Homeowner Exemption' },
-  { key: 'LVT_INV', label: 'Investment-land LVT (top)' },
 ];
 
 export default function InequalityMeasurement() {
-  const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C','LVT_INV']));
+  const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
   const discountRate = 0.02;
   const mortality = 'uniform';
   const P = provs;

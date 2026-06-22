@@ -21,8 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { cn } from '@/lib/utils';
 import {
-  lvtNetIncidenceArray, investmentLandLvtTotal, capitalizationLoss,
-  HOUSEHOLD_LAND_SHARE, INVESTMENT_LAND_SHARE,
+  lvtNetIncidenceArray,
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 
@@ -193,24 +192,19 @@ const DEMO_BRACKET = {
   B10:1, P10:3, P20:4, P30:4, P40:5, P50:6, P60:6, P70:7, P80:8, T10:9, T1:11, BILL:14, ELON:14,
 };
 
-// ─── LVT INCIDENCE (owner/renter split + optional investment-land attribution) ──
-const HH_COUNT = 133e6;
-// Investment-land LVT per filer: the directly-household-owned slice of the non-residential
-// pool, distributed by the DFA business-equity concentration (INVESTMENT_LAND_SHARE),
-// divided by households in the persona. Concentrates on T1/BILL/ELON; T10 modest.
-const _invLandPool = investmentLandLvtTotal({ rate: 0.10 }) * HOUSEHOLD_LAND_SHARE;
-const invLandPerFiler = k => _invLandPool * (INVESTMENT_LAND_SHARE[k] || 0) / (POP[k] * HH_COUNT);
-
-// Residential owner/renter net LVT per filer (signed; drives the NW-growth drag).
-function lvtResidential(k, y, P) {
+// ─── LVT INCIDENCE (residential owner/renter split only) ────────────────────
+// Per-filer net LVT = homeowner LVT − renter rent-relief on the household's PRIMARY
+// residence. Non-residential ("investment") land LVT is deliberately NOT attributed
+// per-persona: only ~7–10% of households own rental/investment property (IRS: ~9M
+// landlords) and direct commercial ownership tops out at ~16% even among top earners —
+// it's a minority trait that cuts across brackets, plus REITs/pensions/foreign/corporate
+// owners, which a single median-household-per-bracket model cannot represent. That ~$529B
+// of non-residential land LVT is real and lives in the fiscal/revenue aggregate
+// (NationalBalanceSheet / Rent Tax Optimizer, which tax the full land base) — it is just
+// not pinned onto the median household of each bracket here.
+function lvtNetBr(k, y, P) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
   return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
-}
-// Total net LVT per filer for the income/ETR/cash-flow lens = residential + investment land.
-// Investment land is a cash-flow cost only (NOT a compounding wealth-growth drag) — see
-// computeAccordNWG, which uses lvtResidential alone.
-function lvtNetBr(k, y, P) {
-  return lvtResidential(k, y, P) + (P.has('LVT_INV') ? invLandPerFiler(k) : 0);
 }
 
 // Prebate per person: redirected $6,101 by default; reverts to base $5,000 when the
@@ -284,7 +278,6 @@ const PROVS_CONFIG = [
   { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
   { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
   { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false },
-  { key:'LVT_INV', label:'Investment-land LVT (top)',  color:'#0ea5e9', fixed:false },
 ];
 
 const CHARTS = [
@@ -375,15 +368,13 @@ function getInc(k, y, P) {
 // Returns layered NW components — compounded cumulative effects
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
-  // Accord NW growth rate (cap gains reform + PSU excise).
+  // Accord NW growth rate (cap gains reform + PSU excise). LVT has no per-persona wealth
+  // effect: owner-occupied land capitalization is ~offset by lower lifetime housing costs,
+  // and investment-land capitalization falls on the landlord minority / institutions, not
+  // the median household (see lvtNetBr note).
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  // One-time LVT capitalization haircut on investment-land holdings (≈25× the annual investment
-  // LVT). Owner-occupied home land is left ~neutral (its capital loss is offset by lower lifetime
-  // housing costs). Concentrates on land-rich personas; ~0 for renters/modest owners.
-  const capLoss = (P.has('TAX') && P.has('LVT_INV')) ? capitalizationLoss(invLandPerFiler(k)) : 0;
-  const startNW = Math.max(0, d.nw - capLoss);
   const base = d.nw >= 0
-    ? startNW * Math.pow(1 + nwGr, y)
+    ? d.nw * Math.pow(1 + nwGr, y)
     : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
 
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
@@ -1533,7 +1524,7 @@ export default function Dashboard() {
   const [logScale, setLogScale]         = useState(false);
   const [activeDemos, setActiveDemos]   = useState(new Set(['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON']));
   // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
-  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C','LVT_INV']));
+  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
   const [stackedShare, setStackedShare] = useState(false);
   const [normalizedBar, setNormalizedBar] = useState(false);
   const [chart8View, setChart8View]     = useState('time');   // 'time' | 'demos'
