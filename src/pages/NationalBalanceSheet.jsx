@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY } from '@/lib/land';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -32,9 +33,16 @@ const BASE_PARAMS = {
   creditCapFrac:          0.20,
   vatRate:                0.04,
   lvtRate:                0.10,
+  // Land Value Tax — bottom-up capitalized model (src/lib/land.js). Default scenario:
+  // NO homeowner exemption, with the recovered revenue redirected into the prebate.
+  lvtModel:               'capitalized', // 'capitalized' | 'legacy'
+  lvtExemption:           0,             // 0 = no homeowner exemption; 500000 to restore it
+  lvtGroundRentYield:     0.04,          // i — capitalization discount
+  lvtLandElasticity:      LAND_GROWTH_ELASTICITY, // land-base growth vs nominal GDP (0.7 = suppressed)
+  lvtAssessmentBasis:     'capitalized', // 'capitalized' | 'preTax'
   carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
   stableTaxFrac:          0.0076, // FTT + FSL + royalties + spectrum + water (% of GDP)
-  prebatePerCapita:       5000,
+  prebatePerCapita:       PREBATE_REDIRECTED, // $6,101 — base $5,000 + redirected exemption revenue
   grantPhaseMultiplier:   1.0,
   startingEV:             50e12,
   amcfReturn:             0.07,
@@ -240,12 +248,17 @@ function runFiscalSimulation(p) {
 
     // Revenue — individual income (7.8% GDP, no corporate, bracket adj included),
     // VAT on 55% taxable base (food/housing/healthcare exempt) with compliance ramp,
-    // LVT on 20% of GDP land value, payroll donut-hole fix at 0.8% GDP.
+    // LVT from the bottom-up capitalized land model, payroll donut-hole fix at 0.8% GDP.
     // Prebate is a SPENDING item, not a revenue deduction.
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
     const vatGross = nominalGdp * 0.55 * p.vatRate * vatCompliance;
-    const landPremium = 1 + 0.005 * (yr - 1);
-    const lvtRev = nominalGdp * 0.20 * landPremium * p.lvtRate;
+    const lvtRev = lvtRevForFiscal({
+      rate: p.lvtRate, year: yr, nominalGdp,
+      model: p.lvtModel, exemption: p.lvtExemption,
+      assessmentBasis: p.lvtAssessmentBasis,
+      groundRentYield: p.lvtGroundRentYield,
+      landGrowthElasticity: p.lvtLandElasticity,
+    });
     // Carbon: Laffer peak ~$165/ton; natural decarbonization 2.5%/yr
     const carbonRev = p.carbonRate * 5e9 * (1 - p.carbonRate / 330) * Math.pow(0.975, yr - 1);
     // Stable rent-based taxes: FTT + FSL + royalties + spectrum + water ≈ 0.76% GDP

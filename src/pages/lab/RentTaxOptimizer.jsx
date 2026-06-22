@@ -18,20 +18,26 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import {
+  lvtRevForFiscal, lvtRevenueExemptionComparison,
+  PREBATE_BASE, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, EXEMPTION_AMOUNT,
+} from '@/lib/land';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REVENUE MODELS
 // Consistent with Sim-6 conventions where possible.
-// LVT: nominalGdp × 0.20 × rate (Sim-6 simplified — no capitalization adjustment).
+// LVT: bottom-up capitalized land model (src/lib/land.js) — concave in rate, no homeowner exemption by default.
 // Carbon: physics-based Laffer curve + 2.5%/yr natural decarbonization.
 // Stable taxes (FSL, FTT, royalties, etc.): modeled as % of GDP so they scale with the economy.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const YR1_NOM_GDP = 28.7e12; // $28T real × 1.025 price level (Year 1)
 
-// LVT — same formula as Sim-6 revenue section (20% of nominal GDP × rate × land premium)
-function lvtRevYr1(rate) {
-  return YR1_NOM_GDP * 0.20 * rate; // land premium = 1.0 in Year 1
+// LVT — Year-1 revenue from the bottom-up capitalized land model (src/lib/land.js).
+// Default scenario: no homeowner exemption. Year 1 ⇒ land-growth factor = 1, so the
+// elasticity is irrelevant here and the curve reflects pure capitalization (concave).
+function lvtRevYr1(rate, exemption = 0) {
+  return lvtRevForFiscal({ rate, year: 1, nominalGdp: YR1_NOM_GDP, exemption });
 }
 
 // Carbon — Laffer curve (peak ~$165/ton) + 2.5%/yr natural decarbonization from tech change
@@ -72,7 +78,7 @@ const POLLUTION_REV = 20e9;  // non-carbon pollution fees (N, P, plastics) — f
 const CONGESTION_REV = 12e9; // congestion pricing federal share — flat estimate
 
 function computePortfolioYr1(r) {
-  const lvt    = lvtRevYr1(r.lvtRate);
+  const lvt    = lvtRevYr1(r.lvtRate, r.lvtExemption ?? 0);
   const carbon = carbonRevYr(r.carbonRate, 1);
   const fsl    = fslRevYr1(r.fslBps);
   const ftt    = fttRevYr1(r.fttPct);
@@ -86,13 +92,27 @@ function computePortfolioYr1(r) {
 
 // Baseline: 10% VAT + 3% LVT as in Sim-6
 const BASE_VAT_REV_YR1 = YR1_NOM_GDP * 0.55 * 0.10 * 0.75; // 75% compliance in Year 1
-const BASE_LVT_REV_YR1 = lvtRevYr1(0.03);
+// Baseline is the ORIGINAL Accord design (10% VAT + 3% LVT under the legacy formula),
+// the revenue the rent-tax portfolio must replace to drop VAT to zero.
+const BASE_LVT_REV_YR1 = lvtRevForFiscal({ rate: 0.03, year: 1, nominalGdp: YR1_NOM_GDP, model: 'legacy' });
 const BASELINE_TOTAL   = BASE_VAT_REV_YR1 + BASE_LVT_REV_YR1;
 
 // Minimum residual VAT rate needed if rent taxes fall short of baseline
 function requiredVatRate(rentTotalYr1) {
   const gap = Math.max(0, BASELINE_TOTAL - rentTotalYr1);
   return gap / (YR1_NOM_GDP * 0.55 * 0.75);
+}
+
+// LVT rate (capitalized model, no exemption) that yields a target Year-1 revenue.
+// LVT is monotonic and concave in rate with a ground-rent ceiling, so we binary-search.
+function lvtRateForRevenue(targetRev) {
+  let lo = 0, hi = 0.30;
+  if (lvtRevYr1(hi) < targetRev) return null; // unreachable below the ground-rent ceiling
+  for (let k = 0; k < 40; k++) {
+    const mid = (lo + hi) / 2;
+    if (lvtRevYr1(mid) < targetRev) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -117,7 +137,7 @@ const FP = { // Sim-6 fiscal base parameters (unchanged)
   growthTaxRate: 0.20, equityExciseRate: 0.04, creditCapFrac: 0.20,
   amcfReturn: 0.07, codetermBonus: 0.003,
   baselineSpendingFrac: 0.165, spendingEfficiencyGain: 0.0004,
-  prebatePerCapita: 5000,
+  prebatePerCapita: PREBATE_REDIRECTED, // default scenario: exemption off → redirected prebate
 };
 
 function grantFloor(yr) {
@@ -178,8 +198,14 @@ function runFiscal(rentRates) {
     // ── Revenue (Task-7 extended — this is the only section modified from Sim-6) ──
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
     const vatGross   = nomGdp * 0.55 * rentRates.vatRate * vatCompliance;
-    const landPrem   = 1 + 0.005 * (yr - 1);
-    const lvtRev     = nomGdp * 0.20 * landPrem * rentRates.lvtRate;
+    const lvtRev     = lvtRevForFiscal({
+      rate: rentRates.lvtRate, year: yr, nominalGdp: nomGdp,
+      model: rentRates.lvtModel ?? 'capitalized',
+      exemption: rentRates.lvtExemption ?? 0,
+      assessmentBasis: rentRates.lvtAssessmentBasis ?? 'capitalized',
+      groundRentYield: rentRates.lvtGroundRentYield ?? 0.04,
+      landGrowthElasticity: rentRates.lvtLandElasticity ?? LAND_GROWTH_ELASTICITY,
+    });
     const carbonRev  = carbonRevYr(rentRates.carbonRate, yr); // time-declining
     const stableRev  = nomGdp * stableFrac;                   // GDP-scaled
     const payrollFix = nomGdp * 0.008;
@@ -197,7 +223,10 @@ function runFiscal(rentRates) {
     const interest  = grossDebt * effRate;
     const spendFrac = Math.max(0.14, FP.baselineSpendingFrac - FP.spendingEfficiencyGain * yr);
     const popScale  = pop / FP.startingPopulation;
-    const spending  = nomGdp * spendFrac + budgetGrantCost + FP.prebatePerCapita * pop
+    // Prebate is deficit-neutrally coupled to the exemption: exemption off (default) →
+    // recovered revenue funds the higher $6,101 prebate; exemption on → base $5,000.
+    const prebatePerCap = (rentRates.lvtExemption ?? 0) > 0 ? PREBATE_BASE : PREBATE_REDIRECTED;
+    const spending  = nomGdp * spendFrac + budgetGrantCost + prebatePerCap * pop
       + 100e9 * popScale + 50e9 * popScale - amcfCash * 0.10;
     const intToRev  = totalRev > 0 ? (interest / totalRev) * 100 : 0;
     const solvent   = intToRev > 10;
@@ -262,7 +291,7 @@ const PACKAGES = [
     id: "zero-vat",
     name: "Zero VAT",
     color: "#16a34a",
-    desc: "Maximum rent taxes — VAT fully eliminated. LVT 11% needed to close gap. Carbon at Laffer peak. Fragile in out-years as emissions fall.",
+    desc: "VAT fully eliminated. With no homeowner exemption, LVT alone raises ~$940B at 10%, so zero VAT is comfortably feasible. Watch out-years: carbon self-liquidates and suppressed land growth (elasticity 0.7) means LVT grows slower than GDP.",
     rates: { vatRate: 0,    lvtRate: 0.11, carbonRate: 165, fslBps: 50, fttPct: 0.20, royaltyExtraPct: 12, spectrumPct: 3,   waterFeeAF: 50 },
   },
   {
@@ -337,6 +366,10 @@ const DEFAULTS = {
   vatRate: 0.04, lvtRate: 0.10, carbonRate: 100,
   fslBps: 25, fttPct: 0.50, royaltyExtraPct: 8,
   spectrumPct: 2, waterFeeAF: 25,
+  // Land Value Tax model — default scenario: no homeowner exemption, prebate redirect.
+  lvtModel: 'capitalized', lvtExemption: 0,
+  lvtGroundRentYield: 0.04, lvtLandElasticity: LAND_GROWTH_ELASTICITY,
+  lvtAssessmentBasis: 'capitalized',
 };
 
 export default function RentTaxOptimizer() {
@@ -350,6 +383,14 @@ export default function RentTaxOptimizer() {
   const gap  = BASELINE_TOTAL - yr1.total;
   const zeroVatFeasible = gap <= 0;
   const reqVat = requiredVatRate(yr1.total);
+  // LVT rate that would close the gap (concave capitalized model — numeric solve).
+  const lvtToClose = gap > 0 ? lvtRateForRevenue(yr1.lvt + gap) : null;
+
+  const exemptComp = useMemo(() => lvtRevenueExemptionComparison({
+    rate: r.lvtRate,
+    assessmentBasis: r.lvtAssessmentBasis,
+    groundRentYield: r.lvtGroundRentYield,
+  }), [r.lvtRate, r.lvtAssessmentBasis, r.lvtGroundRentYield]);
 
   const fiscal  = useMemo(() => runFiscal(r), [r]);
   const compare = PKG_RESULTS[compareIdx];
@@ -418,8 +459,9 @@ export default function RentTaxOptimizer() {
             <div className="bg-amber-50 border border-amber-500 rounded-lg px-4 py-3 text-sm text-amber-900 leading-relaxed mt-6">
               <strong>Gap to Zero VAT: {fmtT(gap)}.</strong> Current rent taxes generate {fmtT(yr1.total)} vs {fmtT(BASELINE_TOTAL)} baseline.
               Minimum residual VAT: <strong>{(reqVat * 100).toFixed(2)}%</strong>.
-              To close gap: increase LVT
-              to {((gap / (YR1_NOM_GDP * 0.20) + r.lvtRate) * 100).toFixed(1)}%, or raise carbon toward $165/ton (Laffer peak).
+              To close gap: {lvtToClose != null
+                ? <>increase LVT to <strong>{(lvtToClose * 100).toFixed(1)}%</strong></>
+                : <>LVT alone can't close it (ground-rent ceiling) — </>}, or raise carbon toward $165/ton (Laffer peak).
             </div>
           )}
 
@@ -492,6 +534,80 @@ export default function RentTaxOptimizer() {
             </div>
           </div>
 
+          {/* Land Value Model — exemption removal & prebate redirect */}
+          <Card className="mt-6 border-emerald-300">
+            <CardContent>
+              <h3 className="text-sm font-semibold text-foreground mb-1 pb-2 border-b">
+                Land Value Model — Homeowner Exemption & Prebate Redirect
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-2 mb-4 leading-relaxed">
+                Bottom-up capitalized land model. Removing the $500k homeowner exemption widens the LVT base
+                from ~$20T to ~$33T; the recovered revenue is redirected, deficit-neutral, into a higher prebate.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="text-center p-2 rounded-lg bg-emerald-50">
+                  <div className="text-[17px] font-bold text-emerald-700">{fmtB(exemptComp.withoutExemption)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">LVT, no exemption (default)</div>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/40">
+                  <div className="text-[17px] font-bold text-foreground">{fmtB(exemptComp.withExemption)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">LVT, $500k exemption on</div>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-amber-50">
+                  <div className="text-[17px] font-bold text-amber-700">{fmtB(exemptComp.exemptionCost)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">Exemption cost / yr</div>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-[12px] text-emerald-900 mb-5">
+                Redirected to the prebate: <strong>${PREBATE_BASE.toLocaleString()}</strong> base
+                + <strong>${Math.round(exemptComp.prebatePerCapitaBump).toLocaleString()}</strong> redirect
+                = <strong>${Math.round(PREBATE_BASE + exemptComp.prebatePerCapitaBump).toLocaleString()}/person/yr</strong>,
+                deficit-neutral in Year 1 ({(r.lvtRate * 100).toFixed(1)}% LVT, {(r.lvtGroundRentYield * 100).toFixed(1)}% ground-rent yield).
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold mb-1.5">$500k Homeowner Exemption</p>
+                  <Button
+                    variant={r.lvtExemption > 0 ? "default" : "outline"}
+                    size="sm"
+                    className={`text-xs font-semibold ${r.lvtExemption > 0 ? "bg-emerald-800 hover:bg-emerald-900" : ""}`}
+                    onClick={() => upd("lvtExemption", r.lvtExemption > 0 ? 0 : EXEMPTION_AMOUNT)}
+                  >
+                    {r.lvtExemption > 0 ? "✓ Exemption On (prebate $5,000)" : "Exemption Off — redirect (default)"}
+                  </Button>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold mb-1.5">Assessment Basis</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs font-semibold"
+                    onClick={() => upd("lvtAssessmentBasis", r.lvtAssessmentBasis === "capitalized" ? "preTax" : "capitalized")}
+                  >
+                    {r.lvtAssessmentBasis === "capitalized" ? "Capitalized (market)" : "Pre-tax (naive)"}
+                  </Button>
+                </div>
+                <SliderControl
+                  label="Ground-rent yield (i)"
+                  value={r.lvtGroundRentYield}
+                  onChange={v => upd("lvtGroundRentYield", v)}
+                  min={0.02} max={0.06} step={0.005}
+                  formatValue={v => `${(v * 100).toFixed(1)}% → cap factor ${(v / (v + r.lvtRate)).toFixed(2)}`}
+                />
+                <SliderControl
+                  label="Land-growth elasticity vs GDP"
+                  value={r.lvtLandElasticity}
+                  onChange={v => upd("lvtLandElasticity", v)}
+                  min={0.4} max={1.0} step={0.05}
+                  formatValue={v => `${v.toFixed(2)}× ${v < 1 ? "(suppressed)" : "(tracks GDP)"}`}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Sliders */}
           <div className="grid grid-cols-2 gap-4 mt-6">
             <div className="space-y-4">
@@ -511,11 +627,12 @@ export default function RentTaxOptimizer() {
                       value={r.lvtRate}
                       onChange={v => upd("lvtRate", v)}
                       min={0} max={0.30} step={0.005}
-                      formatValue={v => `${(v * 100).toFixed(1)}% \u2192 ${fmtT(lvtRevYr1(v))}/yr`}
+                      formatValue={v => `${(v * 100).toFixed(1)}% \u2192 ${fmtT(lvtRevYr1(v, r.lvtExemption))}/yr`}
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-3">
-                    LVT Year-1 revenue: {fmtT(yr1.lvt)}. Grows with land values (5.5%/yr in model).
+                    LVT Year-1 revenue: {fmtT(yr1.lvt)} ({r.lvtExemption > 0 ? '$500k exemption on' : 'no exemption'}).
+                    Capitalized base grows at {(r.lvtLandElasticity * 100).toFixed(0)}% of nominal-GDP growth (anti-speculation suppression).
                   </p>
                 </CardContent>
               </Card>
@@ -618,7 +735,7 @@ export default function RentTaxOptimizer() {
                     size="sm"
                     className="font-semibold text-xs"
                     style={{ borderColor: pkg.color, color: pkg.color }}
-                    onClick={() => setR(pkg.rates)}
+                    onClick={() => setR({ ...DEFAULTS, ...pkg.rates })}
                   >
                     {pkg.name}
                   </Button>
@@ -632,7 +749,7 @@ export default function RentTaxOptimizer() {
         <TabsContent value="curves">
           <ChartContainer
             title="Land Value Tax — Rate vs Year-1 Revenue"
-            subtitle="Uses Sim-6 simplified model (20% of nominal GDP x rate). Capitalization-adjusted values would be ~15-20% lower at high rates as land prices compress. LVT revenue grows with GDP; the 0.5%/yr land premium in the model adds a slight extra tailwind."
+            subtitle="Bottom-up capitalized model (no homeowner exemption by default). The curve is concave: a permanent LVT capitalizes into lower land prices (market value = P0·i/(i+t)), so revenue rises less than proportionally with the rate and is bounded by total ground rent (~$1.3T). Toggle the $500k exemption on in the Optimizer tab to shrink the base by ~$370B."
             height={200}
             className="mt-6"
           >
@@ -869,10 +986,11 @@ export default function RentTaxOptimizer() {
         <TabsContent value="packages">
           <div className="bg-blue-50 border border-blue-300 rounded-lg px-4 py-3 text-sm text-blue-900 leading-relaxed mt-6">
             <strong className="text-blue-800">Key finding: </strong>
-            Zero VAT is technically achievable in Year 1 (requires LVT {'>'}= 11% + carbon at Laffer peak + all other rent taxes maximized)
-            but is not fiscally sustainable long-term — carbon self-liquidates as the economy decarbonizes, opening a growing
-            revenue gap by Year 15-20. The <strong>Minimum VAT (~2%) package</strong> is Pareto-optimal: replaces 80%+ of VAT
-            burden with superior taxes while maintaining baseline fiscal trajectory within 1-2 years.
+            With the homeowner exemption removed (default), LVT raises ~$940B at 10% — so Zero VAT is comfortably
+            feasible in Year 1 even at moderate LVT rates, no longer requiring an 11% rate plus Laffer-peak carbon.
+            The binding constraint is now the out-years: carbon self-liquidates as the economy decarbonizes, and the
+            taxed land base grows slower than GDP (elasticity 0.7, anti-speculation suppression), so plan for gradual
+            LVT increases after ~Year 15. The <strong>Minimum VAT (~2%) package</strong> remains a robust Pareto choice.
           </div>
 
           {/* Summary table */}
@@ -972,7 +1090,7 @@ export default function RentTaxOptimizer() {
                     size="sm"
                     className="text-[11px] font-semibold"
                     style={{ borderColor: pkg.color, color: pkg.color }}
-                    onClick={() => { setR(pkg.rates); setTab("optimizer"); }}
+                    onClick={() => { setR({ ...DEFAULTS, ...pkg.rates }); setTab("optimizer"); }}
                   >
                     Load this package {'\u2192'}
                   </Button>

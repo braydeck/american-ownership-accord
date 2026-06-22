@@ -23,6 +23,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { LVT_NET_BASE } from '@/lib/brackets';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
@@ -103,7 +104,7 @@ const DIST_BRACKETS = [
   {cRat:0.72},{cRat:0.64},{cRat:0.54},{cRat:0.34},{cRat:0.24},{cRat:0.16},{cRat:0.12},{cRat:0.10},
 ];
 const CARBON_TONS_BR = [4,5,6,7,8.5,10,11,12,13.5,16,18,22,26,30,35];
-const LVT_NET_BR = [0,0,0,0,0,0,400,1200,2500,5500,14000,28000,55000,110000,220000];
+const LVT_NET_BR = LVT_NET_BASE;
 const TIER_DIST = [
   [0.12,0.20,0.40],[0.15,0.22,0.48],[0.18,0.25,0.52],[0.20,0.27,0.50],[0.22,0.28,0.45],
   [0.24,0.28,0.40],[0.26,0.26,0.36],[0.25,0.24,0.32],[0.22,0.20,0.30],[0.16,0.18,0.25],

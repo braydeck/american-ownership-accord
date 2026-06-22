@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { cn } from '@/lib/utils';
+import { LVT_NET_BASE } from '@/lib/brackets';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
@@ -163,8 +164,8 @@ const DIST_BRACKETS = [
 // Carbon tons emitted per household by bracket (EPA household survey)
 const CARBON_TONS_BR = [4, 5, 6, 7, 8.5, 10, 11, 12, 13.5, 16, 18, 22, 26, 30, 35];
 
-// Net LVT burden per filer at 10% LVT (renters in lower brackets get relief; net ≈0 through $55K)
-const LVT_NET_BR = [0, 0, 0, 0, 0, 0, 400, 1200, 2500, 5500, 14000, 28000, 55000, 110000, 220000];
+// Net LVT burden per filer at 10% LVT, no homeowner exemption (shared source).
+const LVT_NET_BR = LVT_NET_BASE;
 
 // Three-tier worker equity: [Tier1 frac, Tier2 frac, Tier3 frac] per bracket (from Sim-2 / BLS)
 const TIER_DIST = [

@@ -17,37 +17,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
-
-// ─── BRACKETS (IRS SOI + Census, 2024 estimates — from Income Tax Design) ─────────────────
-// 15 brackets covering all ~162M filers
-const BRACKETS = [
-  { label: '$0–10K',    filers: 25.00e6, agi:   130e9, effCL: 0.000, cgShare: 0.02, jFrac: 0.20, hhSz: 1.4, cRat: 1.20, own: 0.15 },
-  { label: '$10–15K',   filers: 10.00e6, agi:   120e9, effCL: 0.010, cgShare: 0.02, jFrac: 0.22, hhSz: 1.6, cRat: 1.00, own: 0.28 },
-  { label: '$15–25K',   filers: 18.00e6, agi:   340e9, effCL: 0.030, cgShare: 0.02, jFrac: 0.26, hhSz: 1.9, cRat: 0.97, own: 0.36 },
-  { label: '$25–40K',   filers: 18.00e6, agi:   580e9, effCL: 0.055, cgShare: 0.02, jFrac: 0.32, hhSz: 2.1, cRat: 0.95, own: 0.46 },
-  { label: '$40–55K',   filers: 16.00e6, agi:   760e9, effCL: 0.085, cgShare: 0.02, jFrac: 0.38, hhSz: 2.3, cRat: 0.90, own: 0.55 },
-  { label: '$55–75K',   filers: 18.00e6, agi:  1170e9, effCL: 0.110, cgShare: 0.03, jFrac: 0.42, hhSz: 2.4, cRat: 0.84, own: 0.62 },
-  { label: '$75–100K',  filers: 15.00e6, agi:  1320e9, effCL: 0.125, cgShare: 0.03, jFrac: 0.46, hhSz: 2.5, cRat: 0.78, own: 0.68 },
-  { label: '$100–150K', filers: 17.00e6, agi:  2100e9, effCL: 0.138, cgShare: 0.04, jFrac: 0.55, hhSz: 2.6, cRat: 0.72, own: 0.74 },
-  { label: '$150–200K', filers:  8.50e6, agi:  1480e9, effCL: 0.150, cgShare: 0.05, jFrac: 0.60, hhSz: 2.7, cRat: 0.64, own: 0.79 },
-  { label: '$200–500K', filers:  8.00e6, agi:  2400e9, effCL: 0.163, cgShare: 0.08, jFrac: 0.65, hhSz: 2.7, cRat: 0.54, own: 0.85 },
-  { label: '$500K–1M',  filers:  1.00e6, agi:   680e9, effCL: 0.175, cgShare: 0.15, jFrac: 0.72, hhSz: 2.8, cRat: 0.34, own: 0.90 },
-  { label: '$1–2M',     filers:  0.38e6, agi:   530e9, effCL: 0.180, cgShare: 0.25, jFrac: 0.75, hhSz: 2.8, cRat: 0.24, own: 0.92 },
-  { label: '$2–5M',     filers:  0.14e6, agi:   430e9, effCL: 0.183, cgShare: 0.35, jFrac: 0.78, hhSz: 2.8, cRat: 0.16, own: 0.93 },
-  { label: '$5–15M',    filers:  0.05e6, agi:   430e9, effCL: 0.184, cgShare: 0.45, jFrac: 0.80, hhSz: 2.8, cRat: 0.12, own: 0.94 },
-  { label: '$15M+',     filers:  0.04e6, agi:  1080e9, effCL: 0.185, cgShare: 0.56, jFrac: 0.80, hhSz: 2.8, cRat: 0.10, own: 0.95 },
-];
-
-// Carbon tons emitted per household by bracket (EPA household survey)
-const CARBON_TONS = [4, 5, 6, 7, 8.5, 10, 11, 12, 13.5, 16, 18, 22, 26, 30, 35];
-
-// Net LVT burden per filer at 10% LVT rate (negative = net benefit from rent relief)
-// Lower brackets: renters get rent relief > LVT pass-through → net ~0
-// Middle brackets: homeowners begin paying more LVT than rent savings
-// Upper brackets: large net payer (property wealth concentrated here)
-const LVT_NET_BASE = [0, 0, 0, 0, 0, 0, 400, 1200, 2500, 5500, 14000, 28000, 55000, 110000, 220000];
-
-const TOTAL_POP = BRACKETS.reduce((s, b) => s + b.filers * b.hhSz, 0); // ~330M
+import { BRACKETS, CARBON_TONS, LVT_NET_BASE, TOTAL_POP } from '@/lib/brackets';
+import { lvtNetBurdenByBracket, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 
 // ─── THREE-TIER WORKER EQUITY (from Income Tax Design) ─────────────────────────────────────
 // Tier 1 (<$10M EV): $1K/yr sectoral fund at 6% gross; 3.5% distributed as dividends
@@ -123,7 +94,6 @@ function psuCashoutPerFiler(bracketIndex, year) {
 }
 
 // ─── AMCF (from Income Tax Design, anchored to National Balance Sheet validated outputs) ──────────────────
-const PREBATE_PER_PERSON = 5000;
 
 const AMCF_EQUITY_ANCHORS = [
   [1, 0.59e12], [5, 4.02e12], [10, 11.99e12], [15, 27.15e12],
@@ -154,16 +124,20 @@ function amcfDividendPerCap(year) {
 // ─── DISTRIBUTIONAL ENGINE ────────────────────────────────────────────────────
 // Income tax is UNCHANGED vs current law (base Accord distributional picture).
 // Delta = VAT + LVT + carbon + prebate + AMCF + [worker equity]
-function computeDistrib(vatRate, lvtRate, year) {
+function computeDistrib(vatRate, lvtRate, year, exemption = 0) {
   const amcfPerCap = amcfDividendPerCap(year);
+  // Prebate is deficit-neutrally coupled to the exemption: off (default) → redirected
+  // $6,101; on → base $5,000. Burden comes from the shared capitalized land model.
+  const prebatePerPerson = exemption > 0 ? PREBATE_BASE : PREBATE_REDIRECTED;
+  const lvtNet = lvtNetBurdenByBracket({ rate: lvtRate, exemption });
   return BRACKETS.map((b, i) => {
     const avgInc = b.agi / b.filers;
     const clTax  = b.effCL * avgInc;
 
     const vatBurden  = vatRate * b.cRat * avgInc;
-    const prebate    = PREBATE_PER_PERSON * b.hhSz;
+    const prebate    = prebatePerPerson * b.hhSz;
     const amcfBenefit = amcfPerCap * Math.min(b.hhSz, 2); // adults only; children's AMCF is custodial
-    const lvtBurden  = LVT_NET_BASE[i] * (lvtRate / 0.10);
+    const lvtBurden  = lvtNet[i];
 
     const carbonPaid     = CARBON_TONS[i] * 100;
     const carbonDividend = (5e9 * 100 * 0.80 / TOTAL_POP) * b.hhSz;
@@ -307,7 +281,7 @@ function computeCalcBurden(income, hhSize, children, capGains, filing) {
 
   // Accord (income tax unchanged; adds VAT 4%, LVT net, carbon net, prebate, AMCF, PSU)
   const vat      = 0.04 * consumeRatio(income) * income;
-  const prebate  = 5000 * hhSize;
+  const prebate  = PREBATE_REDIRECTED * hhSize;
   const amcf     = 600 * hhSize; // Year ~2 base AMCF estimate
   const psuDiv   = psuDividendCalc(income);
   const drag     = stockDrag(income);
@@ -387,6 +361,7 @@ export default function DistributionalImpact() {
   const [lvtRate,      setLvtRate]      = useState(0.10);
   const [snapshotYear, setSnapshotYear] = useState(1);
   const [showPSU,      setShowPSU]      = useState(false);
+  const [exemptionOn,  setExemptionOn]  = useState(false); // default: no homeowner exemption
 
   // Calculator state
   const [calcIncome,   setCalcIncome]   = useState(75000);
@@ -395,9 +370,11 @@ export default function DistributionalImpact() {
   const [calcCapGains, setCalcCapGains] = useState(0);
   const [calcFiling,   setCalcFiling]   = useState('mfj');
 
+  const exemption = exemptionOn ? EXEMPTION_AMOUNT : 0;
+  const prebateShown = exemptionOn ? PREBATE_BASE : PREBATE_REDIRECTED;
   const distrib = useMemo(
-    () => computeDistrib(vatRate, lvtRate, snapshotYear),
-    [vatRate, lvtRate, snapshotYear],
+    () => computeDistrib(vatRate, lvtRate, snapshotYear, exemption),
+    [vatRate, lvtRate, snapshotYear, exemption],
   );
 
   const calcResults = useMemo(
@@ -449,11 +426,12 @@ export default function DistributionalImpact() {
         <h1 className="text-2xl font-bold tracking-tight">Distributional Impact</h1>
         <p className="text-[17px] text-emerald-800 font-semibold mt-2.5">
           {(pctBetter * 100).toFixed(0)}% of American households are better off under the Accord at Year {snapshotYear} —
-          driven by the universal $5,000/person prebate and growing AMCF dividend offsetting the {(vatRate * 100).toFixed(0)}% VAT.
+          driven by the universal ${prebateShown.toLocaleString()}/person prebate and growing AMCF dividend offsetting the {(vatRate * 100).toFixed(0)}% VAT.
         </p>
         <p className="text-sm text-muted-foreground mt-1.5">
           Net fiscal burden comparison: VAT ({(vatRate * 100).toFixed(0)}%) + LVT net ({(lvtRate * 100).toFixed(0)}%) + carbon ($100/ton) versus
-          prebate ($5K/person), AMCF citizen dividend (${Math.round(amcfPerCap).toLocaleString()}/person at Year {snapshotYear}),
+          prebate (${prebateShown.toLocaleString()}/person, {exemptionOn ? '$500k homeowner exemption on' : 'no homeowner exemption — revenue redirected to prebate'}),
+          AMCF citizen dividend (${Math.round(amcfPerCap).toLocaleString()}/person at Year {snapshotYear}),
           and worker equity (toggle below). Income tax kept at current law in this base distributional view.
         </p>
       </div>
@@ -507,6 +485,20 @@ export default function DistributionalImpact() {
               </Card>
             </ControlGroup>
             <ControlGroup>
+              <p className="text-xs font-semibold mb-1.5">$500k Homeowner Exemption</p>
+              <Button
+                variant={exemptionOn ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setExemptionOn(s => !s)}
+                className={exemptionOn ? 'bg-emerald-800 hover:bg-emerald-900' : ''}
+              >
+                {exemptionOn ? '✓ Exemption On' : 'Exemption Off'}
+              </Button>
+              <p className="text-[10px] text-muted-foreground mt-1 max-w-[120px]">
+                Off (default): prebate ${PREBATE_REDIRECTED.toLocaleString()}. On: $500k shield, prebate $5,000.
+              </p>
+            </ControlGroup>
+            <ControlGroup>
               <p className="text-xs font-semibold mb-1.5">Worker Equity</p>
               <Button
                 variant={showPSU ? 'default' : 'outline'}
@@ -538,8 +530,8 @@ export default function DistributionalImpact() {
             source={
               <>
                 Sources: IRS Statistics of Income (2024 estimates); EPA household carbon survey; BLS Consumer Expenditure Survey.
-                Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}%, carbon $100/ton (80% recycled as equal per-capita dividend),
-                $5,000/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
+                Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}% ({exemptionOn ? '$500k homeowner exemption' : 'no exemption'}), carbon $100/ton (80% recycled as equal per-capita dividend),
+                ${prebateShown.toLocaleString()}/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
                 {showPSU ? ' Worker equity (PSU dividends + annualized cashout) included.' : ' Worker equity not included — toggle above.'}
               </>
             }
@@ -780,7 +772,7 @@ export default function DistributionalImpact() {
                 ))}
 
                 <div className="mt-2 p-3 bg-blue-50 rounded-lg text-xs text-blue-800">
-                  Prebate: <strong>${(5000 * calcHhSize).toLocaleString()}/year</strong> ($5,000 × {calcHhSize})<br />
+                  Prebate: <strong>${(PREBATE_REDIRECTED * calcHhSize).toLocaleString()}/year</strong> (${PREBATE_REDIRECTED.toLocaleString()} × {calcHhSize}, exemption removed)<br />
                   AMCF: <strong>~$600/person/year</strong> (base Year 1–2 estimate)
                 </div>
               </CardContent>
