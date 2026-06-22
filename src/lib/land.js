@@ -268,13 +268,32 @@ export function lvtNetIncidenceArray(opts = {}) {
 }
 
 // Total LVT on NON-residential land (rental + commercial + ag + vacant ≈ $18.5T), capitalized.
-// This burden falls on landlords/corporations/investors and is attributed to the capital-heavy
-// personas (by financial+business wealth share) in the household sims. ≈ $529B at 10%.
+// This burden falls on landlords/corporations/investors. ≈ $529B at 10%. The household
+// sims attribute the directly-household-owned slice (HOUSEHOLD_LAND_SHARE) across personas
+// by the Fed DFA business-equity concentration; the rest is borne by REITs/PE/pension/
+// foreign/corporate owners (diffuse, outside the 13 household personas).
 export function investmentLandLvtTotal({ rate = 0.10, groundRentYield = GROUND_RENT_YIELD } = {}) {
   const nonRes = LAND_SECTORS.filter(s => !s.exempt).reduce((s, x) => s + x.p0, 0);
   const capFactor = groundRentYield / (groundRentYield + rate);
   return nonRes * rate * capFactor;
 }
+
+// Share of non-residential land DIRECTLY owned by US households (rest = REITs/PE/pension/
+// foreign/corporate). Blended from: rental ~80% household/individual+LLC (CRS R47332),
+// commercial mostly REIT/PE/institutional with only ~16% of even top earners directly
+// owning CRE (Nareit/SCF), farmland largely family-owned (USDA). ≈ 0.55.
+export const HOUSEHOLD_LAND_SHARE = 0.55;
+
+// Per-persona share of the household-owned investment-land pool, grounded in the Fed
+// Distributional Financial Accounts: the top 10% hold ~88% of (non)corporate business
+// equity, and the concentration is in the top 1% — the "next 9%" (P90–P99) has been LOSING
+// share. So ~top 1% (T1+BILL+ELON) ≈ 58%, next 9% (T10) ≈ 30%, next 40% (P50–P80) ≈ 11%,
+// bottom 50% ≈ 1%. Keyed by persona; sums to ~1.0.
+export const INVESTMENT_LAND_SHARE = {
+  B10: 0, P10: 0, P20: 0.001, P30: 0.002, P40: 0.003,
+  P50: 0.01, P60: 0.02, P70: 0.03, P80: 0.05,
+  T10: 0.30, T1: 0.499, BILL: 0.08, ELON: 0.005,
+};
 
 // ─── FISCAL-ENGINE DROP-IN ───────────────────────────────────────────────────
 // Replaces `nomGdp * 0.20 * landPremium * rate`. The land base grows with nominal GDP

@@ -22,6 +22,7 @@ import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config'
 import { cn } from '@/lib/utils';
 import {
   lvtNetIncidenceArray, investmentLandLvtTotal,
+  HOUSEHOLD_LAND_SHARE, INVESTMENT_LAND_SHARE,
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT, LVT_RENT_RAMP_YRS,
 } from '@/lib/land';
 
@@ -193,21 +194,23 @@ const DEMO_BRACKET = {
 };
 
 // ─── LVT INCIDENCE (owner/renter split + optional investment-land attribution) ──
-// Non-residential land LVT (~$529B) attributed across personas by financial+business
-// wealth share — concentrates almost entirely on T1/BILL/ELON.
 const HH_COUNT = 133e6;
-const _invWealth = k => DEMOS[k].nw * (DEMOS[k].finPct + DEMOS[k].bizPct) * POP[k];
-const _totalInvW = DEMO_KEYS.reduce((s, k) => s + _invWealth(k), 0);
-const _invLandTotal = investmentLandLvtTotal({ rate: 0.10 });
-const invLandPerFiler = k => _invLandTotal * _invWealth(k) / _totalInvW / (POP[k] * HH_COUNT);
+// Investment-land LVT per filer: the directly-household-owned slice of the non-residential
+// pool, distributed by the DFA business-equity concentration (INVESTMENT_LAND_SHARE),
+// divided by households in the persona. Concentrates on T1/BILL/ELON; T10 modest.
+const _invLandPool = investmentLandLvtTotal({ rate: 0.10 }) * HOUSEHOLD_LAND_SHARE;
+const invLandPerFiler = k => _invLandPool * (INVESTMENT_LAND_SHARE[k] || 0) / (POP[k] * HH_COUNT);
 
-// Signed net LVT per filer for persona k at year y, driven by the LVT_EX / LVT_INV toggles.
-// year drives the renter rent-relief ramp (use the sim year; steady-state for the NW drag).
-function lvtNetBr(k, y, P) {
+// Residential owner/renter net LVT per filer (signed; drives the NW-growth drag).
+function lvtResidential(k, y, P) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  let v = lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
-  if (P.has('LVT_INV')) v += invLandPerFiler(k);
-  return v;
+  return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
+}
+// Total net LVT per filer for the income/ETR/cash-flow lens = residential + investment land.
+// Investment land is a cash-flow cost only (NOT a compounding wealth-growth drag) — see
+// computeAccordNWG, which uses lvtResidential alone.
+function lvtNetBr(k, y, P) {
+  return lvtResidential(k, y, P) + (P.has('LVT_INV') ? invLandPerFiler(k) : 0);
 }
 
 // Prebate per person: redirected $6,101 by default; reverts to base $5,000 when the
@@ -257,8 +260,10 @@ function computeAccordNWG(k, P) {
   const d  = DEMOS[k];
   const finDrag       = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
   const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  // Steady-state LVT drag (full rent ramp); floor at $0 so renter net-benefits never boost NW growth.
-  const lvtDrag       = d.nw > 50000 ? Math.max(0, lvtNetBr(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
+  // Steady-state residential LVT drag (full rent ramp); floor at $0 so renter net-benefits never
+  // boost NW growth. Investment-land LVT is excluded here — it's a cash-flow/ETR cost, not a
+  // perpetual compounding haircut on the household's total net-worth growth.
+  const lvtDrag       = d.nw > 50000 ? Math.max(0, lvtResidential(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
   return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag - lvtDrag);
 }
 
