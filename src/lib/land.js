@@ -206,6 +206,76 @@ export function lvtNetBurdenByBracket({
   });
 }
 
+// ─── EXPLICIT HOMEOWNER / RENTER INCIDENCE ───────────────────────────────────
+// Splits the blended net burden into its two real components so the household sims
+// can show who actually pays:
+//   ownerLvt_i     = max(perHomeLand_i − exemption, 0) · rate · capFactor · ownerScalar
+//                    (what an OWNING household in bracket i pays — capitalized, exemption-aware)
+//   renterRelief_i = rentEstimate_i · rentMax · saveFrac · rampFrac
+//                    (what a RENTING household saves as LVT expands housing supply; ramps over years)
+//   net_i          = own_i · ownerLvt_i − (1−own_i) · renterRelief_i   (SIGNED — low brackets go
+//                    net-negative: renters made better off, which the old floored array hid)
+// ownerScalar ≈ 0.70 calibrates the first-principles owner LVT (which overshoots the top tail) so the
+// blended net at rate 10% / exemption 0 / full ramp tracks the legacy LVT_NET_BASE for mid/upper brackets.
+export const LVT_OWNER_SCALAR   = 0.70;  // owner LVT calibration vs first-principles
+export const LVT_RENT_MAX       = 0.25;  // max rent reduction at full ramp (matches RacialWealthGap)
+export const LVT_RENT_RAMP_YRS  = 10;    // years to full housing-supply rent relief
+export const LVT_RENT_SAVE_FRAC = 0.5;   // half the rent relief is "kept" (matches RacialWealthGap)
+export const RENT_INCOME_SHARE  = 0.30;  // renters spend ~30% of income on rent
+// Representative household income per bracket (parallel to BRACKETS / HOME_LAND_BY_BRACKET),
+// used only to estimate renter rent exposure (personas carry no rent field).
+export const BRACKET_INCOME = [
+  14500, 28000, 40000, 52000, 64000, 79000, 97000, 124000, 186000,
+  320000, 750000, 1500000, 3500000, 10000000, 30000000,
+];
+
+export function lvtIncidenceByBracket({
+  rate = 0.10,
+  exemption = EXEMPTION_DEFAULT,
+  year = LVT_RENT_RAMP_YRS,
+  assessmentBasis = 'capitalized',
+  groundRentYield = GROUND_RENT_YIELD,
+  ownerScalar = LVT_OWNER_SCALAR,
+  rentMax = LVT_RENT_MAX,
+  rentRampYrs = LVT_RENT_RAMP_YRS,
+} = {}) {
+  const sector = LAND_SECTORS.find(s => s.key === 'ownerOcc');
+  const rawGross = HOME_LAND_BY_BRACKET.reduce((s, land, i) => s + land * HOMES_BY_BRACKET[i], 0);
+  const scale = sector.p0 / rawGross;
+  const capFactor = assessmentBasis === 'preTax' ? 1 : groundRentYield / (groundRentYield + rate);
+  const rampFrac = Math.min(Math.max(year, 0) / rentRampYrs, 1);
+  return BRACKETS.map((b, i) => {
+    const own = b.own;
+    const perHome = HOME_LAND_BY_BRACKET[i] * scale;
+    const taxableLand = Math.max(perHome - exemption, 0);
+    const ownerLvt = taxableLand * rate * capFactor * ownerScalar;
+    const annualRent = BRACKET_INCOME[i] * RENT_INCOME_SHARE;
+    const renterRelief = annualRent * rentMax * LVT_RENT_SAVE_FRAC * rampFrac;
+    const net = own * ownerLvt - (1 - own) * renterRelief;
+    return {
+      bracket: b.label,
+      own,
+      ownerLvt: Math.round(ownerLvt),
+      renterRelief: Math.round(renterRelief),
+      net: Math.round(net),
+    };
+  });
+}
+
+// Plain signed per-bracket net array (parallel to LVT_NET_BASE, but incidence-aware and signed).
+export function lvtNetIncidenceArray(opts = {}) {
+  return lvtIncidenceByBracket(opts).map(x => x.net);
+}
+
+// Total LVT on NON-residential land (rental + commercial + ag + vacant ≈ $18.5T), capitalized.
+// This burden falls on landlords/corporations/investors and is attributed to the capital-heavy
+// personas (by financial+business wealth share) in the household sims. ≈ $529B at 10%.
+export function investmentLandLvtTotal({ rate = 0.10, groundRentYield = GROUND_RENT_YIELD } = {}) {
+  const nonRes = LAND_SECTORS.filter(s => !s.exempt).reduce((s, x) => s + x.p0, 0);
+  const capFactor = groundRentYield / (groundRentYield + rate);
+  return nonRes * rate * capFactor;
+}
+
 // ─── FISCAL-ENGINE DROP-IN ───────────────────────────────────────────────────
 // Replaces `nomGdp * 0.20 * landPremium * rate`. The land base grows with nominal GDP
 // raised to `landGrowthElasticity`: elasticity 1.0 tracks GDP (≈ legacy every year, since

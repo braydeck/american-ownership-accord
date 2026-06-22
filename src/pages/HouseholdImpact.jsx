@@ -20,7 +20,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { cn } from '@/lib/utils';
-import { LVT_NET_BASE } from '@/lib/brackets';
+import {
+  lvtNetIncidenceArray, investmentLandLvtTotal,
+  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT, LVT_RENT_RAMP_YRS,
+} from '@/lib/land';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
@@ -164,8 +167,6 @@ const DIST_BRACKETS = [
 // Carbon tons emitted per household by bracket (EPA household survey)
 const CARBON_TONS_BR = [4, 5, 6, 7, 8.5, 10, 11, 12, 13.5, 16, 18, 22, 26, 30, 35];
 
-// Net LVT burden per filer at 10% LVT, no homeowner exemption (shared source).
-const LVT_NET_BR = LVT_NET_BASE;
 
 // Three-tier worker equity: [Tier1 frac, Tier2 frac, Tier3 frac] per bracket (from Sim-2 / BLS)
 const TIER_DIST = [
@@ -190,6 +191,28 @@ const CARBON_DIV_PER_CAP = 5e9 * 100 * 0.80 / 330e6; // ≈ $843/person/yr
 const DEMO_BRACKET = {
   B10:1, P10:3, P20:4, P30:4, P40:5, P50:6, P60:6, P70:7, P80:8, T10:9, T1:11, BILL:14, ELON:14,
 };
+
+// ─── LVT INCIDENCE (owner/renter split + optional investment-land attribution) ──
+// Non-residential land LVT (~$529B) attributed across personas by financial+business
+// wealth share — concentrates almost entirely on T1/BILL/ELON.
+const HH_COUNT = 133e6;
+const _invWealth = k => DEMOS[k].nw * (DEMOS[k].finPct + DEMOS[k].bizPct) * POP[k];
+const _totalInvW = DEMO_KEYS.reduce((s, k) => s + _invWealth(k), 0);
+const _invLandTotal = investmentLandLvtTotal({ rate: 0.10 });
+const invLandPerFiler = k => _invLandTotal * _invWealth(k) / _totalInvW / (POP[k] * HH_COUNT);
+
+// Signed net LVT per filer for persona k at year y, driven by the LVT_EX / LVT_INV toggles.
+// year drives the renter rent-relief ramp (use the sim year; steady-state for the NW drag).
+function lvtNetBr(k, y, P) {
+  const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
+  let v = lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
+  if (P.has('LVT_INV')) v += invLandPerFiler(k);
+  return v;
+}
+
+// Prebate per person: redirected $6,101 by default; reverts to base $5,000 when the
+// $500k homeowner exemption is toggled on (deficit-neutral coupling).
+const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
 
 // Sectoral fund balance at Year y with fixed annual contribution C at 6% gross growth
 function sectoralFundBalance(C, y) {
@@ -230,12 +253,12 @@ const CG_FRAC = 0.75;  // fraction of portfolio return that's capital gain (vs d
 //   finDrag      — cap gains reform reduces after-tax return on financial portfolio
 //   psuExciseDrag — 4%/yr PSU equity excise on large-company business equity (BILL/ELON)
 //   lvtDrag      — annual LVT net burden as a fraction of NW
-function computeAccordNWG(k) {
+function computeAccordNWG(k, P) {
   const d  = DEMOS[k];
-  const bi = DEMO_BRACKET[k];
   const finDrag       = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
   const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  const lvtDrag       = d.nw > 50000 ? LVT_NET_BR[bi] / d.nw : 0;
+  // Steady-state LVT drag (full rent ramp); floor at $0 so renter net-benefits never boost NW growth.
+  const lvtDrag       = d.nw > 50000 ? Math.max(0, lvtNetBr(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
   return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag - lvtDrag);
 }
 
@@ -256,6 +279,8 @@ const PROVS_CONFIG = [
   { key:'AMCF',  label:'AMCF Citizen Grants',   color:'#3b82f6', fixed:false },
   { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
   { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
+  { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false },
+  { key:'LVT_INV', label:'Investment-land LVT (top)',  color:'#0ea5e9', fixed:false },
 ];
 
 const CHARTS = [
@@ -326,14 +351,14 @@ function getInc(k, y, P) {
     } else {
       // Model-derived: income tax reform + VAT (4%, scales with income) + LVT + carbon cost
       const vatCost    = 0.04 * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost    = LVT_NET_BR[bi];
+      const lvtCost    = lvtNetBr(k, y, P);
       const carbonCost = CARBON_TONS_BR[bi] * 100;
       tax = -taxAt(k, y) - vatCost - lvtCost - carbonCost;
     }
   }
   // PRE: universal prebate + carbon dividend (equal per capita) − programs replaced
   const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-  const pre  = P.has('PRE')   ? (5000 * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
+  const pre  = P.has('PRE')   ? (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF: only the liquidated fraction is cash income. Retained units go to wealth (getNW).
   const adults = Math.min(d.hhSz, 2); // children's AMCF is custodial
   const ag   = P.has('AMCF')  ? amcfG(y) * adults * liqRate(k, y) : 0;
@@ -346,7 +371,7 @@ function getInc(k, y, P) {
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
   // Accord NW growth rate derived from model (cap gains reform + PSU excise + LVT drag)
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
   const base = d.nw >= 0
     ? d.nw * Math.pow(1 + nwGr, y)
     : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
@@ -363,7 +388,7 @@ function getNW(k, y, P) {
   }
   if (P.has('PRE')) {
     const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const ann = (5000 * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
+    const ann = (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
     pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
   }
   if (P.has('AMCF')) {
@@ -424,7 +449,7 @@ function getNW(k, y, P) {
 // current-law 9% and Accord 30–55%+ are directly comparable on the same basis.
 function billionaireETR(k, y, P) {
   const d    = DEMOS[k];
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
   const nwY  = d.nw * Math.pow(1 + nwGr, y);
   const incY = d.income * Math.pow(1 + d.incG, y);
 
@@ -443,7 +468,7 @@ function billionaireETR(k, y, P) {
     taxes += mtmRate * 0.50 * (unrealBiz + unrealFin); // (3) MTM at 50% rate (Accord >$1M rate)
   }
   if (P.has('PRE')) {
-    taxes -= (5000 * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k]);
+    taxes -= (prebatePC(P) * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k]);
   }
   return econInc > 0 ? taxes / econInc * 100 : 0;
 }
@@ -462,14 +487,14 @@ function getETR(k, y, P) {
 
   if (P.has('TAX')) {
     const vatCost    = 0.04 * DIST_BRACKETS[bi].cRat * g;
-    const lvtCost    = LVT_NET_BR[bi];
+    const lvtCost    = lvtNetBr(k, y, P);
     const carbonCost = CARBON_TONS_BR[bi] * 100;
     taxes += taxAt(k, y) + vatCost + lvtCost + carbonCost;
   }
   // PRE: universal prebate + carbon dividend − programs replaced.
   // AMCF and PSU are equity returns, not tax offsets — excluded from ETR.
   if (P.has('PRE')) {
-    bens += 5000 * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k];
+    bens += prebatePC(P) * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k];
   }
   return g > 0 ? (taxes - bens) / g * 100 : 0;
 }
@@ -1188,14 +1213,14 @@ function cashFlowPt(k, y, P, norm) {
     ? (d.accordIncG != null ? actualInc - gross : -taxAt(k, y))
     : 0;
   const vat  = P.has('TAX') ? -(0.04 * d.consume * actualInc) : 0;
-  const lvt  = P.has('TAX') ? -(d.lvt * Math.pow(1 + d.incG * 0.5, y)) : 0;
+  const lvt  = P.has('TAX') ? -lvtNetBr(k, y, P) : 0;
   // Carbon burden: linear with income up to ~$500K ($15K cap), then hard caps for ultra-HNW.
   // Carbon taxes fall on consumption of carbon-intensive goods, not on income directly.
   // Even a billionaire household can only physically consume so much fossil fuel.
   const carbCap = (k === 'BILL' || k === 'ELON') ? 150000 : 15000;
   const carb = P.has('TAX') ? -Math.min(d.income / 68000 * 1800, carbCap) : 0;
   const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;  // programs replaced (negative = lost benefit)
-  const pre  = P.has('PRE') ? (5000 * d.hhSz) : 0;
+  const pre  = P.has('PRE') ? (prebatePC(P) * d.hhSz) : 0;
   const cdiv = P.has('PRE') ? CARBON_DIV_PER_CAP * d.hhSz : 0;
   // AMCF: only liquidated fraction is cash income in cash flow chart
   const ag   = P.has('AMCF')  ? amcfG(y) * Math.min(d.hhSz, 2) * liqRate(k, y) : 0;
@@ -1497,7 +1522,7 @@ export default function Dashboard() {
   const [logScale, setLogScale]         = useState(false);
   const [activeDemos, setActiveDemos]   = useState(new Set(['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON']));
   // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
-  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
+  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C','LVT_INV']));
   const [stackedShare, setStackedShare] = useState(false);
   const [normalizedBar, setNormalizedBar] = useState(false);
   const [chart8View, setChart8View]     = useState('time');   // 'time' | 'demos'

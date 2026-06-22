@@ -23,7 +23,10 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
-import { LVT_NET_BASE } from '@/lib/brackets';
+import {
+  lvtNetIncidenceArray, investmentLandLvtTotal,
+  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT, LVT_RENT_RAMP_YRS,
+} from '@/lib/land';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
@@ -104,7 +107,6 @@ const DIST_BRACKETS = [
   {cRat:0.72},{cRat:0.64},{cRat:0.54},{cRat:0.34},{cRat:0.24},{cRat:0.16},{cRat:0.12},{cRat:0.10},
 ];
 const CARBON_TONS_BR = [4,5,6,7,8.5,10,11,12,13.5,16,18,22,26,30,35];
-const LVT_NET_BR = LVT_NET_BASE;
 const TIER_DIST = [
   [0.12,0.20,0.40],[0.15,0.22,0.48],[0.18,0.25,0.52],[0.20,0.27,0.50],[0.22,0.28,0.45],
   [0.24,0.28,0.40],[0.26,0.26,0.36],[0.25,0.24,0.32],[0.22,0.20,0.30],[0.16,0.18,0.25],
@@ -116,6 +118,26 @@ const PSU_YIELD = 0.035, EV_GROWTH = 0.075, AVG_TENURE = 4.1;
 const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00];
 const CARBON_DIV_PER_CAP = 5e9 * 100 * 0.80 / 330e6;
 const DEMO_BRACKET = { B10:1,P10:3,P20:4,P30:4,P40:5,P50:6,P60:6,P70:7,P80:8,T10:9,T1:11,BILL:14,ELON:14 };
+
+// ─── LVT INCIDENCE (owner/renter split + optional investment-land attribution) ──
+// Non-residential land LVT (~$529B) attributed across personas by financial+business
+// wealth share (WGTS = population weight), concentrating on T1/BILL/ELON.
+const _invWealthI = (k, i) => DEMOS[k].nw * (DEMOS[k].finPct + DEMOS[k].bizPct) * WGTS[i];
+const _totalInvWI = DEMO_KEYS.reduce((s, k, i) => s + _invWealthI(k, i), 0);
+const _invLandTotalI = investmentLandLvtTotal({ rate: 0.10 });
+const invLandPerFiler = k => {
+  const i = DEMO_KEYS.indexOf(k);
+  return _invLandTotalI * _invWealthI(k, i) / _totalInvWI / (WGTS[i] * 133e6);
+};
+// Signed net LVT per filer for persona k at year y, driven by the LVT_EX / LVT_INV toggles.
+function lvtNetBr(k, y, P) {
+  const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
+  let v = lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
+  if (P.has('LVT_INV')) v += invLandPerFiler(k);
+  return v;
+}
+// Prebate per person: redirected $6,101 by default; base $5,000 when the exemption is on.
+const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
 
 const CL_CG_RATE  = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.238,T1:0.238,BILL:0.238,ELON:0.238 };
 const ACC_CG_RATE = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.25,T1:0.50,BILL:0.50,ELON:0.50 };
@@ -189,11 +211,12 @@ function psuCashoutPerFiler(bi, y) {
   return (t2 * t2C + t3 * t3C) * PARTTIME_FTE[bi];
 }
 
-function computeAccordNWG(k) {
-  const d = DEMOS[k], bi = DEMO_BRACKET[k];
+function computeAccordNWG(k, P) {
+  const d = DEMOS[k];
   const finDrag = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
   const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  const lvtDrag = d.nw > 50000 ? LVT_NET_BR[bi] / d.nw : 0;
+  // Steady-state LVT drag (full rent ramp); floor at $0 so renter net-benefits never boost NW growth.
+  const lvtDrag = d.nw > 50000 ? Math.max(0, lvtNetBr(k, LVT_RENT_RAMP_YRS, P)) / d.nw : 0;
   return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag - lvtDrag);
 }
 
@@ -205,13 +228,13 @@ function getInc(k, y, P) {
     if (d.accordIncG != null) { tax = d.income * Math.pow(1 + d.accordIncG, y) - base; }
     else {
       const vatCost = 0.04 * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost = LVT_NET_BR[bi];
+      const lvtCost = lvtNetBr(k, y, P);
       const carbonCost = CARBON_TONS_BR[bi] * 100;
       tax = -taxAt(k) - vatCost - lvtCost - carbonCost;
     }
   }
   const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-  const pre = P.has('PRE') ? (5000 * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
+  const pre = P.has('PRE') ? (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   const adults = Math.min(d.hhSz, 2);
   const ag = P.has('AMCF') ? amcfG(y) * adults * liqRate(k, y) : 0;
   const pd = P.has('PSU_D') ? psuDAt(k, y) : 0;
@@ -221,13 +244,13 @@ function getInc(k, y, P) {
 
 function getNW(k, y, P) {
   const d = DEMOS[k], r = d.ret;
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  const nwGr = P.has('TAX') ? computeAccordNWG(k, P) : d.nwG;
   const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
   if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k) * d.save); tax = c; }
   if (P.has('PRE')) {
     const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const ann = (5000 * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
+    const ann = (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
     pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
   }
   if (P.has('AMCF')) {
@@ -352,7 +375,7 @@ function getAugmentedWealth(k, y, P, params) {
   if (P.has('PRE')) {
     const d = DEMOS[k];
     const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const annualPrebate = 5000 * d.hhSz + carbonDiv - PROG_LOST[k];
+    const annualPrebate = prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k];
     const pvPrebateFull = pvStream(annualPrebate, currentAge, discountRate, surv);
     const prebateSavedInNW = getNW(k, y, P).pre;
     pvPrebateConsumed = Math.max(0, pvPrebateFull - prebateSavedInNW);
@@ -1092,10 +1115,12 @@ const PROVS = [
   { key: 'AMCF', label: 'AMCF Grants' },
   { key: 'PSU_D', label: 'PSU Dividends' },
   { key: 'PSU_C', label: 'PSU Cashouts' },
+  { key: 'LVT_EX', label: '$500k Homeowner Exemption' },
+  { key: 'LVT_INV', label: 'Investment-land LVT (top)' },
 ];
 
 export default function InequalityMeasurement() {
-  const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
+  const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C','LVT_INV']));
   const discountRate = 0.02;
   const mortality = 'uniform';
   const P = provs;
