@@ -24,6 +24,7 @@ import {
   lvtNetIncidenceArray,
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
+import { useUrlValue } from '@/lib/url-state';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
@@ -280,6 +281,10 @@ const PROVS_CONFIG = [
   { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false,
     tip:'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,123 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
+
+// Stable default Sets for URL state (must be module-level so the hook default reference is stable).
+const DEFAULT_PROVS = new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']);
+const DEFAULT_DEMOS = new Set(DEMO_KEYS);
 
 const CHARTS = [
   { id:1,  label:'Income' },
@@ -1519,13 +1524,13 @@ const CHART_DEMO_AGNOSTIC = new Set([6]);
 const CHART_SNAPSHOT_ONLY = new Set([7]);
 
 export default function Dashboard() {
-  const [activeChart, setActiveChart]   = useState(1);
+  const [activeChart, setActiveChart]   = useUrlValue('chart', 1);
   const [mode, setMode]                 = useState('line');
-  const [snYear, setSnYear]             = useState(10);
+  const [snYear, setSnYear]             = useUrlValue('yr', 10);
   const [logScale, setLogScale]         = useState(false);
-  const [activeDemos, setActiveDemos]   = useState(new Set(['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON']));
+  const [activeDemos, setActiveDemos]   = useUrlValue('demos', DEFAULT_DEMOS);
   // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
-  const [activeProvs, setActiveProvs]   = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
+  const [activeProvs, setActiveProvs]   = useUrlValue('provs', DEFAULT_PROVS);
   const [stackedShare, setStackedShare] = useState(false);
   const [normalizedBar, setNormalizedBar] = useState(false);
   const [chart8View, setChart8View]     = useState('time');   // 'time' | 'demos'

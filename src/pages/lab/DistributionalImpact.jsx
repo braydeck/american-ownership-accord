@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, LVT_NET_BASE, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
+import { useUrlValue } from '@/lib/url-state';
 
 // ─── THREE-TIER WORKER EQUITY (from Income Tax Design) ─────────────────────────────────────
 // Tier 1 (<$10M EV): $1K/yr sectoral fund at 6% gross; 3.5% distributed as dividends
@@ -356,12 +357,12 @@ const DollarTooltip = ({ active, payload, label }) => {
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
 export default function DistributionalImpact() {
-  const [view,         setView]         = useState('national');
-  const [vatRate,      setVatRate]      = useState(0.04);
-  const [lvtRate,      setLvtRate]      = useState(0.10);
-  const [snapshotYear, setSnapshotYear] = useState(1);
-  const [showPSU,      setShowPSU]      = useState(false);
-  const [exemptionOn,  setExemptionOn]  = useState(false); // default: no homeowner exemption
+  const [view,         setView]         = useUrlValue('tab', 'national');
+  const [vatRate,      setVatRate]      = useUrlValue('vat', 0.04);
+  const [lvtRate,      setLvtRate]      = useUrlValue('lvt', 0.10);
+  const [snapshotYear, setSnapshotYear] = useUrlValue('yr', 1);
+  const [showPSU,      setShowPSU]      = useUrlValue('psu', false);
+  const [exemptionOn,  setExemptionOn]  = useUrlValue('ex', false); // default: no homeowner exemption
 
   // Calculator state
   const [calcIncome,   setCalcIncome]   = useState(75000);

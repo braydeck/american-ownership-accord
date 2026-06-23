@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { SiteHeader, LAB_ITEMS } from '@/components/layout/SiteHeader';
+import { useHashPage } from '@/lib/url-state';
 import AboutPage from '@/pages/AboutPage.jsx';
 import NationalBalanceSheet from '@/pages/NationalBalanceSheet.jsx';
 import HouseholdImpact from '@/pages/HouseholdImpact.jsx';
@@ -26,12 +27,12 @@ const PAGES = {
 };
 
 export default function App() {
-  const [activePage, setActivePage] = useState('about');
+  const [activePage, setActivePage] = useHashPage('about');
 
   const navigate = useCallback((page) => {
     setActivePage(page);
     window.scrollTo(0, 0);
-  }, []);
+  }, [setActivePage]);
 
   const ActiveComponent = PAGES[activePage] || null;
 

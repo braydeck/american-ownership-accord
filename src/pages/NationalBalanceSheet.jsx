@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY } from '@/lib/land';
+import { useUrlValue, useUrlState } from '@/lib/url-state';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -794,9 +795,9 @@ function ParameterPanel({ params, setParam }) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function FiscalTrajectorySimulator() {
-  const [params, setParams] = useState(BASE_PARAMS);
+  const [params, setParams] = useUrlState(BASE_PARAMS);
   const [activePreset, setActivePreset] = useState("base");
-  const [activeChart, setActiveChart] = useState("deficit");
+  const [activeChart, setActiveChart] = useUrlValue("tab", "deficit");
   const [compareMode, setCompareMode] = useState(false);
   const [comparePreset, setComparePreset] = useState("conservative");
   const [showSensitivity, setShowSensitivity] = useState(false);

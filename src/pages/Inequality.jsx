@@ -27,6 +27,7 @@ import {
   lvtNetIncidenceArray,
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
+import { useUrlValue } from '@/lib/url-state';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
@@ -1114,8 +1115,12 @@ const PROVS = [
     tip: 'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,123 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
 
+// Stable default Set for URL state (module-level so the hook default reference is stable).
+const DEFAULT_PROVS = new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']);
+
 export default function InequalityMeasurement() {
-  const [provs, setProvs] = useState(new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']));
+  const [provs, setProvs] = useUrlValue('provs', DEFAULT_PROVS);
+  const [tab, setTab] = useUrlValue('tab', 'overview');
   const discountRate = 0.02;
   const mortality = 'uniform';
   const P = provs;
@@ -1165,7 +1170,7 @@ export default function InequalityMeasurement() {
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
-          <Tabs defaultValue="overview">
+          <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="tables">Tables</TabsTrigger>

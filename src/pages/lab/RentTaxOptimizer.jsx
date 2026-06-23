@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { useUrlValue, useUrlState } from '@/lib/url-state';
 import {
   lvtRevForFiscal, lvtRevenueExemptionComparison,
   PREBATE_BASE, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, EXEMPTION_AMOUNT,
@@ -373,9 +374,9 @@ const DEFAULTS = {
 };
 
 export default function RentTaxOptimizer() {
-  const [tab, setTab]           = useState("optimizer");
-  const [r, setR]               = useState(DEFAULTS);
-  const [compareIdx, setCmpIdx] = useState(4); // Base Accord as default comparison
+  const [tab, setTab]           = useUrlValue("tab", "optimizer");
+  const [r, setR]               = useUrlState(DEFAULTS);
+  const [compareIdx, setCmpIdx] = useUrlValue("cmp", 4); // Base Accord as default comparison
 
   const upd = (k, v) => setR(prev => ({ ...prev, [k]: v }));
 

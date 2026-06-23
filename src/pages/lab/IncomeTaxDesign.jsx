@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_REDIRECTED } from '@/lib/land';
+import { useUrlValue } from '@/lib/url-state';
 
 // BRACKET DATA, carbon, and net-LVT burden are shared via @/lib/brackets and the
 // capitalized land model in @/lib/land (imported above).
@@ -391,15 +392,16 @@ const TOOLTIP_STYLE = {
 // COMPONENT
 // ============================================================
 export default function IncomeTaxSimulation() {
-  const [midRate, setMidRate] = useState(0.25);
-  const [topRate, setTopRate] = useState(0.50);
-  const [etiScenario, setEtiScenario] = useState('low');
-  const [stdS, setStdS] = useState(30000);
-  const [vatRate, setVatRate] = useState(0.04);
-  const [lvtRate, setLvtRate] = useState(0.10);
-  const [cgScenario, setCgScenario] = useState('unified');
-  const [snapshotYear, setSnapshotYear] = useState(10);
-  const [showPSU, setShowPSU] = useState(false);
+  const [midRate, setMidRate] = useUrlValue('mid', 0.25);
+  const [topRate, setTopRate] = useUrlValue('top', 0.50);
+  const [etiScenario, setEtiScenario] = useUrlValue('eti', 'low');
+  const [stdS, setStdS] = useUrlValue('std', 30000);
+  const [vatRate, setVatRate] = useUrlValue('vat', 0.04);
+  const [lvtRate, setLvtRate] = useUrlValue('lvt', 0.10);
+  const [cgScenario, setCgScenario] = useUrlValue('cg', 'unified');
+  const [snapshotYear, setSnapshotYear] = useUrlValue('yr', 10);
+  const [showPSU, setShowPSU] = useUrlValue('psu', false);
+  const [tab, setTab] = useUrlValue('tab', 'optimizer');
 
   const stdJ = stdS * 2;
   const etiM = 0.20;
@@ -577,7 +579,7 @@ export default function IncomeTaxSimulation() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="optimizer" className="mt-10">
+      <Tabs value={tab} onValueChange={setTab} className="mt-10">
         <TabsList variant="line" className="w-full flex-wrap">
           <TabsTrigger value="optimizer">Rate Optimizer</TabsTrigger>
           <TabsTrigger value="heatmap">Revenue Heat Map</TabsTrigger>
