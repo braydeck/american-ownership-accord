@@ -43,7 +43,7 @@ const BASE_PARAMS = {
   lvtAssessmentBasis:     'capitalized', // 'capitalized' | 'preTax'
   carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
   stableTaxFrac:          0.0076, // FTT + FSL + royalties + spectrum + water (% of GDP)
-  prebatePerCapita:       PREBATE_REDIRECTED, // $6,101 — base $5,000 + redirected exemption revenue
+  prebatePerCapita:       PREBATE_REDIRECTED, // $6,250 — base $5,000 + redirected exemption revenue
   grantPhaseMultiplier:   1.0,
   startingEV:             50e12,
   amcfReturn:             0.07,

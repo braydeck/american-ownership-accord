@@ -305,9 +305,11 @@ export function lvtRevForFiscal({
   return Math.min(rate * value, groundRentYield * assessed);
 }
 
-// Default-scenario prebate: base $5,000 plus the per-capita value of the revenue
-// recovered by removing the homeowner exemption (deficit-neutral redirect in Year 1).
+// Default-scenario prebate: base $5,000 plus the per-capita value of the revenue recovered
+// by removing the homeowner exemption. The exact deficit-neutral figure is ~$6,122
+// ($5,000 + $376B/335M); we round UP to a clean $6,250, a deliberate ~$43B/yr (≈$128/person)
+// net increase beyond the exemption swap — small enough to remain approximately deficit-neutral.
 export function redirectedPrebate({ rate = 0.10, ...opts } = {}) {
   return PREBATE_BASE + lvtRevenueExemptionComparison({ rate, ...opts }).prebatePerCapitaBump;
 }
-export const PREBATE_REDIRECTED = Math.round(redirectedPrebate()); // ≈ $6,101/person
+export const PREBATE_REDIRECTED = 6250; // clean round-up of the ~$6,122 deficit-neutral redirect

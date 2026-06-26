@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { PREBATE_REDIRECTED } from '@/lib/land';
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
 
@@ -177,8 +178,8 @@ function runSimulation() {
     const baseSave = g.income * (1 - 0.07) * g.savingsRate + g.k401Part * 0.09 * g.income;
 
     // Accord: net fiscal benefit from prebate − VAT − slight income tax increase
-    // 10% VAT on consumption, $5K/capita prebate (unconditional)
-    const netFiscal    = Math.max(0, 5000 * g.hhSize - 0.04 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
+    // 4% VAT on consumption, $6,250/capita prebate (unconditional)
+    const netFiscal    = Math.max(0, PREBATE_REDIRECTED * g.hhSize - 0.04 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
     const prebateSave  = netFiscal * g.prebateSaveRate;
 
     // PSU equilibrium wealth (takes ~5 years to ramp via 4%/yr Equity Excise Tax)

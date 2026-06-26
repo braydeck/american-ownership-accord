@@ -15,9 +15,9 @@ The Accord is not a short-term deficit reduction plan. It is a sovereign balance
 
 The fiscal crossover — the point at which total revenue structurally exceeds total spending — occurs at Year 16 under base case assumptions (Year 15 with non-profit Growth Assessment provisions). The United States achieves net creditor status (AMCF equity exceeds gross debt) at Year 20. Gross federal debt turns negative by approximately Year 28-30. Under conservative assumptions, the timeline stretches but the architecture never breaks. The mechanism works across all tested scenarios; the only variable is timing.
 
-By Year 30, the bottom 10% of households earn $55,000 annually — a 224% increase over current law. The median household's net worth reaches $1.7 million versus $632,000 under current law. Even the top 10% is better off by Year 5. Only the top 1% (~1.5 million households) bears a permanent net cost — and their wealth still grows from $16.7 million to $105.5 million. The income Gini coefficient falls from 0.490 to 0.468; the wealth Gini falls from 0.850 to 0.766.
+By Year 30, the bottom 10% of households earn $57,000 annually — a 238% increase over current law. The median household's net worth reaches $1.6 million versus $453,000 under current law. Even the top 10% is better off by Year 5. Only the top 1% (~1.5 million households) bears a permanent net cost — and their wealth still grows from $16.7 million to $111 million. The income Gini coefficient falls from 0.490 to 0.467; the wealth Gini falls from 0.850 to 0.773.
 
-Every American is a citizen-owner of the Accord's outputs: a $5,000/person CPI-indexed universal prebate in cash, annual AMCF equity unit grants that compound from birth ($44,000 at age 18), worker equity through PSU dividends and job-change cashouts, accessible homeownership through the NHC, and a national wellbeing dashboard — the American Commonwealth Index — that makes the connection between good governance and personal financial outcomes tangible and direct.
+Every American is a citizen-owner of the Accord's outputs: a $6,250/person CPI-indexed universal prebate in cash, annual AMCF equity unit grants that compound from birth ($44,000 at age 18), worker equity through PSU dividends and job-change cashouts, accessible homeownership through the NHC, and a national wellbeing dashboard — the American Commonwealth Index — that makes the connection between good governance and personal financial outcomes tangible and direct.
 
 # **Policy Overview — What Changes and What You Get**
 
@@ -27,9 +27,9 @@ Every American is a citizen-owner of the Accord's outputs: a $5,000/person CPI-i
 
 **Individual income tax:** The 7-bracket system with hundreds of deductions collapses to two rates. 25% on all income above the standard deduction ($30,000 single / $60,000 joint) up to $1 million. 50% on all income above $1 million. All income types — wages, capital gains, dividends, carried interest, partnership distributions — are taxed identically. No deductions except the standard deduction and a $500,000 primary residence capital gains exclusion. Your tax return fits on a postcard.
 
-**Consumption and rent taxes:** A 4% VAT (fully offset by the prebate for households consuming up to $125,000), a 10% land value tax on unimproved land ($500,000 homeowner exemption), a $100/ton carbon tax (80% returned as a flat per-capita cash dividend), a 0.5% financial transaction tax at UK stamp duty parity, and a suite of natural resource fees on spectrum, water, minerals, and pollution. Total rent tax revenue: approximately $1.3 trillion from sources with zero or minimal deadweight loss.
+**Consumption and rent taxes:** A 4% VAT (fully offset by the prebate for households consuming up to ~$156,000 per person), a 10% land value tax on the unimproved value of all land (no homeowner exemption — the revenue this raises is returned to every American through a higher prebate), a $100/ton carbon tax (80% returned as a flat per-capita cash dividend), a 0.5% financial transaction tax at UK stamp duty parity, and a suite of natural resource fees on spectrum, water, minerals, and pollution. Total rent tax revenue: approximately $1.66 trillion from sources with zero or minimal deadweight loss.
 
-**Welfare replacement:** SNAP, EITC, CTC, TANF, and WIC are dissolved. In their place, every American receives a $5,000/person/year cash prebate (CPI-indexed) and an $843/person/year carbon dividend — unconditional, no applications, no phase-outs, no cliffs. The prebate grows with inflation to ensure it permanently replaces the dissolved programs.
+**Welfare replacement:** SNAP, EITC, CTC, TANF, and WIC are dissolved. In their place, every American receives a $6,250/person/year cash prebate (CPI-indexed) and an $843/person/year carbon dividend — unconditional, no applications, no phase-outs, no cliffs. The prebate is set above a bare welfare-replacement floor because the LVT applies to all land with no homeowner exemption: the ~$376 billion the exemption would otherwise shield (plus a ~$43 billion round-up to a clean figure) is instead returned to every American as the difference between a $5,000 floor and the $6,250 prebate — an approximately deficit-neutral swap of a regressive shield for a universal dividend. The prebate grows with inflation to ensure it permanently replaces the dissolved programs.
 
 **Worker ownership:** Every company above $10 million in enterprise value transfers 4.2% of its equity annually to workers through the Equity Excise, reaching 21% worker ownership in 5 years. Workers receive PSU dividends while employed and cash out at fair market value when they change jobs — building $19,000-$52,000 per year in combined dividends and annualized cashouts by Year 10 depending on income bracket. Gig workers and platform workers are included proportionally to hours worked. A mandatory one-share-one-vote governance standard ensures workers' equity carries proportional voting power — no dual-class share structures permitted above $10M EV. The Care Economy Ownership Credit extends the worker pillar to stay-at-home parents, family caregivers, SSDI recipients, and full-time students through federal Sectoral Wealth Fund deposits and enhanced AMCF grants.
 
@@ -39,13 +39,13 @@ Every American is a citizen-owner of the Accord's outputs: a $5,000/person CPI-i
 
 ## **What You Get**
 
-**If you earn under $50,000:** Your income rises 35-52% at Year 1. By Year 30, you earn $100,000-$149,000 versus $36,000-$55,000 under current law. Your net worth grows from near-zero to $474,000-$970,000. Your effective tax rate is deeply negative — you receive far more than you pay.
+**If you earn under $50,000:** Your income rises roughly 55-60% at Year 1. By Year 30, you earn $57,000-$129,000 versus $17,000-$54,000 under current law. Your net worth grows from near-zero to $380,000-$720,000. Your effective tax rate is deeply negative — you receive far more than you pay.
 
-**If you earn $50,000-$150,000:** Your income rises 15-29% at Year 1. By Year 30, you earn $196,000-$301,000. Your net worth reaches $1.4-3.2 million. You pay less in income tax than workers in any OECD country while receiving better benefits than any OECD country provides.
+**If you earn $50,000-$150,000:** Your income rises 17-42% at Year 1. By Year 30, you earn $148,000-$303,000 (the median household reaches $196,000). Your net worth reaches $0.95-3.2 million. You pay less in income tax than workers in any OECD country while receiving better benefits than any OECD country provides.
 
-**If you earn $150,000-$500,000:** You are better off at Year 1 and substantially better off by Year 30 — income 13-27% higher and net worth 33-94% higher than current law.
+**If you earn $150,000-$500,000:** You are better off at Year 1 and substantially better off by Year 30 — income 4-14% higher and net worth 13-43% higher than current law.
 
-**If you earn above $1 million:** Your income tax rate rises to 50% on income above $1M with no deductions. Your wealth still grows substantially — the top 1% reaches $105.5 million by Year 30 — but at a slower rate. Every avoidance channel is closed.
+**If you earn above $1 million:** Your income tax rate rises to 50% on income above $1M with no deductions. Your wealth still grows substantially — the top 1% reaches $111 million by Year 30 — but at a slower rate than current law. Every avoidance channel is closed.
 
 **If you're an entrepreneur:** Zero corporate income tax. Exempt from the Growth Tax below $10M. The same 80% value capture rate as incumbents above $10M. Sectoral fund balance rolls tax-free into your new business as founder's equity.
 
@@ -61,11 +61,11 @@ Every American is a citizen-owner of the Accord's outputs: a $5,000/person CPI-i
 | AMCF grants/person, Year 20 | $9,430 in equity units |
 | AMCF grants/person, Year 30 | $25,924 in equity units |
 | Custodial account at 18 | $44,000 (deterministic) |
-| Median net worth, Year 30 | $1.7M (vs $632K current law) |
-| Bottom 10% net worth, Year 30 | $354K (vs $20K current law) |
-| White:Black wealth ratio, Year 30 | 1.86:1 (vs 6.35:1 current) |
-| Income Gini, Year 30 | 0.468 (vs 0.650 CL trajectory) |
-| Wealth Gini, Year 30 | 0.766 (vs 0.938 CL trajectory) |
+| Median net worth, Year 30 | $1.6M (vs $453K current law) |
+| Bottom 10% net worth, Year 30 | $381K (vs $20K current law) |
+| White:Black wealth ratio, Year 30 | 1.95:1 (vs 6.35:1 current) |
+| Income Gini, Year 30 | 0.467 (vs 0.650 CL trajectory) |
+| Wealth Gini, Year 30 | 0.773 (vs 0.938 CL trajectory) |
 | Households better off, Year 5 | 99%+ |
 | Retirement inadequacy | 0.0% all quintiles |
 | Crash depth reduction (2008-type) | 56.6% → 45.9% |
@@ -133,9 +133,9 @@ For the median stock-owning household (portfolio value approximately $50,000): t
 
 For the bottom 50% of households, who currently own essentially no stock at all, there is nothing to dilute. The AMCF provides pure gain — ownership where none existed before. A household with $0 in stock market wealth loses $0 to dilution and gains the full value of their AMCF unit grants.
 
-For the top 10% of households (average portfolio approximately $3-5 million): the 21% dilution costs approximately $630,000-$1,050,000. Their AMCF unit grants are the same as everyone else's — perhaps $300,000-500,000 cumulative over 30 years. The dilution exceeds the AMCF grant. But these households also benefit from the 0% CIT (which increases corporate earnings and thus the value of their remaining 79% stake), PSU dividends if they're employed, and the general economic growth acceleration that the Accord produces. The net effect for the top 10% is positive by Year 5 (+$1.2 million in net worth by Year 30) despite the dilution.
+For the top 10% of households (average portfolio approximately $3-5 million): the 21% dilution costs approximately $630,000-$1,050,000. Their AMCF unit grants are the same as everyone else's — perhaps $300,000-500,000 cumulative over 30 years. The dilution exceeds the AMCF grant. But these households also benefit from the 0% CIT (which increases corporate earnings and thus the value of their remaining 79% stake), PSU dividends if they're employed, and the general economic growth acceleration that the Accord produces. The net effect for the top 10% is positive by Year 5 (+$2.2 million in net worth by Year 30) despite the dilution.
 
-The only households for whom dilution is a permanent net loss are the top 1% — whose portfolios are large enough that the 21% dilution overwhelms all offsetting benefits. Even for them, the loss is relative, not absolute: their wealth still grows from $16.7 million to $105.5 million over 30 years.
+The only households for whom dilution is a permanent net loss are the top 1% — whose portfolios are large enough that the 21% dilution overwhelms all offsetting benefits. Even for them, the loss is relative, not absolute: their wealth still grows from $16.7 million to $111 million over 30 years.
 
 The headline: approximately 90% of American stockholders receive AMCF grants worth more than the dilution of their existing holdings. For the bottom 50%, the Accord creates ownership from nothing. For the top 40%, it replaces concentrated ownership with diversified ownership that includes both their (diluted) private portfolio and their (growing) AMCF account. Only the top 1% experiences a net reduction in total equity wealth — and even that reduction is from "extremely wealthy" to "extremely wealthy, slightly less so."
 
@@ -291,9 +291,9 @@ Three revenue streams supplement the EV Growth Tax and provide the primary fundi
 
 A 4% VAT applies to all goods and services without exemption. Regressivity is addressed through the elevated universal prebate rather than point-of-sale exemptions — a mathematically equivalent outcome without administrative friction.
 
-The VAT rate is deliberately minimized. The Accord's rent tax portfolio (Sections 3.2 through 3.10) captures over $1.29 trillion annually from economically non-distortionary sources — land value, carbon emissions, financial transactions, spectrum usage, and resource extraction. These taxes have zero or near-zero deadweight loss because they target fixed-supply resources and rent-seeking behavior. The 4% VAT fills the remaining revenue gap while preserving the VAT's structural advantages: self-enforcing invoice chain, WTO-compliant border adjustment (exports zero-rated, imports taxed), and revenue that grows automatically with the economy.
+The VAT rate is deliberately minimized. The Accord's rent tax portfolio (Sections 3.2 through 3.10) captures over $1.66 trillion annually from economically non-distortionary sources — land value, carbon emissions, financial transactions, spectrum usage, and resource extraction. These taxes have zero or near-zero deadweight loss because they target fixed-supply resources and rent-seeking behavior. The 4% VAT fills the remaining revenue gap while preserving the VAT's structural advantages: self-enforcing invoice chain, WTO-compliant border adjustment (exports zero-rated, imports taxed), and revenue that grows automatically with the economy.
 
-At 4%, the $5,000 universal prebate fully offsets all VAT on $125,000 of annual consumption — covering approximately 80% of American households with zero net consumption tax burden. The visible consumer price impact is 4% rather than the 10% rate common in other proposals, dramatically reducing the risk of Federal Reserve overreaction to the one-time price level adjustment, consumer spending dampening, and small business cash flow compression that accompany higher VAT rates.
+At 4%, the $6,250 universal prebate fully offsets all VAT on roughly $156,000 of annual consumption per person — covering the large majority of American households with zero net consumption tax burden. The visible consumer price impact is 4% rather than the 10% rate common in other proposals, dramatically reducing the risk of Federal Reserve overreaction to the one-time price level adjustment, consumer spending dampening, and small business cash flow compression that accompany higher VAT rates.
 
 * Annual revenue at full compliance: $1.65 to $1.75 trillion.
 
@@ -303,13 +303,15 @@ At 4%, the $5,000 universal prebate fully offsets all VAT on $125,000 of annual 
 
 ## **3.2 Land Value Tax (LVT) — 10% on Unimproved Value**
 
-A 10% annual tax on the unimproved value of land. The first $500,000 of unimproved land value for an owner-occupied primary residence is exempt.
+A 10% annual tax on the unimproved value of all land, with **no homeowner exemption**. Every parcel — owner-occupied homes, rental and commercial property, agricultural land, and vacant holdings — is assessed on its unimproved value and taxed at the same rate.
 
-The LVT is the Accord's primary non-VAT revenue engine, generating approximately $570 billion in Year 1. Economic theory identifies the LVT as the most efficient tax in existence — it has literally zero deadweight loss because the supply of land is fixed regardless of the tax rate. A higher rate cannot reduce the supply of land, discourage productive activity, or be passed through to tenants. The tax falls entirely on landowners and incentivizes productive land use by penalizing vacant lots, land banking, and speculative holding.
+The LVT is the Accord's primary non-VAT revenue engine. The total privately held, taxable-eligible land base in the United States is approximately **$33 trillion** (owner-occupied residential ≈ $14.5T, rental/multifamily ≈ $4T, commercial ≈ $8T, agricultural ≈ $3T, vacant/speculative ≈ $3.5T). Economic theory identifies the LVT as the most efficient tax in existence — it has literally zero deadweight loss because the supply of land is fixed regardless of the tax rate. A higher rate cannot reduce the supply of land, discourage productive activity, or be passed through to tenants. The tax falls entirely on landowners and incentivizes productive land use by penalizing vacant lots, land banking, and speculative holding.
 
-The $500,000 homeowner exemption shields the vast majority of American homeowners from any LVT burden. Median unimproved residential land value is approximately $80,000-120,000 nationally; even in high-cost metros, most primary residences have unimproved land values below $500,000. The exemption ensures the LVT falls primarily on commercial real estate, agricultural land held by large operations, vacant speculative holdings, and luxury residential properties — while making housing more affordable for everyone else by reducing speculative demand for land.
+**Capitalization.** A permanent LVT is capitalized into lower land prices: a buyer discounts the asset by the present value of the future tax stream, so the market price of land falls to `P0 · i/(i+t)`, where `i` is the ground-rent yield (≈4%) and `t` is the tax rate. At `t = 10%` this capitalization factor is 0.04/0.14 ≈ 0.29 — land prices fall to roughly 29% of their pre-tax level. Revenue is therefore not 10% of the full $33T, but 10% of the capitalized base, and is bounded above by total ground rent (`i · P0` ≈ $1.3T/yr — you can never collect more than 100% of the rent the land produces). On this basis the LVT generates approximately **$943 billion in Year 1**. (Imposing the historical $500,000 owner-occupied exemption would shield ~$13T of residential land and cut this to ≈$567B; the Accord forgoes that exemption and returns the ~$376B difference to households through the higher prebate — see §"Welfare replacement.")
 
-At 10%, land values will capitalize the tax downward — market land prices will decline as buyers factor in the ongoing tax obligation. This is the intended effect. Lower land prices make housing, commercial development, and agricultural entry more affordable. The Federal Valuation Office (Section 4.1) provides free, professional land assessments to ensure accuracy and prevent assessment-driven inequities.
+This capitalization is the intended effect: lower land prices make housing, commercial development, and agricultural entry more affordable, and the tax suppresses the speculative appreciation that has driven cost-of-living increases for decades. Because the LVT is explicitly anti-speculative, the taxed land base is modeled to grow somewhat more slowly than nominal GDP rather than tracking it one-for-one. The Federal Valuation Office (Section 4.1) provides free, professional land assessments to ensure accuracy and prevent assessment-driven inequities.
+
+**Incidence.** Removing the exemption is progressive. Renters bear no direct LVT and benefit from the rent relief that follows from expanded housing supply; the typical homeowner pays a modest amount on their own land but receives the higher universal prebate, leaving most households net-better-off. The burden concentrates on owners of valuable land — commercial real estate, large agricultural operations, vacant speculative holdings, and high-value residential property — and on the institutions (REITs, pension funds, private equity, and corporate and foreign owners) that hold the majority of non-residential land.
 
 ## **3.3 Carbon Tax — $100 per Ton CO2**
 
@@ -317,7 +319,7 @@ A $100 per ton tax on carbon dioxide emissions from all sources. The atmospheric
 
 The carbon tax is self-liquidating: as emissions fall in response to the price signal, revenue declines. This is a feature, not a bug. The Accord's fiscal architecture does not depend on permanent carbon revenue — it serves as a 15-20 year fiscal accelerator that pulls the crossover timeline forward while simultaneously driving the energy transition. By Year 15, carbon revenue will have declined to approximately $244 billion; by Year 25, approximately $190 billion.
 
-The $5,000 universal prebate offsets the carbon tax's regressivity. Low-income households consume less carbon than average but receive the same per-capita prebate, ensuring they are net beneficiaries of the carbon pricing system.
+The $6,250 universal prebate offsets the carbon tax's regressivity. Low-income households consume less carbon than average but receive the same per-capita prebate, ensuring they are net beneficiaries of the carbon pricing system.
 
 ## **3.4 Financial Transaction Tax (FTT) — 0.5% on Equity Transactions**
 
@@ -357,7 +359,7 @@ A federal framework encouraging adoption of congestion pricing in dense urban ar
 
 | Tax | Rate / Level | Year 1 Revenue | Deadweight Loss |
 | :---- | :---- | :---- | :---- |
-| Land Value Tax | 10% ($500K homeowner exemption) | $570B | Zero |
+| Land Value Tax | 10% (no homeowner exemption, capitalized) | $943B | Zero |
 | Carbon Tax | $100/ton CO2 | $348B | Near-zero (behavioral change is intended) |
 | Financial Transaction Tax | 0.5% (UK parity) | $225B | Low (targets speculative trading) |
 | Financial Stability Levy | 25bp on G-SIB assets | $48B | Near-zero (captures implicit subsidy) |
@@ -366,11 +368,11 @@ A federal framework encouraging adoption of congestion pricing in dense urban ar
 | Groundwater Fee | $25/acre-foot | $2.25B | Near-zero |
 | Pollution Fees | Various | $20B | Near-zero (behavioral change is intended) |
 | Congestion Pricing | Federal framework | $12B | Near-zero |
-| **Total Rent Taxes** | | **$1,288B** | |
+| **Total Rent Taxes** | | **$1,661B** | |
 | Value-Added Tax | 4% | $474B | Moderate |
-| **Grand Total (Rent + VAT)** | | **$1,762B** | |
+| **Grand Total (Rent + VAT)** | | **$2,135B** | |
 
-The rent tax portfolio generates $1.29 trillion annually — 73% of total consumption and rent tax revenue — from sources with zero or near-zero economic distortion. The 4% VAT contributes the remaining 27%. This inverts the conventional approach of relying primarily on consumption taxes and using rent taxes as supplements. The Accord treats rent taxation as the primary revenue base and consumption taxation as the residual.
+The rent tax portfolio generates $1.66 trillion annually — 78% of total consumption and rent tax revenue — from sources with zero or near-zero economic distortion. The 4% VAT contributes the remaining 22%. This inverts the conventional approach of relying primarily on consumption taxes and using rent taxes as supplements. The Accord treats rent taxation as the primary revenue base and consumption taxation as the residual.
 
 ## **3.11 Payroll Donut Hole Fix**
 
@@ -481,14 +483,15 @@ The one-share-one-vote standard has broad support in the institutional investor 
 
 ## **5.3 The American Commonwealth Index (ACI)**
 
-The American Commonwealth Index is the AMCF's second performance dimension alongside financial return. The ACI measures national wellbeing through a composite of five weighted metrics and serves three distinct functions: it is the distribution trigger for citizen AMCF grants, the performance benchmark for government employee and congressional compensation, and the public dashboard that makes the connection between governance quality and personal financial outcomes visible to every American.
+The American Commonwealth Index is the AMCF's second performance dimension alongside financial return. The ACI measures national wellbeing through a composite of six weighted metrics and serves three distinct functions: it is the distribution trigger for citizen AMCF grants, the performance benchmark for government employee and congressional compensation, and the public dashboard that makes the connection between governance quality and personal financial outcomes visible to every American.
 
 | Component | Weight | Measurement Basis | Incentive Created |
 | :---- | :---- | :---- | :---- |
-| Real Wage Growth (Bottom 50%) | 30% | BLS Employment Cost Index, bottom quintiles | Growth must reach ordinary workers, not just shareholders |
-| Housing Affordability | 25% | Rent-to-income ratio, BLS/Census | Approve permits and zoning; supply must exceed demand |
-| Health Span (Quality-Adjusted Life Years) | 20% | CDC / National Vital Statistics | Regulations must protect health; FDA must approve effective treatments |
+| Real Wage Growth (Bottom 50%) | 25% | BLS Employment Cost Index, bottom quintiles | Growth must reach ordinary workers, not just shareholders |
+| Housing Affordability | 20% | Median housing cost (rent or mortgage + taxes + insurance) as % of household income, BLS/Census | Approve permits and zoning; supply must exceed demand |
+| Health Span (Quality-Adjusted Life Years) | 15% | CDC / National Vital Statistics | Regulations must protect health; FDA must approve effective treatments |
 | Social Mobility | 15% | Probability of moving income quintiles, Census longitudinal data | Education and training programs must produce real employment outcomes |
+| Social Connection | 15% | Composite of: weekly face-to-face social contact outside household/workplace (American Time Use Survey), civic participation rate — voting, volunteering, community organization membership (CPS supplement), neighborhood trust index (General Social Survey), third-place utilization — library visits, community center usage, public park visitation per capita (local government data) | Communities must be designed for connection, not just efficiency; social infrastructure investment is accountable |
 | GDP per Capita | 10% | BEA Real GDP | Preserve the productive base; don't kill the golden goose |
 
 The ACI is calculated and published by an independent statistical body drawing exclusively on BEA, BLS, CDC, and Census data sources. The CRO's evaluation division conducts annual peer-reviewed audits of the index calculation methodology. No administrative discretion is exercised in index calculation; all inputs are publicly reported government statistics.
@@ -497,7 +500,7 @@ The ACI is calculated and published by an independent statistical body drawing e
 
 ## **5.4 Citizen AMCF Grants — Universal Per Capita Ownership**
 
-Every American citizen receives an annual AMCF unit grant, denominated in the fund's equity units. Grants are universal, equal per capita, and unconditional. **AMCF grants are unit distributions, not cash payments.** Citizens receive ownership shares in the AMCF — a claim on the fund's underlying equity portfolio — not a check. Units appreciate as the fund's holdings appreciate. Citizens may liquidate units for cash at any time (subject to vesting), but the default state is accumulation. This design forces compounding: citizens who do not need immediate cash leave their units untouched, building wealth automatically. The prebate ($5,000/person/year in cash, CPI-indexed annually) and the carbon dividend (80% of carbon tax revenue returned per capita in cash) provide the guaranteed income floor. The AMCF grant provides the wealth-building engine.
+Every American citizen receives an annual AMCF unit grant, denominated in the fund's equity units. Grants are universal, equal per capita, and unconditional. **AMCF grants are unit distributions, not cash payments.** Citizens receive ownership shares in the AMCF — a claim on the fund's underlying equity portfolio — not a check. Units appreciate as the fund's holdings appreciate. Citizens may liquidate units for cash at any time (subject to vesting), but the default state is accumulation. This design forces compounding: citizens who do not need immediate cash leave their units untouched, building wealth automatically. The prebate ($6,250/person/year in cash, CPI-indexed annually) and the carbon dividend (80% of carbon tax revenue returned per capita in cash) provide the guaranteed income floor. The AMCF grant provides the wealth-building engine.
 
 * Grant size: 65% of AMCF annual cash income, converted to unit grants at net asset value and divided equally among all citizens, with a statutory minimum of $500 per capita in unit value annually regardless of fund size. During Phase 1, when 65% of cash income is insufficient to fund the $500 minimum, the shortfall is funded through the SPV bridge (Section 1.4). The AMCF becomes self-funding for the $500 grant floor by approximately Year 10. As the AMCF compounds, grants scale: approximately $503 per capita by Year 5, $1,724 by Year 10, $4,421 by Year 15, $9,430 by Year 20, and continuing to grow as the fund's cash income (dividends plus buyback participation) expands.
 
@@ -584,6 +587,30 @@ The floor is $1,000 per worker per year. The formula ceiling is $5,000 (reached 
 
 The Sectoral Wealth Fund earns 6% gross return with 3.5% annual dividend distribution to workers. A worker receiving $2,500 per year in contributions accumulates a fund balance of approximately $33,000 by Year 10 and $198,000 by Year 30, paying dividends of $1,153 and $6,917 respectively. The fund is fully portable — it follows the worker across employers and does not require a cashout event on departure.
 
+### **Fund Architecture — Real Assets, Not Pay-As-You-Go**
+
+The Sectoral Wealth Fund holds real, diversified equity assets — the same broad-market index portfolio held by the AMCF. It is a genuine investment fund, not a pay-as-you-go transfer system. Every dollar of account balance is backed by a corresponding dollar of real equity holdings. Contributions flowing in (whether from Tier 1 employers, federal CEOC deposits, or self-employed contributions) are used to purchase diversified equity. Each worker's account represents actual shares they own within the pooled fund.
+
+This architecture is essential to the fund's solvency and distinguishes it from Social Security's structural vulnerability. Because every obligation is backed by real assets, the fund's ability to pay dividends and fund liquidations does not depend on continuous contribution inflows. If contributions stopped entirely, existing holdings would continue generating dividends and appreciating. The fund cannot face a demographic solvency crisis because it is not dependent on a favorable ratio of contributors to beneficiaries — it is dependent only on the long-run performance of diversified equity, the same foundation as any pension endowment or index fund.
+
+The 3.5% annual distribution is funded through a total-return model: the underlying portfolio's natural dividend yield (approximately 1.3-1.5% plus buyback participation, identical to the AMCF's cash generation mechanism) supplemented by a sustainable drawdown of appreciation. Because diversified equity produces a long-run total return of roughly 7-8% nominal while the distribution rate is 3.5%, the fund grows even while distributing — net compounding of approximately 3.5-4.5% per year after distributions. Contribution inflows provide additional liquidity that reduces the need to sell assets to fund distributions, but they are a supplement to solvency, not its foundation.
+
+Liquidations are funded by selling the individual's own holdings at market value. When a worker liquidates, the fund sells their proportional share of the portfolio and remits the proceeds. This does not depend on other participants' contributions — each worker is selling assets they own. Even universal simultaneous liquidation could be met by selling every holding, because every dollar of obligation is backed by a dollar of real assets (subject only to market price at the time of sale).
+
+### **Accessing the Sectoral Wealth Fund**
+
+Sectoral fund access parallels PSU cashout treatment, ensuring that workers building wealth through the sectoral fund (Tier 1 employees, gig workers, caregivers, the self-employed) have the same liquidity rights as workers building wealth through direct PSU ownership (Tier 2/3 employees). A two-tier system in which the wealth-building mechanism determines liquidity rights would be inequitable and is explicitly rejected.
+
+*Annual dividends:* The 3.5% distribution is paid to the worker as cash every year, automatically, regardless of age or employment status. This is the baseline income access — parallel to the PSU dividends that Tier 2/3 workers receive while employed.
+
+*Liquidation of principal:* Workers may liquidate sectoral fund principal at will. Appreciation since contribution is taxed as ordinary income under the two-rate system (25% below $1M, 50% above) — there is no separate capital gains rate and no early-withdrawal penalty. This mirrors PSU cashout treatment exactly: when a Tier 3 worker leaves a company and cashes out PSUs, the appreciation is taxed as ordinary income with no penalty. The sectoral fund applies the identical rule. The ordinary-income tax on appreciation provides the only friction needed to discourage frivolous depletion — the same friction that applies to AMCF unit liquidation.
+
+*No age lock, no penalty:* Unlike a 401(k), the sectoral fund imposes no age restriction on principal access and no early-withdrawal penalty. PSU cashouts carry no age lock or penalty, so the sectoral fund carries none either. The Accord builds its retirement floor through universal mechanisms (the prebate, AMCF citizen grants, and AMCF custodial accounts), which means the worker-equity layer can be genuinely liquid and genuinely the worker's property without jeopardizing retirement security. Workers are trusted to manage their own equity, consistent with the Accord's respect for individual agency.
+
+*Owner-operator rollover:* Workers may roll their balance tax-free into a new business as founder's equity (see below) rather than liquidating — preserving tax-deferred compounding.
+
+*Death:* The fund passes to heirs, with appreciation subject to mark-to-market treatment at death (consistent with the Accord's elimination of stepped-up basis).
+
 ### **Owner-Operator Equity Rollover**
 
 Workers who leave employment to start a business may roll their Sectoral Wealth Fund balance into their new company as founder's equity — tax-free, using the same mechanics as a 401(k) rollover. A plumber who works 8 years at a Tier 1 employer accumulating approximately $25,000 in fund value can roll that balance into a new plumbing business as startup capital, maintaining the tax-deferred compounding. This preserves the trade-to-ownership pathway as a credible wealth-building alternative to mega-cap PSU accumulation: a trade worker who rolls over $25,000 into a business that grows to $3 million over 22 years builds wealth comparable to decades of Tier 3 PSU cashouts, while owning 100% of the enterprise they created.
@@ -654,7 +681,7 @@ The fund compounds at 6% gross with 3.5% annual dividend distribution — identi
 
 All CEOC-qualifying individuals (except unemployed workers in the bridging period, who are expected to return to employment) receive AMCF unit grants at 2x the standard citizen rate. SSDI recipients receive 3x. These enhanced grants are funded through AMCF unit issuance and represent negligible dilution against the total fund.
 
-At Year 10, a stay-at-home parent receives: standard AMCF grant of $1,724 enhanced to $3,448 per year, plus CEOC sectoral fund dividend of approximately $900, plus the $5,000 prebate, plus $843 carbon dividend — a total of approximately $10,191 per year in guaranteed income and wealth building. By Year 20, the enhanced AMCF alone reaches $18,860 per year. This does not match a full-time Tier 3 worker's combined PSU income, but it is an order of magnitude better than what caregivers currently receive for their labor — nothing — and it builds compounding wealth for retirement.
+At Year 10, a stay-at-home parent receives: standard AMCF grant of $1,724 enhanced to $3,448 per year, plus CEOC sectoral fund dividend of approximately $900, plus the $6,250 prebate, plus $843 carbon dividend — a total of approximately $10,191 per year in guaranteed income and wealth building. By Year 20, the enhanced AMCF alone reaches $18,860 per year. This does not match a full-time Tier 3 worker's combined PSU income, but it is an order of magnitude better than what caregivers currently receive for their labor — nothing — and it builds compounding wealth for retirement.
 
 ### **Fiscal Impact**
 
@@ -670,6 +697,39 @@ At Year 10, a stay-at-home parent receives: standard AMCF grant of $1,724 enhanc
 Approximately $50 billion annually — 0.9% of total Accord revenue. This does not materially affect any fiscal trajectory milestone (crossover, debt peak, debt elimination). The enhanced AMCF multiplier is funded through unit issuance, not cash, and represents negligible dilution.
 
 **⚠ Red Team Defense —** *"This incentivizes people not to work" objection: The CEOC provides $2,000/year in sectoral fund deposits and a 2x AMCF multiplier. A Tier 3 worker at a large employer accumulates $19,000-$52,000/year in combined PSU dividends and annualized cashouts at Year 10. The financial incentive to work remains overwhelming — the CEOC provides a floor, not a competitive alternative to employment. The CEOC is calibrated to recognize care contributions without making caregiving financially equivalent to formal employment. A parent who returns to work after 10 years of caregiving enters the workforce with $26,000 in fund savings and immediately begins accumulating PSUs worth multiples of the CEOC deposit — the incentive structure clearly favors employment for anyone able to work, while ensuring caregivers are not punished for performing essential labor.*
+
+## **6.1D Self-Employed Ownership Contribution — Direct-Payment Independent Workers**
+
+The universal worker definition (Section 6.1B) captures gig and platform workers because a platform intermediary profits from their labor — YouTube takes 45% of ad revenue, DoorDash takes 20-35% of order value, Substack takes 10% of subscription revenue. These platforms are employers for codetermination purposes and their workers accumulate PSU-equivalent deposits proportional to FTE. The 100-hour annual minimum threshold filters out trivially small side activities.
+
+A remaining population of approximately 5-7 million Americans works without any platform intermediary. These are truly self-employed sole proprietors who receive payment directly from clients via cash, check, Venmo, wire transfer, or direct invoice: independent plumbers, electricians, and handymen; freelance consultants and bookkeepers; independent tutors and music teachers; mobile notaries; farmers selling at roadside stands; and similar direct-service providers. No entity profits from their labor. No employer exists to contribute to a sectoral fund or issue PSUs. Their business may have minimal tangible assets and no meaningful enterprise value to share.
+
+These workers are already covered by the AMCF (Pillar 1) and NHC (Pillar 3). Their gap is Pillar 2 — worker ownership. The Self-Employed Ownership Contribution closes it through a voluntary, matched savings mechanism modeled on the self-employed retirement contribution (SEP-IRA / Solo 401(k)):
+
+### **Contribution Mechanics**
+
+Self-employed individuals filing Schedule C with gross receipts below $10 million (virtually all sole proprietors) may make voluntary, tax-deductible contributions to the Sectoral Wealth Fund:
+
+`Maximum annual contribution: $5,000`
+`Federal match: 50% on the first $2,000 contributed ($1,000 maximum match per year)`
+
+A plumber earning $80,000 contributes $2,000. The federal government matches $1,000. Total fund deposit: $3,000/year, of which the plumber's net out-of-pocket cost after the 25% tax deduction is $1,500. Over 30 years at 6% gross return, this accumulates to approximately $237,000 in fund value — comparable to a Tier 1 employed worker receiving $2,500/year in employer contributions ($198,000 over the same period).
+
+A freelance consultant earning $120,000 contributes the full $5,000. Match: $1,000 (capped at 50% of first $2,000). Total: $6,000/year. Over 30 years: approximately $474,000. This exceeds the employed Tier 1 worker and approaches Tier 2 levels of accumulation.
+
+The fund is the same Sectoral Wealth Fund used by Tier 1 employees and CEOC recipients — 6% gross return, 3.5% annual dividend distribution, fully portable, identical mechanics. Self-employed contributions are commingled with employer and federal contributions in the same fund.
+
+### **Why Voluntary With a Match**
+
+Truly self-employed workers have wildly variable income — a plumber might earn $120,000 one year and $40,000 the next. A mandatory contribution during a bad year could be catastrophic for a sole proprietor with no revenue cushion. Voluntary contributions allow participation in good years and forbearance in bad years. The 50% federal match provides the behavioral nudge that drives participation rates from typical voluntary savings rates (~30%) to matched-savings rates (~70-80%) — the same behavioral economics principle that makes employer 401(k) matching the most effective retirement savings incentive in the current system.
+
+### **Interaction With the Owner-Operator Rollover**
+
+A self-employed worker who has accumulated a sectoral fund balance (from prior employment, CEOC credits, or self-employed contributions) and starts a business may roll that balance tax-free into the new business as founder's equity (Section 6.1A). A plumber who spent 5 years as a Tier 1 employee, accumulated $15,000 in sectoral fund value, then went independent can roll that $15,000 into their new sole proprietorship while simultaneously making voluntary self-employed contributions going forward. The two mechanisms stack — prior employment equity becomes startup capital, ongoing contributions build retirement wealth.
+
+### **Fiscal Impact**
+
+Approximately 5-7 million truly self-employed workers. At 70% participation with an average $1,400 contribution triggering a $700 federal match: approximately $3.5-5 billion per year. This is 0.06-0.09% of total Accord revenue — fiscally invisible.
 
 ## **6.2 The Two-Pocket Mandate (Tier 4\)**
 
@@ -746,7 +806,7 @@ All state and local government employees receive Public Service Equity Units at 
 
 ### **State ACI Variant — Jurisdiction-Level Performance Indexing**
 
-Federal employee FEUs are indexed to the national ACI. State and local PSEUs are indexed to a State Commonwealth Index (SCI) — a jurisdiction-level variant of the ACI that measures wellbeing outcomes within the employee's state or locality. The SCI uses the same five components as the national ACI (real wage growth, housing affordability, health span, social mobility, GDP per capita) but calculated from state-level BLS, Census, and CDC data sources.
+Federal employee FEUs are indexed to the national ACI. State and local PSEUs are indexed to a State Commonwealth Index (SCI) — a jurisdiction-level variant of the ACI that measures wellbeing outcomes within the employee's state or locality. The SCI uses the same six components as the national ACI (real wage growth, housing affordability, health span, social mobility, social connection, GDP per capita) but calculated from state-level BLS, Census, and CDC data sources.
 
 The SCI multiplier adjusts the PSEU grant rate: a state that outperforms the national ACI average on its SCI sees its employees receive PSEUs at a rate above 3x. A state that underperforms sees the rate decline toward 2x but never below 2x — the floor ensures public employees are never penalized below a meaningful threshold for factors outside their control.
 
@@ -938,7 +998,39 @@ Non-negotiable design requirements for all NHC developments:
 
 **Build-to lines** rather than setbacks — buildings meet the street, creating the spatial enclosure that makes streets feel like places. **Ground floor activation requirements** — minimum percentage of ground-floor frontage must be transparent and occupied by uses generating foot traffic. **Facade articulation standards** preventing flat, featureless walls. **Material quality floors** prohibiting the cheapest cladding materials that signal impermanence. **Parking behind or under buildings** rather than between building and street.
 
-**Community design:** Courtyards, shared outdoor space scaled for children, ground-floor units with private outdoor access for families. These draw from the Wiener Hof model where the building itself creates semi-private community space that produces social cohesion.
+**Community design and social infrastructure:** The NHC's design mandate extends beyond housing units to encompass the social infrastructure that makes community formation possible. The built environment shapes social interaction more powerfully than any program — when people have places to encounter each other casually and repeatedly, relationships form. When they don't, they don't. Every NHC development above 200 units must include the following social infrastructure as a non-negotiable design requirement, not an optional amenity:
+
+*Residential social spaces:* Courtyards and shared outdoor space scaled for children, drawing from the Wiener Hof model where the building itself creates semi-private community space. Ground-floor units with private outdoor access for families. These produce the "passive contact" — seeing the same neighbors daily in shared space — that leads to active relationships.
+
+*Public parks and green space:* A minimum of 15% of total development site area dedicated to publicly accessible park space. This is not private courtyard space (which serves residents) but genuinely public space that draws visitors from surrounding neighborhoods, creating cross-community interaction. Play structures for children, seating for adults, shade trees, and multi-use lawn areas are design requirements within the park space.
+
+*Community centers:* Every NHC development above 500 units must include a dedicated community center of at least 5,000 square feet with flexible programming space, a commercial kitchen for community meals and cooking classes, meeting rooms available for resident organizations, and after-school programming capacity. Below 500 units, shared community rooms of at least 2,000 square feet within the residential building serve this function. Community centers are operated by the NHC but programming is community-directed through a resident governance committee.
+
+*Libraries or library branches:* Developments above 1,000 units in areas not already served by a public library within 0.5 miles must include a branch library space integrated into the development. In areas with existing library access, the NHC coordinates with the local library system to expand services to the new population. Libraries function as the quintessential third place — free, open to all, multigenerational, and purpose-neutral.
+
+*Shared gardens and urban agriculture:* Community garden plots available to residents and surrounding neighbors. A minimum of 0.25 acres per 500 units. Shared gardens produce social bonding through collaborative labor, intergenerational knowledge transfer, and the simplest of community-building mechanisms — growing food together and sharing the harvest.
+
+*Childcare facilities:* Ground-floor or adjacent childcare centers in every development above 200 units, with capacity for at least 10% of the development's estimated child population. Subsidized childcare on-site has a direct fertility-enabling effect and creates a natural parent community — the daily drop-off and pick-up generates the repeated, casual contact that forms friendships. The NHC provides the physical space at below-market rates; childcare operators (which may be non-profit, cooperative, or private) provide the programming.
+
+These social infrastructure requirements are funded within the NHC's development budget — they are part of the construction cost, not an additional line item. The 2-3% positive carry on NHC developments accounts for the cost of these spaces. They are not amenities that increase unit cost; they are investments that increase community stability, reduce turnover, and generate the neighborhood-level social capital that makes the development self-sustaining politically and operationally.
+
+### **Social Infrastructure Mandate**
+
+Every NHC development above 200 units must include dedicated social infrastructure beyond residential and commercial space. Material security without social connection produces the "statist individualism" observed in Scandinavian welfare states — high wellbeing scores but low affective happiness and pervasive loneliness. The NHC's social infrastructure mandate ensures that developments are designed for human connection, not just shelter.
+
+Required social infrastructure (minimum one per development above 200 units, minimum three per development above 500 units):
+
+**Public park or green space:** Minimum 0.5 acres per 200 units, designed for multi-generational use — playgrounds scaled for children under 12, seating areas for adults, walking paths, and open lawn. Sited to be visible from residential units (not hidden behind buildings) and accessible without crossing arterial streets. The park is public — open to surrounding neighborhoods, not gated to residents.
+
+**Community center:** Indoor multipurpose space of at least 2,000 square feet per 200 units. Designed for community meetings, classes, social gatherings, youth programs, and resident governance (CLT board meetings, Stewardship Trust assemblies). Available for reservation by residents and surrounding community. Staffed or volunteer-managed depending on development scale.
+
+**Shared productive gardens:** Community garden plots available to all residents, minimum 20 plots per 200 units. Garden programs are among the highest-evidence interventions for neighborhood social cohesion — they create repeated, low-stakes, face-to-face contact between residents of different ages, incomes, and backgrounds while producing tangible shared output. Plots are allocated by lottery with a maximum two-year term to ensure rotation and prevent enclosure.
+
+**Library or reading room (developments above 500 units):** A staffed or self-service branch library or reading room integrated into the development's ground floor, operated in partnership with the local public library system. Libraries are the most effective social infrastructure institution in the research literature — they serve every demographic, create passive social contact, and anchor community identity.
+
+**Childcare center (developments above 300 units with family-sized unit mandate):** Ground-floor subsidized childcare co-located with the development, serving both residents and surrounding community. Childcare has a direct fertility-enabling effect and creates daily social contact among parents. Below-market rates are cross-subsidized by ground-floor commercial revenue.
+
+The social infrastructure is funded as part of the development's capital budget (included in the per-unit cost estimate) and maintained from the mandatory capital reserve fund. Operating costs for community centers and libraries are shared between the NHC and local municipal partners under joint-use agreements. The social infrastructure is owned by the NHC as part of the CLT land holding and cannot be sold, converted, or privatized separately from the development.
 
 **Local aesthetic collaboration:** The NHC works with local municipalities on aesthetic character. "Tell us what your community looks like at its best and we'll build to that" rather than imposing a standardized federal product. This converts potential NIMBY opponents into partial co-owners of design outcomes. Federal preemption on zoning becomes less politically toxic when the aesthetic conversation is genuinely collaborative.
 
@@ -946,7 +1038,7 @@ Non-negotiable design requirements for all NHC developments:
 
 **Mixed income is not optional.** Income-capped housing reliably produces concentrated poverty, social stigma, and the political isolation that leads to maintenance underfunding. NHC developments are genuinely mixed income, with rents at market rates across a wide band — from households using their prebate as primary income up through working families at 120-150% of Area Median Income. Higher-income residents cross-subsidize lower-income residents slightly while anchoring social mix and political legitimacy. This is Vienna's model: professionals live alongside lower-income households, and the program maintains middle-class political support because middle-class households participate in it.
 
-**Rents are at market rates.** The NHC is a supply intervention, not a demand subsidy. The Accord's prebate ($5,000/person, CPI-indexed), carbon dividend ($843/person), and growing AMCF liquidation income provide the income floor that makes market-rate rents affordable for lower-income households without requiring a separate housing subsidy bureaucracy. A family of four receiving $20,000+ in annual prebate income plus employment income can afford NHC market rents. If rents are still unaffordable after the Accord's transfers, the problem is insufficient NHC supply — the solution is more units, not rent subsidies that mask the supply failure.
+**Rents are at market rates.** The NHC is a supply intervention, not a demand subsidy. The Accord's prebate ($6,250/person, CPI-indexed), carbon dividend ($843/person), and growing AMCF liquidation income provide the income floor that makes market-rate rents affordable for lower-income households without requiring a separate housing subsidy bureaucracy. A family of four receiving $20,000+ in annual prebate income plus employment income can afford NHC market rents. If rents are still unaffordable after the Accord's transfers, the problem is insufficient NHC supply — the solution is more units, not rent subsidies that mask the supply failure.
 
 No income maximum is set low enough to exclude working families with children — the demographic the NHC is designed to serve.
 
@@ -958,7 +1050,7 @@ For ownership-track units, the CLT model separates land ownership (NHC retains p
 
 The AMCF custodial account ($44,000 at age 18) becomes a realistic down payment on a CLT structure. An 18-year-old's AMCF account, growing at 5% real, reaches approximately $72,000 by age 25 — sufficient for a 20% down payment on a $360,000 CLT structure (which, with land cost stripped, represents a unit that would cost $550,000-$700,000 on the private market in a mid-tier city). This is the ownership pathway integration point: the AMCF builds the capital, the NHC/CLT provides the accessible price point, and the LVT suppresses the speculative land inflation that would otherwise erode both.
 
-**LVT treatment for CLT homeowners:** The 10% LVT does not apply to CLT ownership-track structures because the land is publicly held by the NHC. The homeowner owns only the structure, which is not subject to LVT (LVT applies to land value, not improvement value). The $500,000 homeowner exemption in the Accord's LVT framework is therefore not consumed by CLT ownership, preserving it if the household later purchases land-inclusive property.
+**LVT treatment for CLT homeowners:** The 10% LVT does not apply to CLT ownership-track structures because the land is publicly held by the NHC. The homeowner owns only the structure, which is not subject to LVT (LVT applies to land value, not improvement value), so a CLT homeowner pays no LVT on their dwelling — the LVT on the underlying parcel is borne by the NHC as the public landholder. A CLT household therefore receives the full universal prebate (funded in part by the LVT on all other land) without owing LVT on their home.
 
 ## **9.7 Scale Commitment**
 
@@ -1047,7 +1139,7 @@ The US Government (NIH) purchases pharmaceutical and device patents upfront thro
 
 # **Part 11: The Spending Waterfall — Fiscal Autopilot**
 
-Revenue flows into the AMCF Trust Fund and General Fund according to a statutory priority sequence. Conditional welfare programs (SNAP, EITC, CTC, TANF, WIC) are dissolved on the prebate activation date. Because the universal prebate ($5,000 per capita, unconditional) exceeds the per-person value of most existing benefit combinations, and because universal capped childcare and paid family leave provide additional coverage for the highest-need households, no parallel systems are required. All current benefit recipients are already identifiable in federal databases and receive the prebate automatically from Day 1.
+Revenue flows into the AMCF Trust Fund and General Fund according to a statutory priority sequence. Conditional welfare programs (SNAP, EITC, CTC, TANF, WIC) are dissolved on the prebate activation date. Because the universal prebate ($6,250 per capita, unconditional) exceeds the per-person value of most existing benefit combinations, and because universal capped childcare and paid family leave provide additional coverage for the highest-need households, no parallel systems are required. All current benefit recipients are already identifiable in federal databases and receive the prebate automatically from Day 1.
 
 * Transitional Housing Supplement: Households currently receiving federal housing assistance (Section 8 vouchers, public housing, LIHTAP) in excess of the prebate's housing offset receive a 2-year transitional supplement equal to the difference between their current housing benefit and the per-capita prebate amount. The supplement tapers to zero over the 2-year window. This is the sole transitional provision; all other conditional programs terminate immediately. Estimated transitional cost: $15 to $25 billion annually for two years, declining to zero by Year 3.
 
@@ -1055,7 +1147,7 @@ Full dissolution of conditional welfare programs generates approximately $316 bi
 
 ## **Priority 1: Universal Social Infrastructure (Live from Year 1\)**
 
-* Universal Prebate: $5,000 per capita annually, tax-free, distributed quarterly to every citizen regardless of income or status. Pegged to CPI. This is the unconditional income floor — not contingent on employment, behavior, or ACI performance. At a 4% VAT, the prebate fully offsets all consumption tax on $125,000 of annual spending, covering approximately 80% of American households with zero net consumption tax burden. Estimated annual cost: $1.67 to $1.70 trillion.
+* Universal Prebate: $6,250 per capita annually, tax-free, distributed quarterly to every citizen regardless of income or status. Pegged to CPI. The $5,000 welfare-replacement floor is topped up by the ~$376B raised from applying the LVT to all land with no homeowner exemption (≈$1,250/person total, of which ~$1,123 is the exemption revenue and ~$128 a clean round-up), making the swap approximately deficit-neutral. This is the unconditional income floor — not contingent on employment, behavior, or ACI performance. At a 4% VAT, the prebate fully offsets all consumption tax on roughly $156,000 of annual spending per person, covering the large majority of American households with zero net consumption tax burden. Estimated annual cost: approximately $2.09 trillion (the ~$1.67T welfare-replacement floor plus a ~$419B redirect, ~$376B of which is the exemption revenue).
 
 * Universal Capped Childcare: Zero cost for low-income families; capped at 7% of household income for others. Estimated annual cost: $100 billion.
 
@@ -1087,7 +1179,7 @@ The following timeline incorporates all revisions and has been validated by comp
 
 ## **Phase 1: Accumulation and Ramp (Years 1 to 6\)**
 
-The unified deficit begins at approximately $1.72 trillion — substantially below the current baseline, as the Accord's rent tax portfolio (LVT, carbon, FTT, financial stability levy, royalty reform, spectrum fees) generates significantly more revenue than the prior 10% VAT design while reducing the visible consumer tax burden. The 4% VAT begins generating revenue immediately at 75 to 80% compliance. The 10% LVT generates approximately $570 billion in Year 1. The $100/ton carbon tax generates approximately $348 billion. The 0.5% FTT generates approximately $225 billion. Combined with the financial stability levy, royalty reform, and other rent taxes, the rent tax portfolio produces $1.29 trillion in Year 1 — more than replacing the revenue lost from cutting the VAT from 10% to 4%. The Codetermination Credit structure (Section 1.3) ensures the AMCF receives at least 80% of EV Growth Tax scrip from Year 1. AMCF equity reaches approximately $4 trillion by end of Phase 1, generating over $170 billion in annual cash flow (dividends plus buyback participation). The SPV bridge converts early-phase scrip to liquidity. The national debt grows from approximately $36 trillion toward $44 trillion, but the debt-to-GDP ratio peaks at approximately 122% in Year 1 and begins declining as GDP growth outpaces debt accumulation. AMCF citizen grants are funded at the $500 per capita minimum from Year 1, initially via the SPV bridge. Custodial accounts for children are opened and begin accumulating. The 4.2% annual Equity Excise Tax builds worker ownership stakes; by end of Phase 1 all companies above the $10M threshold will have reached or nearly reached the 21% worker equity equilibrium cap.
+The unified deficit begins at approximately $1.72 trillion — substantially below the current baseline, as the Accord's rent tax portfolio (LVT, carbon, FTT, financial stability levy, royalty reform, spectrum fees) generates significantly more revenue than the prior 10% VAT design while reducing the visible consumer tax burden. The 4% VAT begins generating revenue immediately at 75 to 80% compliance. The 10% LVT (no homeowner exemption, capitalized) generates approximately $943 billion in Year 1. The $100/ton carbon tax generates approximately $348 billion. The 0.5% FTT generates approximately $225 billion. Combined with the financial stability levy, royalty reform, and other rent taxes, the rent tax portfolio produces $1.66 trillion in Year 1 — more than replacing the revenue lost from cutting the VAT from 10% to 4%. The ~$376 billion that removing the homeowner exemption adds is returned to households through the higher prebate (plus a ~$43 billion round-up to the clean $6,250 figure), so the swap is approximately deficit-neutral. The Codetermination Credit structure (Section 1.3) ensures the AMCF receives at least 80% of EV Growth Tax scrip from Year 1. AMCF equity reaches approximately $4 trillion by end of Phase 1, generating over $170 billion in annual cash flow (dividends plus buyback participation). The SPV bridge converts early-phase scrip to liquidity. The national debt grows from approximately $36 trillion toward $44 trillion, but the debt-to-GDP ratio peaks at approximately 122% in Year 1 and begins declining as GDP growth outpaces debt accumulation. AMCF citizen grants are funded at the $500 per capita minimum from Year 1, initially via the SPV bridge. Custodial accounts for children are opened and begin accumulating. The 4.2% annual Equity Excise Tax builds worker ownership stakes; by end of Phase 1 all companies above the $10M threshold will have reached or nearly reached the 21% worker equity equilibrium cap.
 
 Healthcare rate setting commission phases in over Years 2 to 5\. Drug negotiation expansion produces $25 to $40 billion in federal savings by Year 5\. Immigration ramp contributes $15 to $25 billion in new revenue by Year 5\. Combined reform effect: $80 to $145 billion improvement over the base Accord. Deficit narrows toward approximately $1.9 trillion by end of Phase 1, with the debt-to-GDP ratio already declining from its Year 5 peak as GDP growth outpaces debt accumulation\.
 
@@ -1118,10 +1210,10 @@ AMCF citizen grants (65% of cash flow) reach $15,397 per capita by Year 25 and $
 | 10 | $46.4T | $12.0T | 11.2% | $49.3T | ~103% | $970B | $569B | $1,724 | ON |
 | 15 | $60.3T | $27.2T | 16.6% | $50.8T | ~85% | $210B | $1.46T | $4,421 | ON |
 | 16 | ~$63T | ~$29.4T | ~17% | ~$51T | ~81% | ~$0 | ~$1.6T | ~$4,800 | ON |
-| 20 | $78.3T | $51.9T | 20.0% | $44.9T | ~60% | ($1.94T) | $3.11T | $9,430 | off |
-| 25 | $101.7T | $84.7T | 20.0% | $27.8T | ~30% | ($4.60T) | $5.08T | $15,397 | off |
-| 30 | $132.1T | $142.6T | 20.0% | ($7.2T) | ~0% | ($8.88T) | $8.55T | $25,924 | off |
-| 35 | $171.6T | $247.1T | 20.0% | ($71T) | \-41% | ($15.78T) | $14.82T | $44,918 | off |
+| 20 | $78.3T | $51.9T | 21.0% | $44.9T | ~60% | ($1.94T) | $3.11T | $9,430 | off |
+| 25 | $101.7T | $84.7T | 21.0% | $27.8T | ~30% | ($4.60T) | $5.08T | $15,397 | off |
+| 30 | $132.1T | $142.6T | 21.0% | ($7.2T) | ~0% | ($8.88T) | $8.55T | $25,924 | off |
+| 35 | $171.6T | $247.1T | 21.0% | ($71T) | \-41% | ($15.78T) | $14.82T | $44,918 | off |
 
 ### **Milestone Events**
 
@@ -1215,7 +1307,7 @@ A critical conceptual distinction: the Accord captures a share of economic growt
 
 The Growth Tax is not a toll on the road that slows traffic. It is a split in the river that irrigates more fields. The same volume of water flows. The same economic output is generated. The returns are simply distributed more broadly — through AMCF unit grants, PSU dividends, PSU cashouts, and the prebate — rather than concentrating exclusively among existing shareholders.
 
-And the macroeconomic evidence from the five channels above suggests the redistribution actually *accelerates* growth. A company whose workers own 21% has lower turnover and higher productivity (the German codetermination literature consistently demonstrates this). A consumer base receiving $5,000/person in prebate income and growing AMCF grants has more spending power, generating more demand for the company's products. A society with broader access to education and capital produces more innovators. The growth capture and the growth acceleration are complementary, not in tension — the Accord both grows the pie faster and distributes it more broadly.
+And the macroeconomic evidence from the five channels above suggests the redistribution actually *accelerates* growth. A company whose workers own 21% has lower turnover and higher productivity (the German codetermination literature consistently demonstrates this). A consumer base receiving $6,250/person in prebate income and growing AMCF grants has more spending power, generating more demand for the company's products. A society with broader access to education and capital produces more innovators. The growth capture and the growth acceleration are complementary, not in tension — the Accord both grows the pie faster and distributes it more broadly.
 
 ### **Inflation Analysis**
 
@@ -1237,29 +1329,41 @@ The Accord creates both inflationary and deflationary pressures. The net effect 
 
 ## **The Lower 25%**
 
-The prebate functions as an unconditional negative income tax. A single adult below the poverty line receives $5,000 annually (CPI-indexed, growing with inflation) regardless of employment status. A household of three receives $15,000. The welfare cliff is eliminated: a wage increase no longer triggers loss of benefits. The LVT-driven housing supply expansion reduces local rent pressure over 5 to 10 years. The VAT increases consumption costs, but the prebate is calibrated to fully offset the VAT burden at poverty-level consumption — the lowest-income households pay zero net consumption tax.
+The prebate functions as an unconditional negative income tax. A single adult below the poverty line receives $6,250 annually (CPI-indexed, growing with inflation) regardless of employment status. A household of three receives $15,000. The welfare cliff is eliminated: a wage increase no longer triggers loss of benefits. The LVT-driven housing supply expansion reduces local rent pressure over 5 to 10 years. The VAT increases consumption costs, but the prebate is calibrated to fully offset the VAT burden at poverty-level consumption — the lowest-income households pay zero net consumption tax.
 
-Validated distributional simulation confirms: at Year 1, the bottom 10% of households see annual income rise from $15,000 to $21,000 — a 46% increase driven by the prebate, carbon dividend, and dissolved welfare replacement. Households at the 10th-20th percentile see income rise from $28,000 to $43,000 (+52%). These are not abstract projections; they reflect the prebate ($5,000/person in cash), carbon dividend ($843/person in cash), AMCF unit grants (partially liquidated), PSU dividends, and the net tax change operating simultaneously. By Year 30, the bottom 10% earn $55,000 annually — a 224% increase over current law — and the 10th-20th percentile earns $100,000, above today's median household income.
+### **Does the Prebate Replace the Dissolved Welfare Programs?**
 
-AMCF citizen grants begin building real wealth from birth. A child born into poverty today holds a custodial AMCF account that transfers at 18 with approximately $44,000 in accumulated equity. By age 65, validated Monte Carlo simulations show the bottom quintile reaching a median net worth of $10.95 million — compared to $384,000 under the current system. Annual retirement income rises from $21,000 to $82,000/year. The percentage of bottom-quintile workers reaching retirement with less than $250,000 in savings drops from 72.5% to 0.0% — across every single quintile. This is the most dramatic wealth transformation in the entire Accord: the bottom 20% goes from systemic poverty risk to guaranteed economic security.
+The Accord dissolves SNAP, EITC, the Child Tax Credit, TANF, and WIC. For a bottom-quintile household, these programs collectively provide roughly $6,000-9,000 per year depending on household size and composition. The replacement is more than complete from Day 1, before the AMCF scales:
+
+For the bottom decile (P0-P10) at Year 1, the dissolved programs (approximately $6,000 in value) are replaced by the prebate (approximately $9,000 for the average 1.8-person household), the carbon dividend (approximately $2,000), AMCF liquidation income (approximately $827), and PSU dividends (approximately $49) — a total of approximately $11,876 in replacement transfers. The net gain over the dissolved programs is approximately $5,900 in Year 1 alone, before accounting for the favorable tax changes. The prebate and carbon dividend alone fully replace the dissolved programs for virtually all household configurations; the AMCF grants and PSU income are pure addition on top.
+
+This is not a break-even substitution. It is a substantial net improvement that grows over time. By Year 20, AMCF liquidation income alone reaches approximately $10,000 for the bottom decile, against the same $6,000 in dissolved programs. The "welfare cliff" — where earning an additional dollar triggers loss of benefits — is eliminated entirely, because the prebate and AMCF grants are universal and unconditional. Many households eligible for the dissolved programs never received them due to administrative barriers, paperwork requirements, and rationing; the universal prebate captures everyone the old system missed.
+
+Two subpopulations require specific attention. First, the prebate is per-capita, which favors larger households and could leave single-person households with smaller replacement margins. A single adult receives $6,250 prebate plus $843 carbon dividend plus AMCF grants, versus a potentially larger means-tested bundle under current law. Second, disabled individuals receiving SSI and SNAP currently receive a relatively large means-tested bundle. Both cases are addressed by structural features of the Accord: Social Security and SSDI are not dissolved (they continue alongside the prebate), and the Care Economy Ownership Credit provides SSDI recipients AMCF unit grants at 3x the standard citizen rate plus $2,000/year in Sectoral Wealth Fund deposits. For a single disabled adult, the relevant comparison is SSDI (continued) plus 3x AMCF plus prebate plus carbon dividend plus CEOC sectoral fund — which exceeds the current SSI-plus-SNAP bundle. The CEOC enhanced multipliers exist precisely to close the gap for the specific household types where the per-capita prebate alone might not fully replace a large means-tested bundle.
+
+One honest tradeoff: some dissolved programs were in-kind (SNAP is restricted to food; WIC to specific goods), while the prebate is unrestricted cash. For the vast majority of households, unrestricted cash is strictly more valuable than restricted vouchers. But it shifts spending responsibility to the recipient. The Accord comes down firmly on the side of cash and individual agency, consistent with its ownership philosophy, while acknowledging this is a genuine policy choice rather than a free lunch.
+
+Validated distributional simulation confirms: at Year 1, the bottom 10% of households see annual income rise from $15,000 to $23,000 — a 59% increase driven by the prebate, carbon dividend, and dissolved welfare replacement. Households at the 10th-20th percentile see income rise from $28,000 to $44,000 (+58%). These are not abstract projections; they reflect the prebate ($6,250/person in cash), carbon dividend ($843/person in cash), AMCF unit grants (partially liquidated), PSU dividends, and the net tax change operating simultaneously. By Year 30, the bottom 10% earn $57,000 annually — a 238% increase over current law — and the 10th-20th percentile earns $101,000, above today's median household income.
+
+AMCF citizen grants begin building real wealth from birth. A child born into poverty today holds a custodial AMCF account that transfers at 18 with approximately $44,000 in accumulated equity. By age 65, validated Monte Carlo simulations show the bottom quintile reaching a median net worth of $10.96 million — compared to $384,000 under the current system. Annual retirement income rises from $21,000 to $83,000/year. The percentage of bottom-quintile workers reaching retirement with less than $250,000 in savings drops from 72.5% to 0.0% — across every single quintile. This is the most dramatic wealth transformation in the entire Accord: the bottom 20% goes from systemic poverty risk to guaranteed economic security.
 
 ## **The Middle 50%**
 
-A median household of three earning $80,000 receives a $15,000 tax-free prebate. Their VAT burden on approximately $60,000 of taxable consumption is $6,000. Their federal income tax liability at $80,000 gross is approximately $5,500 to $6,500. The prebate fully covers VAT and nearly offsets income tax. AMCF citizen grants add $3,200 to $16,800 annually depending on the phase, transforming the AMCF from an abstract investment vehicle into a tangible household income stream.
+A median household of three earning $80,000 receives an $18,750 tax-free prebate. Their VAT burden on roughly $64,000 of taxable consumption is about $2,600 (4%). Their federal income tax liability at $80,000 gross is approximately $5,500 to $6,500. The prebate covers the VAT several times over and fully offsets income tax. AMCF citizen grants add $3,200 to $16,800 annually depending on the phase, transforming the AMCF from an abstract investment vehicle into a tangible household income stream.
 
-Validated distributional simulation confirms: households at the median (P50) see Year 1 income rise from $79,000 to $103,000 — a $23,000 improvement (+29%). By Year 30, median income reaches $196,000 versus $123,000 under current law (+59%). Net worth improvements are even more dramatic: the median household's net worth grows from $148,000 at Year 0 to $1.7 million by Year 30 under the Accord, versus $632,000 under current law — a 269% improvement driven primarily by accumulated AMCF units and PSU cashouts. The 80th percentile household sees income rise by $13,000 at Year 1 and by $58,000 at Year 30. Even the top 10% (P90-P99) is better off by Year 5 (+$26,000 income, +6.9%) and substantially better off by Year 30 (+$36,000 income, +$1.2M net worth). The breakeven — where the Accord becomes net costly in income terms — sits within the top 1% of earners. Only the top 1% (~1.5 million households) bear a net income cost, and only the top 0.1% bear a substantial one.
+Validated distributional simulation confirms: households at the median (P50) see Year 1 income rise from $80,000 to $105,000 — a $25,000 improvement (+31%). By Year 30, median income reaches $196,000 versus $123,000 under current law (+59%). Net worth improvements are even more dramatic: the median household's net worth grows from $148,000 at Year 0 to $1.6 million by Year 30 under the Accord, versus $453,000 under current law — a 260% improvement driven primarily by accumulated AMCF units and PSU cashouts. The 80th percentile household sees income rise by $15,000 at Year 1 and by $61,000 at Year 30. Even the top 10% (P90-P99) is better off by Year 5 (+$29,000 income, +8%) and substantially better off by Year 30 (+$40,000 income, +$2.2M net worth). The breakeven — where the Accord becomes net costly in income terms — sits within the top 1% of earners. Only the top 1% (~1.5 million households) bear a net income cost, and only the top 0.1% bear a substantial one.
 
-Wealth accumulation for the middle quintile is transformative: validated Monte Carlo simulations show median net worth reaching $598,000 by age 35 (versus $55,000 under current system), $1.72 million by age 45, and $11.69 million by age 65. Annual retirement income rises from $42,000 to $111,000/year. Zero percent of middle-quintile workers reach retirement with less than $250,000 in savings, compared to 17.8% under the current system. Codetermination ensures employer equity appreciation flows to workers through PSU dividends. Childcare caps protect mid-career household balance sheets.
+Wealth accumulation for the middle quintile is transformative: validated Monte Carlo simulations show median net worth reaching $601,000 by age 35 (versus $55,000 under current system), $1.72 million by age 45, and $11.73 million by age 65. Annual retirement income rises from $42,000 to $112,000/year. Zero percent of middle-quintile workers reach retirement with less than $250,000 in savings, compared to 17.8% under the current system. Codetermination ensures employer equity appreciation flows to workers through PSU dividends. Childcare caps protect mid-career household balance sheets.
 
 ## **Extreme Demographic Stress Test**
 
-A single-income household of seven with five children receives $35,000 annually in tax-free prebate ($5,000 times seven). Even at $100,000 in annual taxable consumption, the $10,000 VAT burden is fully absorbed, leaving a structural surplus of $25,000 annually. Five custodial AMCF accounts accumulate from birth, each building toward approximately $44,000 at transfer at age 18.
+A single-income household of seven with five children receives $43,750 annually in tax-free prebate ($6,250 times seven). Even at $100,000 in annual taxable consumption, the $4,000 VAT burden (4%) is fully absorbed, leaving a structural surplus of roughly $40,000 annually. Five custodial AMCF accounts accumulate from birth, each building toward approximately $44,000 at transfer at age 18.
 
 ## **The Upper 25%**
 
 High earners absorb the systemic cost across multiple vectors: 21% of corporate value growth flows to the AMCF as scrip, and codetermination transfers 21% of existing corporate ownership to workers; luxury consumption is taxed at the full VAT rate; land banking is penalized by the LVT; earned income above $400,000 faces the full payroll tax; capital gains above $1 million are taxed at ordinary rates; appreciated asset extraction via collateralized loans is treated as constructive sale.
 
-Validated distributional simulation confirms: the top 1% (P99-P99.9, average income $1.5 million) sees a net income reduction of $12,000 at Year 1 (-0.7%) growing to $2.7 million by Year 30 (-47.5%). Their net disposable income at Year 30 is approximately $1.7 million — still extremely comfortable by any measure. Net worth declines relative to current law by $40.7 million at Year 30 (-27.9%), but absolute wealth still grows from $16.7 million to $105.5 million. Billionaires see income decline 57% relative to current law by Year 30 and net worth decline 64% — but Elon Musk's net worth still grows from $250 billion to $5.7 trillion. No one is being impoverished. The Accord redirects a portion of extreme wealth accumulation toward broad-based ownership while preserving substantial growth for even the wealthiest Americans.
+Validated distributional simulation confirms: the top 1% (P99-P99.9, average income $1.5 million) sees a net income reduction of $31,000 at Year 1 (-2.0%) growing to $2.7 million by Year 30 (-47.5%). Their net disposable income at Year 30 is approximately $2.9 million — still extremely comfortable by any measure. Net worth declines relative to current law by $34.9 million at Year 30 (-23.9%), but absolute wealth still grows from $16.7 million to $111 million. Billionaires see income decline 57% relative to current law by Year 30 and net worth decline 66% — but Elon Musk's net worth still grows from $250 billion to $5.7 trillion. No one is being impoverished. The Accord redirects a portion of extreme wealth accumulation toward broad-based ownership while preserving substantial growth for even the wealthiest Americans.
 
 The top 10% (P90-P99) is marginally worse off at Year 1 (-$2,000 income, -0.6%) but turns positive by Year 5 (+$26,000, +6.9%) as AMCF grants, PSU dividends, and PSU cashouts scale up. By Year 30, T10 income is $934,000 versus $898,000 under current law (+4.0%) and net worth is $19.1 million versus $17.9 million (+6.8%). The Accord makes even high-earning professionals wealthier than the status quo within 5 years. Only the top 1% and above bear a permanent net cost — approximately 1.5 million households (1% of the total). The 0% corporate rate preserves after-tax business income and incentivizes productive reinvestment — the system does not confiscate enterprise, it taxes the accumulation of unproductive rent-seeking and extraction.
 

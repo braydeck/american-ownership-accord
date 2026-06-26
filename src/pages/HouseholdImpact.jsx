@@ -208,7 +208,7 @@ function lvtNetBr(k, y, P) {
   return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
 }
 
-// Prebate per person: redirected $6,101 by default; reverts to base $5,000 when the
+// Prebate per person: redirected $6,250 by default; reverts to base $5,000 when the
 // $500k homeowner exemption is toggled on (deficit-neutral coupling).
 const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
 
@@ -279,7 +279,7 @@ const PROVS_CONFIG = [
   { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
   { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
   { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false,
-    tip:'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,123 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
+    tip:'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,250 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
 
 // Stable default Sets for URL state (must be module-level so the hook default reference is stable).

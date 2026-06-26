@@ -128,7 +128,7 @@ function amcfDividendPerCap(year) {
 function computeDistrib(vatRate, lvtRate, year, exemption = 0) {
   const amcfPerCap = amcfDividendPerCap(year);
   // Prebate is deficit-neutrally coupled to the exemption: off (default) → redirected
-  // $6,101; on → base $5,000. Burden comes from the shared capitalized land model.
+  // $6,250; on → base $5,000. Burden comes from the shared capitalized land model.
   const prebatePerPerson = exemption > 0 ? PREBATE_BASE : PREBATE_REDIRECTED;
   const lvtNet = lvtNetBurdenByBracket({ rate: lvtRate, exemption });
   return BRACKETS.map((b, i) => {

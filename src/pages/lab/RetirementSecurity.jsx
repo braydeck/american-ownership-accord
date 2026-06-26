@@ -11,6 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { PREBATE_REDIRECTED } from '@/lib/land';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -180,8 +181,8 @@ function runSimulation() {
         const psuDiv    = psuBal * PSU_DIV;
         psuBal = psuTarget;
 
-        // Net prebate/VAT benefit (individual: $5K prebate per person)
-        const netFiscal    = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
+        // Net prebate/VAT benefit (individual: $6,250 prebate per person)
+        const netFiscal    = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
         const prebateSave  = netFiscal * q.prebateSaveRate;
 
         // AMCF grant accumulates at deterministic fund return (not market)
@@ -213,7 +214,7 @@ function runSimulation() {
       const psuDiv    = d_psu * PSU_DIV;
       d_psu    = psuTarget;
       d_psuDiv = (d_psuDiv  + psuDiv) * (1 + MEAN_RET);
-      const netFiscal  = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
+      const netFiscal  = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
       d_prebate = (d_prebate + netFiscal * q.prebateSaveRate) * (1 + MEAN_RET);
       d_amcf   = (d_amcf   + amcfGrant(y)) * (1 + AMCF_RET);
     }

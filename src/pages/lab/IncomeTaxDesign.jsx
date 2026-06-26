@@ -189,7 +189,7 @@ function psuCashoutPerFiler(bracketIndex, year) {
 // Universal per-capita prebate — paid to every American (man, woman, child) annually.
 // Core redistributionary mechanism: makes the VAT progressive by pre-refunding
 // the expected consumption tax burden at the poverty line.
-// Default scenario: base $5,000 plus redirected homeowner-exemption revenue → ~$6,101/person.
+// Default scenario: base $5,000 plus redirected homeowner-exemption revenue → ~$6,250/person.
 const PREBATE_PER_PERSON = PREBATE_REDIRECTED;
 
 // ============================================================
@@ -300,7 +300,7 @@ function computeAccordDistrib(mR, tR, stdS, stdJ, vatRate, lvtRate, etiM, etiT, 
     const vatNew = vatRate * b.cRat * avgInc;
     const vatPrior = 0.10 * b.cRat * avgInc;
 
-    // Universal prebate × household size (default: redirected $6,101 with exemption off)
+    // Universal prebate × household size (default: redirected $6,250 with exemption off)
     const prebate = PREBATE_PER_PERSON * b.hhSz;
 
     // AMCF dividend: per-capita investment return from AMCF equity × payout yield

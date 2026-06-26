@@ -225,7 +225,7 @@ function runFiscal(rentRates) {
     const spendFrac = Math.max(0.14, FP.baselineSpendingFrac - FP.spendingEfficiencyGain * yr);
     const popScale  = pop / FP.startingPopulation;
     // Prebate is deficit-neutrally coupled to the exemption: exemption off (default) →
-    // recovered revenue funds the higher $6,101 prebate; exemption on → base $5,000.
+    // recovered revenue funds the higher $6,250 prebate; exemption on → base $5,000.
     const prebatePerCap = (rentRates.lvtExemption ?? 0) > 0 ? PREBATE_BASE : PREBATE_REDIRECTED;
     const spending  = nomGdp * spendFrac + budgetGrantCost + prebatePerCap * pop
       + 100e9 * popScale + 50e9 * popScale - amcfCash * 0.10;

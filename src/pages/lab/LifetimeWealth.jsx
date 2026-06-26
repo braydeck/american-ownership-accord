@@ -15,6 +15,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { PREBATE_REDIRECTED } from '@/lib/land';
 
 // ─── Seeded PRNG ──────────────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ function runSimulation(params) {
         }
 
         // Prebate net savings
-        const netFiscal = Math.max(0, 5000 - 0.04 * q.consumeRatio * salary);
+        const netFiscal = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
         prebSav = (prebSav + netFiscal * q.prebateSaveRate) * (1 + ret);
 
         // ── Current system: 401(k) + personal savings ──
@@ -595,7 +596,7 @@ export default function GenerationalWealth() {
         at each change, PSU cashed out at FMV and reinvested. Employer type drawn at each job from quintile-specific
         distribution (large/mid/exempt firms per Census Statistics of US Businesses).
         AMCF grows at the same annual return as household portfolio (AMCF holds passive equity).
-        Prebate net savings = max(0, $5,000 - 4% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
+        Prebate net savings = max(0, $6,250 - 4% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
         Current system: 401(k) at quintile participation rate (9% combined, slider-adjustable) + minimal personal savings.
         All values in 2024 real dollars.
       </InfoBox>
