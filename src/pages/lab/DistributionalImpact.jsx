@@ -280,8 +280,8 @@ function computeCalcBurden(income, hhSize, children, capGains, filing) {
   const ctc     = ctcBenefit(income, children, filing);
   const curBurden = fedTax + payroll + cgTax - snap - eitc - ctc;
 
-  // Accord (income tax unchanged; adds VAT 4%, LVT net, carbon net, prebate, AMCF, PSU)
-  const vat      = 0.04 * consumeRatio(income) * income;
+  // Accord (income tax unchanged; adds VAT 3%, LVT net, carbon net, prebate, AMCF, PSU)
+  const vat      = 0.03 * consumeRatio(income) * income;
   const prebate  = PREBATE_REDIRECTED * hhSize;
   const amcf     = 600 * hhSize; // Year ~2 base AMCF estimate
   const psuDiv   = psuDividendCalc(income);
@@ -310,7 +310,7 @@ function computeCalcBurden(income, hhSize, children, capGains, filing) {
         'Federal Income Tax': fedTax,
         'Payroll Tax (Employee)': payroll,
         'Capital Gains Tax': cgTax,
-        'VAT (4%)': vat,
+        'VAT (3%)': vat,
         'LVT Net (est.)': lvtEst,
         'Carbon Tax (net)': carbonNt,
         'Stock Portfolio Drag': drag,
@@ -358,7 +358,7 @@ const DollarTooltip = ({ active, payload, label }) => {
 
 export default function DistributionalImpact() {
   const [view,         setView]         = useUrlValue('tab', 'national');
-  const [vatRate,      setVatRate]      = useUrlValue('vat', 0.04);
+  const [vatRate,      setVatRate]      = useUrlValue('vat', 0.03);
   const [lvtRate,      setLvtRate]      = useUrlValue('lvt', 0.10);
   const [snapshotYear, setSnapshotYear] = useUrlValue('yr', 1);
   const [showPSU,      setShowPSU]      = useUrlValue('psu', false);
@@ -422,10 +422,10 @@ export default function DistributionalImpact() {
   return (
     <PageShell>
       {/* ── Header ── */}
-      <div className="border-l-4 border-emerald-600 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">American Ownership Accord</p>
         <h1 className="text-2xl font-bold tracking-tight">Distributional Impact</h1>
-        <p className="text-[17px] text-emerald-800 font-semibold mt-2.5">
+        <p className="text-[17px] text-[#307ca6] font-semibold mt-2.5">
           {(pctBetter * 100).toFixed(0)}% of American households are better off under the Accord at Year {snapshotYear} —
           driven by the universal ${prebateShown.toLocaleString()}/person prebate and growing AMCF dividend offsetting the {(vatRate * 100).toFixed(0)}% VAT.
         </p>
@@ -476,7 +476,7 @@ export default function DistributionalImpact() {
               formatValue={v => `Year ${v}`}
             />
             <ControlGroup>
-              <Card className="border-emerald-200 bg-emerald-50">
+              <Card className="border-[#307ca6]/30 bg-[#307ca6]/10">
                 <CardContent className="py-3 px-4 text-xs leading-7">
                   <strong>AMCF at Year {snapshotYear}</strong><br />
                   Equity: <strong>${(amcfEquity / 1e12).toFixed(1)}T</strong> &nbsp;|&nbsp;
@@ -491,7 +491,7 @@ export default function DistributionalImpact() {
                 variant={exemptionOn ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExemptionOn(s => !s)}
-                className={exemptionOn ? 'bg-emerald-800 hover:bg-emerald-900' : ''}
+                className={exemptionOn ? 'bg-[#307ca6] hover:bg-[#307ca6]' : ''}
               >
                 {exemptionOn ? '✓ Exemption On' : 'Exemption Off'}
               </Button>
@@ -505,7 +505,7 @@ export default function DistributionalImpact() {
                 variant={showPSU ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowPSU(s => !s)}
-                className={showPSU ? 'bg-emerald-800 hover:bg-emerald-900' : ''}
+                className={showPSU ? 'bg-[#307ca6] hover:bg-[#307ca6]' : ''}
               >
                 {showPSU ? '✓ Equity On' : 'Equity Off'}
               </Button>
@@ -518,8 +518,8 @@ export default function DistributionalImpact() {
         <TabsContent value="national">
           {/* Headline stats */}
           <div className="grid grid-cols-3 gap-4 mt-7">
-            <MilestoneCard label="Households better off" value={fmtPct(pctBetter)} className="[&_p:last-of-type]:text-emerald-600 [&_p.text-xl]:text-[28px]" />
-            <MilestoneCard label="Households worse off" value={fmtPct(worseOffHH / totalFilers)} className="[&_p:last-of-type]:text-red-600 [&_p.text-xl]:text-[28px]" />
+            <MilestoneCard label="Households better off" value={fmtPct(pctBetter)} className="[&_p:last-of-type]:text-[#307ca6] [&_p.text-xl]:text-[28px]" />
+            <MilestoneCard label="Households worse off" value={fmtPct(worseOffHH / totalFilers)} className="[&_p:last-of-type]:text-[#c27040] [&_p.text-xl]:text-[28px]" />
             <MilestoneCard label="Breakeven income range" value={breakeven || 'None in range'} className="[&_p:last-of-type]:text-blue-700 [&_p.text-xl]:text-[28px]" />
           </div>
 
@@ -546,7 +546,7 @@ export default function DistributionalImpact() {
               <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} />
               <Bar dataKey="netChange" name="Net change vs current law" radius={[3,3,0,0]}>
                 {netChangeData.map((d, i) => (
-                  <Cell key={i} fill={d.betterOff ? '#10B981' : d.worseOff ? '#EF4444' : '#9CA3AF'} />
+                  <Cell key={i} fill={d.betterOff ? '#307ca6' : d.worseOff ? '#c27040' : '#9CA3AF'} />
                 ))}
               </Bar>
             </BarChart>
@@ -567,8 +567,8 @@ export default function DistributionalImpact() {
               <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
               <ReferenceLine y={0} stroke="#9CA3AF" strokeDasharray="4 4" />
               <Line dataKey="Current Law"   stroke="#1D4ED8" strokeWidth={2.5} dot={false} />
-              <Line dataKey="Accord (base)" stroke="#059669" strokeWidth={2.5} dot={false} />
-              {showPSU && <Line dataKey="Accord + Equity" stroke="#065F46" strokeWidth={2} dot={false} strokeDasharray="5 3" />}
+              <Line dataKey="Accord (base)" stroke="#307ca6" strokeWidth={2.5} dot={false} />
+              {showPSU && <Line dataKey="Accord + Equity" stroke="#1f5d7e" strokeWidth={2} dot={false} strokeDasharray="5 3" />}
             </LineChart>
           </ChartContainer>
 
@@ -581,7 +581,7 @@ export default function DistributionalImpact() {
                   <TableHead>Income Range</TableHead>
                   <TableHead>Filers</TableHead>
                   <TableHead className="text-blue-700">Current Rate</TableHead>
-                  <TableHead className="text-emerald-600">Accord Rate</TableHead>
+                  <TableHead className="text-[#307ca6]">Accord Rate</TableHead>
                   <TableHead>Net Annual Δ</TableHead>
                   <TableHead>Better Off?</TableHead>
                 </TableRow>
@@ -597,8 +597,8 @@ export default function DistributionalImpact() {
                       <TableCell className="font-semibold">{d.label}</TableCell>
                       <TableCell>{(d.filers / 1e6).toFixed(1)}M</TableCell>
                       <TableCell className="text-blue-700">{fmtPct(d.effCL)}</TableCell>
-                      <TableCell className={effAcc < d.effCL ? 'text-emerald-600' : 'text-red-600'}>{fmtPct(effAcc)}</TableCell>
-                      <TableCell className={`font-semibold ${delta <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <TableCell className={effAcc < d.effCL ? 'text-[#307ca6]' : 'text-[#c27040]'}>{fmtPct(effAcc)}</TableCell>
+                      <TableCell className={`font-semibold ${delta <= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                         {delta <= 0 ? '+' : ''}{fmtDollar(-delta)}
                       </TableCell>
                       <TableCell>{better ? '✓ Yes' : worse ? '✗ No' : '≈ Neutral'}</TableCell>
@@ -628,8 +628,8 @@ export default function DistributionalImpact() {
                     'NET Δ vs CL', '% Income', 'Status',
                   ].map((h, i) => (
                     <TableHead key={i} className={`text-white text-[11px] font-bold ${i > 2 ? 'text-right' : 'text-left'} ${
-                      h === 'Prebate' || h === 'PSU Div' ? 'bg-[#14532d]'
-                      : h === 'Cashout (ann.)' ? 'bg-[#166534]'
+                      h === 'Prebate' || h === 'PSU Div' ? 'bg-[#1a4d68]'
+                      : h === 'Cashout (ann.)' ? 'bg-[#1f5d7e]'
                       : h === 'NET Δ vs CL' ? 'bg-[#1a5276]'
                       : ''
                     }`}>
@@ -643,37 +643,37 @@ export default function DistributionalImpact() {
                   const delta  = showPSU ? d.deltaWithPSU : d.delta;
                   const better = showPSU ? d.betterOffWithPSU : d.betterOff;
                   const bgClass = better
-                    ? (i % 2 === 0 ? 'bg-green-50' : 'bg-emerald-50')
+                    ? (i % 2 === 0 ? 'bg-[#307ca6]/10' : 'bg-[#307ca6]/10')
                     : delta > 1000
-                      ? 'bg-red-50'
+                      ? 'bg-[#c27040]/10'
                       : '';
                   return (
                     <TableRow key={i} className={bgClass}>
                       <TableCell className="font-bold text-[#1e3a5f]">{d.label}</TableCell>
                       <TableCell className="text-right">${(d.avgInc / 1000).toFixed(0)}K</TableCell>
                       <TableCell className="text-right text-muted-foreground">{(d.filers / 1e6).toFixed(1)}M</TableCell>
-                      <TableCell className="text-right text-red-600">+{fmtDollar(d.vatBurden)}</TableCell>
-                      <TableCell className={`text-right ${d.lvtBurden > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      <TableCell className="text-right text-[#c27040]">+{fmtDollar(d.vatBurden)}</TableCell>
+                      <TableCell className={`text-right ${d.lvtBurden > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                         {d.lvtBurden > 0 ? '+' : ''}{fmtDollar(d.lvtBurden)}
                       </TableCell>
-                      <TableCell className={`text-right ${d.carbonNet > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      <TableCell className={`text-right ${d.carbonNet > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                         {d.carbonNet > 0 ? '+' : ''}{fmtDollar(d.carbonNet)}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-emerald-600 bg-green-50">
+                      <TableCell className="text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                         −{fmtDollar(d.prebate)}
                       </TableCell>
-                      <TableCell className="text-right text-emerald-600">−{fmtDollar(d.amcfBenefit)}</TableCell>
+                      <TableCell className="text-right text-[#307ca6]">−{fmtDollar(d.amcfBenefit)}</TableCell>
                       {showPSU && (
-                        <TableCell className="text-right font-bold text-emerald-600 bg-green-50">
+                        <TableCell className="text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                           −{fmtDollar(d.psuDividend)}
                         </TableCell>
                       )}
                       {showPSU && (
-                        <TableCell className="text-right text-emerald-600 bg-emerald-50">
+                        <TableCell className="text-right text-[#307ca6] bg-[#307ca6]/10">
                           −{fmtDollar(d.psuCashout)}
                         </TableCell>
                       )}
-                      <TableCell className={`text-right font-bold bg-blue-50 ${delta < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <TableCell className={`text-right font-bold bg-blue-50 ${delta < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                         {delta < 0 ? '−' : '+'}{fmtDollar(Math.abs(delta))}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
@@ -681,9 +681,9 @@ export default function DistributionalImpact() {
                       </TableCell>
                       <TableCell className="text-center font-bold text-[11px]">
                         {better
-                          ? <span className="text-emerald-600">✓ Better</span>
+                          ? <span className="text-[#307ca6]">✓ Better</span>
                           : delta > 100
-                            ? <span className="text-red-600">✗ Worse</span>
+                            ? <span className="text-[#c27040]">✗ Worse</span>
                             : <span className="text-muted-foreground">≈ Neutral</span>}
                       </TableCell>
                     </TableRow>
@@ -693,7 +693,7 @@ export default function DistributionalImpact() {
             </Table>
           </div>
           {showPSU && (
-            <InfoBox className="mt-3 bg-green-50 text-emerald-800 border-emerald-200">
+            <InfoBox className="mt-3 bg-[#307ca6]/10 text-[#307ca6] border-[#307ca6]/30">
               <strong>PSU Div:</strong> Annual income from held stakes — Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed) + Tier 2 phantom-equity fund dividends + Tier 3 PSU dividends at 3.5% yield (Tier 3 value appreciates at 7.5%/yr after Year 5 ramp). &nbsp;
               <strong>Cashout (ann.):</strong> Wealth transfer when worker changes jobs — PSU/phantom equity redeemed at FMV, annualized as value ÷ average tenure (4.1 yr). Tier 1 sectoral fund is portable (no cashout event).
             </InfoBox>
@@ -782,10 +782,10 @@ export default function DistributionalImpact() {
             {/* Results */}
             <div>
               {/* Net change banner */}
-              <Card className={`mb-5 ${calcNetChange >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+              <Card className={`mb-5 ${calcNetChange >= 0 ? 'border-[#307ca6]/30 bg-[#307ca6]/10' : 'border-[#c27040]/30 bg-[#c27040]/10'}`}>
                 <CardContent className="py-5 px-6">
                   <p className="text-sm text-foreground mb-1">Under the American Ownership Accord, your household would be:</p>
-                  <p className={`text-[32px] font-extrabold ${calcNetChange >= 0 ? 'text-emerald-800' : 'text-red-900'}`}>
+                  <p className={`text-[32px] font-extrabold ${calcNetChange >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                     {calcNetChange >= 0 ? '▲ ' : '▼ '}
                     {fmtDollar(Math.abs(Math.round(calcNetChange)))} per year
                   </p>
@@ -800,7 +800,7 @@ export default function DistributionalImpact() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { title: 'Current System', burden: calcResults.cur, color: '#1D4ED8', bgClass: 'bg-blue-50 border-blue-200' },
-                  { title: 'American Ownership Accord', burden: calcResults.acc, color: '#065F46', bgClass: 'bg-emerald-50 border-emerald-200' },
+                  { title: 'American Ownership Accord', burden: calcResults.acc, color: '#1f5d7e', bgClass: 'bg-[#307ca6]/10 border-[#307ca6]/30' },
                 ].map(({ title, burden, color, bgClass }) => (
                   <Card key={title} className={bgClass}>
                     <CardContent className="p-4">
@@ -808,7 +808,7 @@ export default function DistributionalImpact() {
                       {Object.entries(burden.breakdown).map(([k, v]) => (
                         <div key={k} className="flex justify-between mb-1.5 text-xs">
                           <span className="text-foreground">{k}</span>
-                          <span className={`font-semibold ${v < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className={`font-semibold ${v < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                             {v < 0 ? '−' : '+'}${Math.abs(Math.round(v)).toLocaleString()}
                           </span>
                         </div>
@@ -845,7 +845,7 @@ export default function DistributionalImpact() {
       <InfoBox className="mt-12">
         <strong className="text-foreground">Methodology:</strong>{' '}
         Bracket data: IRS Statistics of Income 2024 estimates (15 brackets, 162M filers). Effective current-law rates calibrated to IRS SOI.
-        Accord parameters (base): VAT 4% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
+        Accord parameters (base): VAT 3% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
         carbon $100/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~$1,212/person/yr);
         $5,000/person/yr universal prebate; AMCF equity dividend from National Balance Sheet validated equity trajectory.
         Worker equity (three-tier): Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed); Tier 2 phantom equity ($25K–$100K/worker) via sectoral fund contributions;

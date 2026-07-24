@@ -100,7 +100,7 @@ const QUINTILES = [
     psuEquil:  30000,  // more small/exempt firms
     prebateSaveRate: 0.05,
     consumeRatio: 0.92,
-    color: '#EF4444',
+    color: '#c27040',
   },
   {
     label: '2nd Quintile', shortLabel: 'Q2',
@@ -120,7 +120,7 @@ const QUINTILES = [
     psuEquil:  65000,
     prebateSaveRate: 0.12,
     consumeRatio: 0.75,
-    color: '#10B981',
+    color: '#307ca6',
   },
   {
     label: '4th Quintile', shortLabel: 'Q4',
@@ -143,6 +143,57 @@ const QUINTILES = [
     color: '#8B5CF6',
   },
 ];
+
+// ─── Current Retirees: Year-1 Impact ──────────────────────────────────────────
+// Households already retired at Accord Year 1 receive the universal transfers (prebate,
+// carbon dividend, Year-1 AMCF citizen grant) and pay the 3% VAT, but accumulate no new
+// career equity. Income tax keeps current-law Social Security taxability but applies the
+// Accord's $30K standard deduction and 25% bracket. Single-filer basis; 1.6-person household.
+const RETIREE_HHSZ    = 1.6;
+const RETIREE_CONSUME = 0.90;  // retirees spend ~90% of income
+const CARBON_DIVIDEND = 843;   // $/person/yr (80% of carbon revenue, equal per capita)
+const AMCF_GRANT_YR1  = 64;    // Year-1 universal AMCF citizen grant per person
+
+// Current-law Social Security taxability (single filer, IRS provisional-income rule)
+function taxableSS(ss, withdrawal) {
+  const combined = withdrawal + 0.5 * ss;
+  if (combined <= 25000) return 0;
+  if (combined <= 34000) return Math.min(0.5 * ss, 0.5 * (combined - 25000));
+  return Math.min(0.85 * ss, 0.85 * (combined - 34000) + Math.min(0.5 * ss, 4500));
+}
+// Current-law single brackets (2024) after the $14,600 standard deduction
+function clIncomeTax(taxable) {
+  let t = taxable - 14600; if (t <= 0) return 0;
+  const bands = [[11600, 0.10], [47150, 0.12], [100525, 0.22], [191950, 0.24]];
+  let tax = 0, lo = 0;
+  for (const [hi, r] of bands) { if (t > lo) tax += (Math.min(t, hi) - lo) * r; lo = hi; }
+  if (t > 191950) tax += (t - 191950) * 0.32;
+  return tax;
+}
+// Accord two-rate: $30K standard deduction (single), 25% to $1M, 50% above
+function accordIncomeTax(taxable) {
+  const t = Math.max(0, taxable - 30000);
+  return t <= 1e6 ? t * 0.25 : 1e6 * 0.25 + (t - 1e6) * 0.50;
+}
+function currentRetiree(q, income) {
+  const ss = q.ssBenefit, withdrawal = Math.max(0, income - ss);
+  const taxable = taxableSS(ss, withdrawal) + withdrawal;
+  const incTaxChange = accordIncomeTax(taxable) - clIncomeTax(taxable); // + = pays more
+  const cons = income * RETIREE_CONSUME;
+  const vat  = 0.03 * cons;
+  const transfers = (PREBATE_REDIRECTED + CARBON_DIVIDEND + AMCF_GRANT_YR1) * RETIREE_HHSZ;
+  const carbonTax = (7 + cons / 9000) * 100;             // retiree footprint (below working-age avg)
+  const netCarbon = Math.max(0, carbonTax - CARBON_DIVIDEND * RETIREE_HHSZ);
+  const net = transfers - vat - incTaxChange - netCarbon;
+  return {
+    income: Math.round(income),
+    transfers: Math.round(transfers),
+    vat: Math.round(vat),
+    incTaxChange: Math.round(incTaxChange),
+    net: Math.round(net),
+    netPct: income > 0 ? net / income : 0,
+  };
+}
 
 // ─── Core Simulation ─────────────────────────────────────────────────────────
 
@@ -182,7 +233,7 @@ function runSimulation() {
         psuBal = psuTarget;
 
         // Net prebate/VAT benefit (individual: $6,250 prebate per person)
-        const netFiscal    = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
+        const netFiscal    = Math.max(0, PREBATE_REDIRECTED - 0.03 * q.consumeRatio * salary);
         const prebateSave  = netFiscal * q.prebateSaveRate;
 
         // AMCF grant accumulates at deterministic fund return (not market)
@@ -214,7 +265,7 @@ function runSimulation() {
       const psuDiv    = d_psu * PSU_DIV;
       d_psu    = psuTarget;
       d_psuDiv = (d_psuDiv  + psuDiv) * (1 + MEAN_RET);
-      const netFiscal  = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
+      const netFiscal  = Math.max(0, PREBATE_REDIRECTED - 0.03 * q.consumeRatio * salary);
       d_prebate = (d_prebate + netFiscal * q.prebateSaveRate) * (1 + MEAN_RET);
       d_amcf   = (d_amcf   + amcfGrant(y)) * (1 + AMCF_RET);
     }
@@ -249,6 +300,7 @@ function runSimulation() {
       acc_annualIncome: Math.round(acc_annualIncome),
       n50k_c, n50k_a, n250k_c, n250k_a,
       decompAccord,
+      retiree: currentRetiree(q, cur_annualIncome),
     };
   });
 
@@ -263,12 +315,12 @@ function runSimulation() {
 
 // ─── Colors ──────────────────────────────────────────────────────────────────
 
-const ACCORD_GREEN  = '#065F46';
+const ACCORD_GREEN  = '#1f5d7e';
 const CURRENT_BLUE  = '#1D4ED8';
 const DECOMP_COLORS = {
   '401(k) / Savings':     '#93C5FD',
-  'AMCF Account':         '#10B981',
-  'PSU (Equity + Div)':   '#059669',
+  'AMCF Account':         '#307ca6',
+  'PSU (Equity + Div)':   '#307ca6',
   'Prebate Savings':      '#FBBF24',
 };
 
@@ -299,15 +351,17 @@ export default function RetirementSecurity() {
   const improvement = 1 - natBelow250k_a / natBelow250k_c;
   const q1Improvement = Math.round((results[0].acc_p50 / results[0].cur_p50 - 1) * 100);
 
+  const retireeData = results.map(r => ({ name: r.shortLabel, 'Net Year-1 benefit': r.retiree.net }));
+
   return (
     <PageShell>
       {/* Header */}
-      <div className="border-l-4 border-emerald-500 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">Retirement Security</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           A worker entering the workforce today will accumulate {q1Improvement}% more retirement wealth
           under the Accord than the current system — with a universal AMCF floor that eliminates the
           retirement savings crisis for the bottom 40%.
@@ -379,12 +433,50 @@ export default function RetirementSecurity() {
         P25-P75 range shown above. Monte Carlo variance driven by annual return distribution (sigma=16%). AMCF balance is deterministic (doesn't vary with market) — this is why Accord P25 is dramatically higher than current P25 for lower quintiles.
       </p>
 
+      {/* Current Retirees — Year 1 Impact */}
+      <div className="mt-12 rounded-lg border border-[#307ca6]/30 bg-[#307ca6]/5 p-4">
+        <h3 className="text-sm font-bold text-[#307ca6]">Current Retirees — Year 1 Impact</h3>
+        <p className="text-sm text-[#307ca6] font-semibold mt-1.5">
+          Already-retired households are better off in the Accord's very first year — by{' '}
+          {fmtK(results[4].retiree.net)}–{fmtK(results[0].retiree.net)}/yr — without accumulating any new career equity.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+          Today's retirees receive the universal prebate, carbon dividend, and Year-1 AMCF citizen grant, and pay the 3% VAT.
+          Income tax retains current-law Social Security taxability but applies the Accord's $30K standard deduction and 25% rate —
+          so lower- and middle-income retirees owe $0 (often a cut). Assumes a 1.6-person retiree household; income = Social
+          Security plus a 4% draw on existing savings.
+        </p>
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mt-4">
+          {results.map(r => (
+            <Card key={r.shortLabel}>
+              <CardContent className="py-2.5 px-3">
+                <p className="text-[11px] font-bold mb-0.5" style={{ color: r.color }}>{r.shortLabel}</p>
+                <p className="text-[10px] text-muted-foreground">income {fmtK(r.retiree.income)}</p>
+                <p className="text-base font-bold text-[#307ca6]">+{fmtK(r.retiree.net)}</p>
+                <p className="text-[10px] text-muted-foreground">{(r.retiree.netPct * 100).toFixed(0)}% of income</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="mt-4">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={retireeData} margin={{ top: 6, right: 24, left: 16, bottom: 6 }}>
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="name" tick={CHART_AXIS.tick} />
+              <YAxis tickFormatter={fmtK} tick={CHART_AXIS.tick} width={64} />
+              <Tooltip content={<BarTooltip />} />
+              <Bar dataKey="Net Year-1 benefit" fill={ACCORD_GREEN} radius={[3,3,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* Chart 2: Accord Wealth Components (Stacked) */}
       <ChartContainer
         className="mt-12"
         title="Accord Retirement Wealth — What's In It"
         subtitle="Stacked components at median return (5% real). AMCF is equal for every quintile — the most egalitarian element. PSU equity and dividends scale modestly with firm size."
-        source="AMCF: childhood account (~$15K at 18) + 45 years of adult grants growing from $800/yr to $25K+/yr as AMCF scales (Sim 6 validated, uncapped), compounding at 5% real. PSU equity + dividends: worker phantom equity builds to $30K-$95K over 5 years; dividends reinvested at market rate. Prebate: $5,000/person/year less 4% VAT on consumption (New Accord rate); fraction saved."
+        source="AMCF: childhood account (~$15K at 18) + 45 years of adult grants growing from $800/yr to $25K+/yr as AMCF scales (Sim 6 validated, uncapped), compounding at 5% real. PSU equity + dividends: worker phantom equity builds to $30K-$95K over 5 years; dividends reinvested at market rate. Prebate: $6,250/person/year less 3% VAT on consumption (New Accord rate); fraction saved."
         height={320}
       >
         <BarChart data={decompData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
@@ -445,7 +537,7 @@ export default function RetirementSecurity() {
                     <TableCell className="font-semibold" style={{ color: r.color }}>{r.label}</TableCell>
                     <TableCell style={{ color: CURRENT_BLUE }}>{fmtK(r.cur_p50)}</TableCell>
                     <TableCell className="font-semibold" style={{ color: ACCORD_GREEN }}>{fmtK(r.acc_p50)}</TableCell>
-                    <TableCell className="font-semibold" style={{ color: '#059669' }}>+{fmtK(gain)} ({Math.round((r.acc_p50/r.cur_p50 - 1)*100)}%)</TableCell>
+                    <TableCell className="font-semibold" style={{ color: '#307ca6' }}>+{fmtK(gain)} ({Math.round((r.acc_p50/r.cur_p50 - 1)*100)}%)</TableCell>
                     <TableCell style={{ color: CURRENT_BLUE }}>{fmtPct(r.n250k_c)}</TableCell>
                     <TableCell style={{ color: ACCORD_GREEN }}>{fmtPct(r.n250k_a)}</TableCell>
                     <TableCell>{fmtK(r.cur_annualIncome)}/yr</TableCell>
@@ -457,7 +549,7 @@ export default function RetirementSecurity() {
                 <TableCell>National Average</TableCell>
                 <TableCell style={{ color: CURRENT_BLUE }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_p50,0)/results.length))}</TableCell>
                 <TableCell style={{ color: ACCORD_GREEN }}>{fmtK(Math.round(results.reduce((s,r)=>s+r.acc_p50,0)/results.length))}</TableCell>
-                <TableCell style={{ color: '#059669' }}>+{Math.round((results.reduce((s,r)=>s+r.acc_p50,0)/results.reduce((s,r)=>s+r.cur_p50,0) - 1)*100)}%</TableCell>
+                <TableCell style={{ color: '#307ca6' }}>+{Math.round((results.reduce((s,r)=>s+r.acc_p50,0)/results.reduce((s,r)=>s+r.cur_p50,0) - 1)*100)}%</TableCell>
                 <TableCell style={{ color: CURRENT_BLUE }}>{fmtPct(natBelow250k_c)}</TableCell>
                 <TableCell style={{ color: ACCORD_GREEN }}>{fmtPct(natBelow250k_a)}</TableCell>
                 <TableCell>{fmtK(Math.round(results.reduce((s,r)=>s+r.cur_annualIncome,0)/results.length))}/yr</TableCell>
@@ -469,10 +561,10 @@ export default function RetirementSecurity() {
       </div>
 
       {/* Key Insight Box */}
-      <Card className="mt-8 bg-emerald-50/50 border-emerald-200/50">
+      <Card className="mt-8 bg-[#307ca6]/5 border-[#307ca6]/20">
         <CardContent className="pt-5 pb-4 px-5">
-          <p className="font-semibold text-emerald-800 mb-2">The Universal Floor</p>
-          <p className="text-sm text-emerald-900/80 leading-relaxed">
+          <p className="font-semibold text-[#307ca6] mb-2">The Universal Floor</p>
+          <p className="text-sm text-[#307ca6]/80 leading-relaxed">
             The AMCF citizen grant program creates a retirement wealth floor that is <em>independent of market performance</em>.
             Every worker who enters the workforce today will accumulate approximately{' '}
             <strong>{fmtK(Math.round(results[0].decompAccord['AMCF Account']))}</strong> in their AMCF account by retirement —
@@ -493,7 +585,7 @@ export default function RetirementSecurity() {
         Accord additions: per-person AMCF grants ($500-$800 floor Yrs 1-9, then growing uncapped: $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 per Sim 6) compounding at 5% real
         from childhood account; worker PSU equity building to $30K-$95K equilibrium over 5 years paying 3.5% dividends
         (psuEquil values represent employment-weighted average across Tier 1 sectoral fund, Tier 2 phantom equity, and Tier 3 PSU per quintile distribution);
-        net prebate-minus-VAT (4% New Accord rate) fiscal benefit saved at income-appropriate rates.
+        net prebate-minus-VAT (3% New Accord rate) fiscal benefit saved at income-appropriate rates.
         All values in 2024 real (inflation-adjusted) dollars. BLS age-earnings profiles applied.
       </InfoBox>
     </PageShell>

@@ -217,7 +217,7 @@ function runSimulation(params) {
         }
 
         // Prebate net savings
-        const netFiscal = Math.max(0, PREBATE_REDIRECTED - 0.04 * q.consumeRatio * salary);
+        const netFiscal = Math.max(0, PREBATE_REDIRECTED - 0.03 * q.consumeRatio * salary);
         prebSav = (prebSav + netFiscal * q.prebateSaveRate) * (1 + ret);
 
         // ── Current system: 401(k) + personal savings ──
@@ -305,7 +305,7 @@ const WealthTooltip = ({ active, payload, label }) => {
   return (
     <div style={TOOLTIP_STYLE}>
       <p style={{ fontWeight: 700, marginBottom: 8 }}>Age {label}</p>
-      {acc && <p style={{ color: '#a7f3d0' }}>Accord median: {fmtK(acc.value)}</p>}
+      {acc && <p style={{ color: '#a9cde0' }}>Accord median: {fmtK(acc.value)}</p>}
       {cur && <p style={{ color: '#93c5fd' }}>Current median: {fmtK(cur.value)}</p>}
     </div>
   );
@@ -339,12 +339,12 @@ export default function GenerationalWealth() {
   return (
     <PageShell>
       {/* ── Header ── */}
-      <div className="border-l-4 border-emerald-500 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">Lifetime Wealth</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           A child born today into a {qLabel.toLowerCase()} household accumulates{' '}
           {fmtK(medAt65Acc)} by age 65 under the Accord — {improvement}% more than the{' '}
           {fmtK(medAt65Cur)} median under the current system.
@@ -469,11 +469,11 @@ export default function GenerationalWealth() {
 
           {/* Accord: P25 base + band */}
           <Area type="monotone" dataKey="acc_p25"  stackId="acc" fill="transparent" stroke="none" legendType="none" name="acc_base" />
-          <Area type="monotone" dataKey="acc_band"  stackId="acc" fill="#A7F3D0" fillOpacity={0.5} stroke="none" name="Accord P25-P75 range" />
+          <Area type="monotone" dataKey="acc_band"  stackId="acc" fill="#a9cde0" fillOpacity={0.5} stroke="none" name="Accord P25-P75 range" />
 
           {/* Median lines */}
           <Line type="monotone" dataKey="cur_p50" stroke="#1D4ED8" strokeWidth={2.5} dot={false} name="Current system (median)" />
-          <Line type="monotone" dataKey="acc_p50" stroke="#065F46" strokeWidth={2.5} dot={false} name="Accord (median)" />
+          <Line type="monotone" dataKey="acc_p50" stroke="#1f5d7e" strokeWidth={2.5} dot={false} name="Accord (median)" />
         </ComposedChart>
       </ChartContainer>
 
@@ -487,7 +487,7 @@ export default function GenerationalWealth() {
                 <TableHead>Age</TableHead>
                 <TableHead>Milestone</TableHead>
                 <TableHead className="text-blue-700">Current System (Median)</TableHead>
-                <TableHead className="text-emerald-800">Accord (Median)</TableHead>
+                <TableHead className="text-[#307ca6]">Accord (Median)</TableHead>
                 <TableHead>Accord Advantage</TableHead>
                 <TableHead>Accord P25-P75</TableHead>
               </TableRow>
@@ -501,8 +501,8 @@ export default function GenerationalWealth() {
                     <TableCell className="font-bold">{row.age}</TableCell>
                     <TableCell>{milestones[i]}</TableCell>
                     <TableCell className="text-blue-700">{fmtK(row.cur_p50)}</TableCell>
-                    <TableCell className="text-emerald-800 font-semibold">{fmtK(row.acc_p50)}</TableCell>
-                    <TableCell className={`font-semibold ${adv >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <TableCell className="text-[#307ca6] font-semibold">{fmtK(row.acc_p50)}</TableCell>
+                    <TableCell className={`font-semibold ${adv >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                       {adv >= 0 ? '+' : ''}{fmtK(adv)}
                     </TableCell>
                     <TableCell className="text-xs">
@@ -528,7 +528,7 @@ export default function GenerationalWealth() {
                 <TableRow className="bg-muted/50">
                   <TableHead>Threshold</TableHead>
                   <TableHead className="text-blue-700">Current</TableHead>
-                  <TableHead className="text-emerald-800">Accord</TableHead>
+                  <TableHead className="text-[#307ca6]">Accord</TableHead>
                   <TableHead>Improvement</TableHead>
                 </TableRow>
               </TableHeader>
@@ -539,8 +539,8 @@ export default function GenerationalWealth() {
                     <TableRow key={i}>
                       <TableCell className="font-semibold">{fmtK(row.threshold)}</TableCell>
                       <TableCell className="text-blue-700">{fmtPct(row.cur)}</TableCell>
-                      <TableCell className="text-emerald-800 font-semibold">{fmtPct(row.acc)}</TableCell>
-                      <TableCell className="text-emerald-600 font-semibold">+{Math.round(imp * 100)}pp</TableCell>
+                      <TableCell className="text-[#307ca6] font-semibold">{fmtPct(row.acc)}</TableCell>
+                      <TableCell className="text-[#307ca6] font-semibold">+{Math.round(imp * 100)}pp</TableCell>
                     </TableRow>
                   );
                 })}
@@ -572,8 +572,8 @@ export default function GenerationalWealth() {
                 itemStyle={{ color: '#fafafa' }}
                 labelStyle={{ color: '#fafafa', fontWeight: 600 }}
               />
-              <Bar dataKey="pct" name="Share of paths" fill="#10B981" radius={[2, 2, 0, 0]} />
-              <ReferenceLine x={fmtK(amcfAt18Median)} stroke="#065F46" strokeDasharray="4 3" />
+              <Bar dataKey="pct" name="Share of paths" fill="#307ca6" radius={[2, 2, 0, 0]} />
+              <ReferenceLine x={fmtK(amcfAt18Median)} stroke="#1f5d7e" strokeDasharray="4 3" />
             </BarChart>
           </ResponsiveContainer>
           <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
@@ -596,7 +596,7 @@ export default function GenerationalWealth() {
         at each change, PSU cashed out at FMV and reinvested. Employer type drawn at each job from quintile-specific
         distribution (large/mid/exempt firms per Census Statistics of US Businesses).
         AMCF grows at the same annual return as household portfolio (AMCF holds passive equity).
-        Prebate net savings = max(0, $6,250 - 4% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
+        Prebate net savings = max(0, $6,250 - 3% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
         Current system: 401(k) at quintile participation rate (9% combined, slider-adjustable) + minimal personal savings.
         All values in 2024 real dollars.
       </InfoBox>

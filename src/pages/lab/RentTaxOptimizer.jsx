@@ -291,7 +291,7 @@ const PACKAGES = [
   {
     id: "zero-vat",
     name: "Zero VAT",
-    color: "#16a34a",
+    color: "#307ca6",
     desc: "VAT fully eliminated. With no homeowner exemption, LVT alone raises ~$940B at 10%, so zero VAT is comfortably feasible. Watch out-years: carbon self-liquidates and suppressed land growth (elasticity 0.7) means LVT grows slower than GDP.",
     rates: { vatRate: 0,    lvtRate: 0.11, carbonRate: 165, fslBps: 50, fttPct: 0.20, royaltyExtraPct: 12, spectrumPct: 3,   waterFeeAF: 50 },
   },
@@ -412,7 +412,7 @@ export default function RentTaxOptimizer() {
 
   const deltaColor = (cur, cmp) => {
     if (typeof cur !== "number" || typeof cmp !== "number") return "text-muted-foreground";
-    return cur <= cmp ? "text-green-600" : "text-red-600";
+    return cur <= cmp ? "text-[#307ca6]" : "text-[#c27040]";
   };
   const deltaStr = (cur, cmp) => {
     if (typeof cur !== "number" || typeof cmp !== "number") return "\u2014";
@@ -423,12 +423,12 @@ export default function RentTaxOptimizer() {
   return (
     <PageShell>
       {/* Header */}
-      <div className="border-l-4 border-emerald-600 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">Rent Tax Optimizer</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           Replace regressive VAT revenue with economically non-distortionary rent taxes
           on land, carbon, financial rents, and natural resources.
         </p>
@@ -451,7 +451,7 @@ export default function RentTaxOptimizer() {
 
           {/* Feasibility banner */}
           {zeroVatFeasible ? (
-            <div className="bg-green-50 border border-green-600 rounded-lg px-4 py-3 text-sm text-green-900 leading-relaxed mt-6">
+            <div className="bg-[#307ca6]/10 border border-[#307ca6] rounded-lg px-4 py-3 text-sm text-[#307ca6] leading-relaxed mt-6">
               <strong>Zero VAT is feasible.</strong> Rent taxes generate {fmtT(yr1.total)}, covering the {fmtT(BASELINE_TOTAL)} baseline
               (VAT + LVT) with {fmtT(-gap)} surplus. Warning: carbon revenue declines ~45% by Year 25 as emissions fall —
               plan for LVT rate increases of ~0.4%/yr starting around Year 15 to offset this.
@@ -472,11 +472,11 @@ export default function RentTaxOptimizer() {
               <h3 className="text-sm font-semibold text-foreground mb-4 pb-2 border-b">Year 1 Revenue vs Baseline</h3>
               <div className="grid grid-cols-5 gap-3 mb-4">
                 {[
-                  { label: "LVT",                 v: yr1.lvt,                    c: "#16a34a" },
+                  { label: "LVT",                 v: yr1.lvt,                    c: "#307ca6" },
                   { label: "Carbon Tax",           v: yr1.carbon,                 c: "#f59e0b" },
                   { label: "FSL + FTT",            v: yr1.fsl + yr1.ftt,          c: "#3b82f6" },
                   { label: "Royalties + Other",    v: yr1.royal + yr1.spec + yr1.water + yr1.fixed, c: "#6b7280" },
-                  { label: "Total Rent Taxes",     v: yr1.total, c: zeroVatFeasible ? "#16a34a" : "#2563eb" },
+                  { label: "Total Rent Taxes",     v: yr1.total, c: zeroVatFeasible ? "#307ca6" : "#2563eb" },
                 ].map(item => (
                   <div key={item.label} className="text-center p-2 rounded-lg" style={{ background: item.c + "10" }}>
                     <div className="text-[17px] font-bold" style={{ color: item.c }}>{fmtT(item.v)}</div>
@@ -499,7 +499,7 @@ export default function RentTaxOptimizer() {
                     className="h-full rounded"
                     style={{
                       width: `${Math.min(100, (yr1.total / BASELINE_TOTAL) * 100)}%`,
-                      background: zeroVatFeasible ? "#16a34a" : "#3b82f6",
+                      background: zeroVatFeasible ? "#307ca6" : "#3b82f6",
                     }}
                   />
                   <span className="absolute left-1/2 top-[2px] -translate-x-1/2 text-[10px] text-white font-semibold">
@@ -536,7 +536,7 @@ export default function RentTaxOptimizer() {
           </div>
 
           {/* Land Value Model — exemption removal & prebate redirect */}
-          <Card className="mt-6 border-emerald-300">
+          <Card className="mt-6 border-[#307ca6]/40">
             <CardContent>
               <h3 className="text-sm font-semibold text-foreground mb-1 pb-2 border-b">
                 Land Value Model — Homeowner Exemption & Prebate Redirect
@@ -547,8 +547,8 @@ export default function RentTaxOptimizer() {
               </p>
 
               <div className="grid grid-cols-3 gap-3 mb-5">
-                <div className="text-center p-2 rounded-lg bg-emerald-50">
-                  <div className="text-[17px] font-bold text-emerald-700">{fmtB(exemptComp.withoutExemption)}</div>
+                <div className="text-center p-2 rounded-lg bg-[#307ca6]/10">
+                  <div className="text-[17px] font-bold text-[#307ca6]">{fmtB(exemptComp.withoutExemption)}</div>
                   <div className="text-[10px] text-muted-foreground mt-1">LVT, no exemption (default)</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted/40">
@@ -561,7 +561,7 @@ export default function RentTaxOptimizer() {
                 </div>
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 text-[12px] text-emerald-900 mb-5">
+              <div className="bg-[#307ca6]/10 border border-[#307ca6]/30 rounded-lg px-4 py-2.5 text-[12px] text-[#307ca6] mb-5">
                 Redirected to the prebate: <strong>${PREBATE_BASE.toLocaleString()}</strong> base
                 + <strong>${Math.round(exemptComp.prebatePerCapitaBump).toLocaleString()}</strong> redirect
                 = <strong>${Math.round(PREBATE_BASE + exemptComp.prebatePerCapitaBump).toLocaleString()}/person/yr</strong>,
@@ -574,7 +574,7 @@ export default function RentTaxOptimizer() {
                   <Button
                     variant={r.lvtExemption > 0 ? "default" : "outline"}
                     size="sm"
-                    className={`text-xs font-semibold ${r.lvtExemption > 0 ? "bg-emerald-800 hover:bg-emerald-900" : ""}`}
+                    className={`text-xs font-semibold ${r.lvtExemption > 0 ? "bg-[#307ca6] hover:bg-[#307ca6]" : ""}`}
                     onClick={() => upd("lvtExemption", r.lvtExemption > 0 ? 0 : EXEMPTION_AMOUNT)}
                   >
                     {r.lvtExemption > 0 ? "✓ Exemption On (prebate $5,000)" : "Exemption Off — redirect (default)"}
@@ -759,9 +759,9 @@ export default function RentTaxOptimizer() {
               <YAxis tick={CHART_AXIS.tick} tickFormatter={v => `$${v}B`} />
               <CartesianGrid {...CHART_GRID} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={v => `$${v}B`} labelFormatter={v => `LVT ${v}%`} />
-              <ReferenceLine x={3} stroke="#dc2626" strokeDasharray="4 2"
-                label={{ value: "Base 3%", fill: "#dc2626", fontSize: 10, position: "top" }} />
-              <Bar dataKey="rev" fill="#16a34a" name="LVT Revenue" />
+              <ReferenceLine x={3} stroke="#c27040" strokeDasharray="4 2"
+                label={{ value: "Base 3%", fill: "#c27040", fontSize: 10, position: "top" }} />
+              <Bar dataKey="rev" fill="#307ca6" name="LVT Revenue" />
             </BarChart>
           </ChartContainer>
 
@@ -775,11 +775,11 @@ export default function RentTaxOptimizer() {
               <YAxis tick={CHART_AXIS.tick} tickFormatter={v => `$${v}B`} />
               <CartesianGrid {...CHART_GRID} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [`$${v}B`, n]} labelFormatter={v => `$${v}/ton CO\u2082`} />
-              <ReferenceLine x={165} stroke="#dc2626" strokeDasharray="4 2"
-                label={{ value: "Laffer Peak", fill: "#dc2626", fontSize: 10, position: "top" }} />
+              <ReferenceLine x={165} stroke="#c27040" strokeDasharray="4 2"
+                label={{ value: "Laffer Peak", fill: "#c27040", fontSize: 10, position: "top" }} />
               <Line type="monotone" dataKey="yr1"  stroke="#f59e0b" name="Year 1"  strokeWidth={2.5} dot={false} />
               <Line type="monotone" dataKey="yr10" stroke="#f97316" name="Year 10" strokeWidth={1.5} dot={false} strokeDasharray="5 3" />
-              <Line type="monotone" dataKey="yr25" stroke="#dc2626" name="Year 25" strokeWidth={1.5} dot={false} strokeDasharray="2 3" />
+              <Line type="monotone" dataKey="yr25" stroke="#c27040" name="Year 25" strokeWidth={1.5} dot={false} strokeDasharray="2 3" />
               <Legend />
             </ComposedChart>
           </ChartContainer>
@@ -928,8 +928,8 @@ export default function RentTaxOptimizer() {
               <YAxis tick={CHART_AXIS.tick} tickFormatter={v => `$${v}T`} />
               <CartesianGrid {...CHART_GRID} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [`$${v}T`, n]} />
-              <Area type="monotone" dataKey="vatRevT"    stackId="a" fill="#dc262620" stroke="#dc2626" name="VAT" />
-              <Area type="monotone" dataKey="lvtRevT"    stackId="a" fill="#16a34a20" stroke="#16a34a" name="LVT" />
+              <Area type="monotone" dataKey="vatRevT"    stackId="a" fill="#c2704020" stroke="#c27040" name="VAT" />
+              <Area type="monotone" dataKey="lvtRevT"    stackId="a" fill="#307ca620" stroke="#307ca6" name="LVT" />
               <Area type="monotone" dataKey="carbonRevT" stackId="a" fill="#f59e0b20" stroke="#f59e0b" name="Carbon Tax" />
               <Area type="monotone" dataKey="stableRevT" stackId="a" fill="#3b82f620" stroke="#3b82f6" name="Other Rent Taxes" />
               <Legend />
@@ -956,22 +956,22 @@ export default function RentTaxOptimizer() {
                       <TableRow key={yr} className={row.brakeActive ? "bg-orange-50" : ""}>
                         <TableCell className="text-right font-bold text-[11px]">{yr}</TableCell>
                         <TableCell className="text-right text-[11px]">${row.nomGdp}T</TableCell>
-                        <TableCell className="text-right text-green-600 font-semibold text-[11px]">${row.amcfEquity}T</TableCell>
+                        <TableCell className="text-right text-[#307ca6] font-semibold text-[11px]">${row.amcfEquity}T</TableCell>
                         <TableCell className={`text-right text-[11px] ${row.amcfOwnerPct >= 20 ? "text-violet-600" : ""}`}>{row.amcfOwnerPct}%</TableCell>
-                        <TableCell className="text-right text-red-600 text-[11px]">${row.grossDebt}T</TableCell>
-                        <TableCell className={`text-right text-[11px] ${row.debtToGdp > 150 ? "text-red-600" : row.debtToGdp < 100 ? "text-green-600" : ""}`}>{row.debtToGdp}%</TableCell>
-                        <TableCell className={`text-right font-semibold text-[11px] ${row.deficit < 0 ? "text-green-600" : "text-red-600"}`}>
+                        <TableCell className="text-right text-[#c27040] text-[11px]">${row.grossDebt}T</TableCell>
+                        <TableCell className={`text-right text-[11px] ${row.debtToGdp > 150 ? "text-[#c27040]" : row.debtToGdp < 100 ? "text-[#307ca6]" : ""}`}>{row.debtToGdp}%</TableCell>
+                        <TableCell className={`text-right font-semibold text-[11px] ${row.deficit < 0 ? "text-[#307ca6]" : "text-[#c27040]"}`}>
                           {row.deficit < 0 ? `($${Math.abs(row.deficit).toFixed(2)}T)` : `$${row.deficit}T`}
                         </TableCell>
                         <TableCell className="text-right text-violet-600 text-[11px]">
                           ${row.amcfCashT}T <span className="text-muted-foreground text-[10px]">({row.combinedYield}%)</span>
                         </TableCell>
                         <TableCell className="text-right text-cyan-600 text-[11px]">${row.healthcareT}T</TableCell>
-                        <TableCell className={`text-right text-[11px] ${row.brakeActive ? "text-muted-foreground" : "text-green-600"}`}>
+                        <TableCell className={`text-right text-[11px] ${row.brakeActive ? "text-muted-foreground" : "text-[#307ca6]"}`}>
                           {row.brakeActive ? "\u2014" : `$${row.discretionaryT}T`}
                         </TableCell>
                         <TableCell className="text-right text-[11px]">${Number(row.grantsPerCap).toLocaleString()}</TableCell>
-                        <TableCell className={`text-right text-[10px] font-semibold ${row.brakeActive ? "text-red-600" : "text-green-600"}`}>
+                        <TableCell className={`text-right text-[10px] font-semibold ${row.brakeActive ? "text-[#c27040]" : "text-[#307ca6]"}`}>
                           {row.brakeActive ? "ACTIVE" : "off"}
                         </TableCell>
                       </TableRow>
@@ -1017,7 +1017,7 @@ export default function RentTaxOptimizer() {
                         <TableCell>{(pkg.rates.lvtRate * 100).toFixed(0)}%</TableCell>
                         <TableCell>${pkg.rates.carbonRate}/t</TableCell>
                         <TableCell className="font-semibold">{fmtT(pkg.yr1.total)}</TableCell>
-                        <TableCell className={`font-semibold ${rv < 0.005 ? "text-green-600" : "text-red-600"}`}>
+                        <TableCell className={`font-semibold ${rv < 0.005 ? "text-[#307ca6]" : "text-[#c27040]"}`}>
                           {rv < 0.005 ? "\u2713 None needed" : `${(rv * 100).toFixed(1)}%`}
                         </TableCell>
                         <TableCell className="font-bold">

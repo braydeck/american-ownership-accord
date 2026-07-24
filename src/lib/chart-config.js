@@ -24,12 +24,12 @@ export const CHART_LEGEND = {
 };
 
 export const SEMANTIC_COLORS = {
-  accord: '#059669',
-  accordLight: '#a7f3d0',
+  accord: '#307ca6',
+  accordLight: '#a9cde0',
   currentLaw: '#3b82f6',
   currentLawLight: '#bfdbfe',
-  debt: '#ef4444',
-  debtLight: '#fecaca',
+  debt: '#c27040',
+  debtLight: '#e3bda6',
   neutral: '#94a3b8',
   amcf: '#8b5cf6',
   credits: '#f59e0b',

@@ -51,6 +51,8 @@ Every American is a citizen-owner of the Accord's outputs: a $6,250/person CPI-i
 
 **If you're a child born today:** $44,000 AMCF custodial account at age 18. ~$72,000 by age 25 — enough for a 20% down payment on an NHC home. Retirement inadequacy falls to 0.0% across every quintile.
 
+**If you're already retired:** You keep Social Security in full and gain the universal prebate, carbon dividend, and AMCF citizen grant on top of it. In Year 1 you are better off by roughly $4,650 (top quintile) to $10,700 (bottom quintile) — a +5% to +51% boost to income — even though you accumulate no new career equity. Social Security keeps its current-law tax treatment, but the Accord's $30,000 standard deduction means most retirees owe no federal income tax (the middle quintile gets a small cut), so the new transfers reach you nearly undiluted.
+
 ## **Key Metrics**
 
 | Metric | Value |

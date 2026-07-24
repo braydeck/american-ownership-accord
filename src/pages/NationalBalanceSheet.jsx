@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY } from '@/lib/land';
+import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
 import { useUrlValue, useUrlState } from '@/lib/url-state';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,7 +33,7 @@ const BASE_PARAMS = {
   growthTaxRate:          0.20,
   equityExciseRate:       0.04,
   creditCapFrac:          0.20,
-  vatRate:                0.04,
+  vatRate:                0.03,
   lvtRate:                0.10,
   // Land Value Tax — bottom-up capitalized model (src/lib/land.js). Default scenario:
   // NO homeowner exemption, with the recovered revenue redirected into the prebate.
@@ -41,6 +42,14 @@ const BASE_PARAMS = {
   lvtGroundRentYield:     0.04,          // i — capitalization discount
   lvtLandElasticity:      LAND_GROWTH_ELASTICITY, // land-base growth vs nominal GDP (0.7 = suppressed)
   lvtAssessmentBasis:     'capitalized', // 'capitalized' | 'preTax'
+  // Individual income tax — two-bracket bottom-up model (src/lib/income-tax.js):
+  // a single/joint standard deduction, lowRate up to the threshold, highRate above it.
+  incomeTaxLow:           INCOME_TAX_DEFAULTS.lowRate,
+  incomeTaxHigh:          INCOME_TAX_DEFAULTS.highRate,
+  incomeTaxThreshold:     INCOME_TAX_DEFAULTS.threshold,
+  incomeTaxExemptSingle:  INCOME_TAX_DEFAULTS.exemptSingle,
+  incomeTaxExemptJoint:   INCOME_TAX_DEFAULTS.exemptJoint,
+  incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop, // 0.15 Accord / 0.30 conventional
   carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
   stableTaxFrac:          0.0076, // FTT + FSL + royalties + spectrum + water (% of GDP)
   prebatePerCapita:       PREBATE_REDIRECTED, // $6,250 — base $5,000 + redirected exemption revenue
@@ -127,6 +136,19 @@ const PARAM_SECTIONS = [
       { key: "stableTaxFrac",        label: "Stable Taxes (% GDP)",   min: 0,      max: 0.02,  step: 0.001,   fmt: v => `${(v*100).toFixed(2)}%` },
       { key: "prebatePerCapita",     label: "Prebate / Capita / Yr",  min: 1000,   max: 10000, step: 250,     fmt: v => `$${v.toLocaleString()}` },
       { key: "grantPhaseMultiplier", label: "Grant Phase Multiplier", min: 0.5,    max: 2.0,   step: 0.1,     fmt: v => `${v.toFixed(1)}x` },
+    ],
+  },
+  {
+    title: "Income Tax (two-bracket)",
+    open: false,
+    note: "Lower rate up to the threshold, upper rate above it. Standard deduction is blended per bracket by joint-filer share (jFrac). The ETI damps the top base as effective rates rise: 0.15 ≈ Accord (loopholes closed), 0.30 ≈ conventional.",
+    params: [
+      { key: "incomeTaxLow",          label: "Lower Marginal Rate",   min: 0.10, max: 0.40, step: 0.01,    fmt: v => `${(v*100).toFixed(0)}%` },
+      { key: "incomeTaxHigh",         label: "Upper Marginal Rate",   min: 0.30, max: 0.70, step: 0.01,    fmt: v => `${(v*100).toFixed(0)}%` },
+      { key: "incomeTaxThreshold",    label: "Upper-Rate Threshold",  min: 0.25e6, max: 5e6, step: 0.25e6, fmt: v => `$${(v/1e6).toFixed(2)}M` },
+      { key: "incomeTaxExemptSingle", label: "Deduction (single)",    min: 0,    max: 100000, step: 5000,   fmt: v => `$${(v/1000).toFixed(0)}K` },
+      { key: "incomeTaxExemptJoint",  label: "Deduction (joint)",     min: 0,    max: 200000, step: 5000,   fmt: v => `$${(v/1000).toFixed(0)}K` },
+      { key: "incomeTaxEtiTop",       label: "Top-Bracket ETI",       min: 0,    max: 0.50,   step: 0.05,   fmt: v => v.toFixed(2) },
     ],
   },
   {
@@ -266,7 +288,15 @@ function runFiscalSimulation(p) {
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
     const payrollFix = nominalGdp * 0.008;
     const capGainsTax = nominalGdp * 0.012;
-    const incomeTax = nominalGdp * 0.078;
+    const incomeTax = incomeTaxRevForFiscal({
+      nominalGdp,
+      lowRate: p.incomeTaxLow,
+      highRate: p.incomeTaxHigh,
+      threshold: p.incomeTaxThreshold,
+      exemptSingle: p.incomeTaxExemptSingle,
+      exemptJoint: p.incomeTaxExemptJoint,
+      etiTop: p.incomeTaxEtiTop,
+    });
     const payrollTax = nominalGdp * 0.054;
     const otherTax = nominalGdp * 0.010;
     const totalRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax + incomeTax + payrollTax + otherTax;
@@ -416,16 +446,16 @@ function exportCSV(rows) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const C = {
-  accord:       "#16a34a",
-  accordLight:  "#86efac",
+  accord:       "#307ca6",
+  accordLight:  "#a9cde0",
   currentLaw:   "#2563eb",
-  debt:         "#dc2626",
+  debt:         "#c27040",
   amcf:         "#7c3aed",
   amcfLight:    "#c4b5fd",
   credits:      "#d97706",
   creditsLight: "#fde68a",
   netPos:       "#0891b2",
-  grants:       "#059669",
+  grants:       "#307ca6",
   compare:      "#0891b2",
 };
 
@@ -599,8 +629,8 @@ function RevenueChart({ rows, compareRows }) {
         <Bar dataKey="Income Tax" stackId="rev" fill="#60a5fa" />
         <Bar dataKey="Payroll Tax" stackId="rev" fill="#93c5fd" />
         <Bar dataKey="VAT (gross)" stackId="rev" fill={C.accordLight} />
-        <Bar dataKey="LVT" stackId="rev" fill="#4ade80" />
-        <Bar dataKey="Payroll Fix" stackId="rev" fill="#86efac" />
+        <Bar dataKey="LVT" stackId="rev" fill="#307ca6" />
+        <Bar dataKey="Payroll Fix" stackId="rev" fill="#a9cde0" />
         <Bar dataKey="Cap. Gains + Other" stackId="rev" fill="#a3e635" />
         <Line dataKey="Total Revenue" stroke={C.accord} strokeWidth={2.5} dot={false} />
         <Line dataKey="Total Outlays" stroke={C.debt} strokeWidth={2.5} dot={false} />
@@ -635,7 +665,7 @@ function CreditsChart({ rows, compareRows }) {
         <Area dataKey="Credit Balance" stroke={C.credits} fill={C.creditsLight} strokeWidth={2} />
         {compareRows && <Line dataKey="Compare Credit Bal." stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
         <Bar dataKey="Credits Generated" fill="#fbbf24" stackId="flow" />
-        <Bar dataKey="Credits Used" fill="#4ade80" stackId="used" />
+        <Bar dataKey="Credits Used" fill="#307ca6" stackId="used" />
         <Line dataKey="AMCF Net Scrip" stroke={C.amcf} strokeWidth={2} dot={false} />
       </ComposedChart>
     </ChartContainer>
@@ -657,12 +687,12 @@ function SensitivityTable({ data }) {
 
   const cellColor = (base, test, dir) => {
     if (base == null && test == null) return undefined;
-    if (test == null && base != null) return dir === "lower" ? "bg-red-50" : "bg-green-50";
-    if (base == null && test != null) return dir === "lower" ? "bg-green-50" : "bg-red-50";
+    if (test == null && base != null) return dir === "lower" ? "bg-[#c27040]/10" : "bg-[#307ca6]/10";
+    if (base == null && test != null) return dir === "lower" ? "bg-[#307ca6]/10" : "bg-[#c27040]/10";
     const diff = test - base;
     if (Math.abs(diff) <= 1) return undefined;
     const better = dir === "lower" ? diff < 0 : diff > 0;
-    return better ? "bg-green-50" : "bg-red-50";
+    return better ? "bg-[#307ca6]/10" : "bg-[#c27040]/10";
   };
 
   return (
@@ -734,6 +764,9 @@ function ParameterPanel({ params, setParam }) {
             {section.title}
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-3 px-1 space-y-1">
+            {section.note && (
+              <p className="text-[10px] text-muted-foreground mb-2 leading-snug">{section.note}</p>
+            )}
             {section.params.map(pc => (
               <SliderControl
                 key={pc.key}
@@ -830,12 +863,12 @@ export default function FiscalTrajectorySimulator() {
   return (
     <PageShell className="max-w-6xl">
       {/* Header */}
-      <div className="border-l-4 border-emerald-600 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">National Balance Sheet</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           35-year forward projection of federal fiscal trajectory under the Accord
         </p>
         <p className="text-sm text-muted-foreground mt-1 mb-6">
@@ -1001,7 +1034,7 @@ export default function FiscalTrajectorySimulator() {
                       const r = rows[yr - 1];
                       if (!r) return null;
                       return (
-                        <TableRow key={yr} className={r.solventBrakeActive ? "bg-orange-50" : "bg-green-50/50"}>
+                        <TableRow key={yr} className={r.solventBrakeActive ? "bg-orange-50" : "bg-[#307ca6]/5"}>
                           <TableCell className="text-right font-semibold">{yr}</TableCell>
                           <TableCell className="text-right">${r.nominalGdp}T</TableCell>
                           <TableCell className="text-right font-semibold" style={{ color: C.amcf }}>${r.amcfEquity}T</TableCell>

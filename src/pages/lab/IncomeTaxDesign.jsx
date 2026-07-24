@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_REDIRECTED } from '@/lib/land';
+import { bracketIncomeTax } from '@/lib/income-tax';
 import { useUrlValue } from '@/lib/url-state';
 
 // BRACKET DATA, carbon, and net-LVT burden are shared via @/lib/brackets and the
@@ -194,7 +195,7 @@ const PREBATE_PER_PERSON = PREBATE_REDIRECTED;
 
 // ============================================================
 // AMCF CASH FLOW  (dynamic — floats with equity × payout yield)
-// Anchor points from Sim-6 validated base case (LVT 10% + VAT 4%)
+// Anchor points from Sim-6 validated base case (LVT 10% + VAT 3%)
 // ============================================================
 const AMCF_EQUITY_ANCHORS = [
   [1, 0.6e12], [6, 5.2e12], [10, 12.0e12], [15, 27.1e12],
@@ -260,17 +261,13 @@ function computePriorAccordIncomeTaxDelta(avgInc, cgShare) {
 function computeRevenue(mR, tR, stdS, stdJ, etiM, etiT) {
   let total = 0;
   const details = BRACKETS.map(b => {
-    const avgInc = b.agi / b.filers;
-    const sd = b.jFrac * stdJ + (1 - b.jFrac) * stdS;
-    const midBase = Math.max(0, Math.min(avgInc, 1e6) - sd);
-    const topBase = Math.max(0, avgInc - 1e6);
-    const rawPerFiler = mR * midBase + tR * topBase;
-    const eff = rawPerFiler / Math.max(avgInc, 1);
-    const eti = avgInc > 1e6 ? etiT : etiM;
-    const bFactor = Math.pow(Math.max(0.10, 1 - eff) / Math.max(0.10, 1 - b.effCL), eti);
-    const adj = rawPerFiler * b.filers * bFactor;
+    const { meanAgi, sd, rawPerFiler, eff, bFactor, perFiler } = bracketIncomeTax(b, {
+      lowRate: mR, highRate: tR, threshold: 1e6,
+      exemptSingle: stdS, exemptJoint: stdJ, etiMid: etiM, etiTop: etiT,
+    });
+    const adj = perFiler * b.filers;
     total += adj;
-    return { ...b, avgInc, sd, rawPerFiler, eff, bFactor, adj };
+    return { ...b, avgInc: meanAgi, sd, rawPerFiler, eff, bFactor, adj };
   });
   return { total, details };
 }
@@ -287,16 +284,12 @@ function computeAccordDistrib(mR, tR, stdS, stdJ, vatRate, lvtRate, etiM, etiT, 
     const clTax = b.effCL * avgInc;
 
     // New income tax (ETI-adjusted per filer)
-    const sd = b.jFrac * stdJ + (1 - b.jFrac) * stdS;
-    const midBase = Math.max(0, Math.min(avgInc, 1e6) - sd);
-    const topBase = Math.max(0, avgInc - 1e6);
-    const rawNewTax = mR * midBase + tR * topBase;
-    const eff = rawNewTax / Math.max(avgInc, 1);
-    const eti = avgInc > 1e6 ? etiT : etiM;
-    const bFactor = Math.pow(Math.max(0.10, 1 - eff) / Math.max(0.10, 1 - b.effCL), eti);
-    const newTax = rawNewTax * bFactor;
+    const newTax = bracketIncomeTax(b, {
+      lowRate: mR, highRate: tR, threshold: 1e6,
+      exemptSingle: stdS, exemptJoint: stdJ, etiMid: etiM, etiTop: etiT,
+    }).perFiler;
 
-    // VAT burden (Accord 4%, Prior Accord 10%)
+    // VAT burden (Accord 3%, Prior Accord 10%)
     const vatNew = vatRate * b.cRat * avgInc;
     const vatPrior = 0.10 * b.cRat * avgInc;
 
@@ -396,7 +389,7 @@ export default function IncomeTaxSimulation() {
   const [topRate, setTopRate] = useUrlValue('top', 0.50);
   const [etiScenario, setEtiScenario] = useUrlValue('eti', 'low');
   const [stdS, setStdS] = useUrlValue('std', 30000);
-  const [vatRate, setVatRate] = useUrlValue('vat', 0.04);
+  const [vatRate, setVatRate] = useUrlValue('vat', 0.03);
   const [lvtRate, setLvtRate] = useUrlValue('lvt', 0.10);
   const [cgScenario, setCgScenario] = useUrlValue('cg', 'unified');
   const [snapshotYear, setSnapshotYear] = useUrlValue('yr', 10);
@@ -482,12 +475,12 @@ export default function IncomeTaxSimulation() {
   return (
     <PageShell>
       {/* Header */}
-      <div className="border-l-4 border-emerald-600 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">Income Tax Design</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           Zero-deduction two-rate income tax with unified capital gains
         </p>
         <p className="text-sm text-muted-foreground mt-1 mb-6">
@@ -609,7 +602,7 @@ export default function IncomeTaxSimulation() {
               <Bar dataKey="clRev" name="Current Law" fill="#d1d5db" radius={[3, 3, 0, 0]} />
               <Bar dataKey="newRev" name="New Two-Rate" radius={[3, 3, 0, 0]}>
                 {revenue.details.map((d, i) => (
-                  <Cell key={i} fill={d.avgInc > 1e6 ? '#dc2626' : d.avgInc > 5e4 ? '#2563eb' : '#60a5fa'} />
+                  <Cell key={i} fill={d.avgInc > 1e6 ? '#c27040' : d.avgInc > 5e4 ? '#2563eb' : '#60a5fa'} />
                 ))}
               </Bar>
             </BarChart>
@@ -655,7 +648,7 @@ export default function IncomeTaxSimulation() {
                       <TableRow key={k} className={hi ? 'bg-blue-50' : ''}>
                         <TableCell className={hi ? 'font-bold' : ''}>{k}</TableCell>
                         <TableCell className="font-bold">{fmt(rev, 2)}</TableCell>
-                        <TableCell className={`text-xs ${vs > 0 ? 'text-emerald-600' : vs < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                        <TableCell className={`text-xs ${vs > 0 ? 'text-[#307ca6]' : vs < 0 ? 'text-[#c27040]' : 'text-muted-foreground'}`}>
                           {vs > 0 ? '+' : ''}{vs !== 0 ? fmt(vs, 2) : '\u2014'}
                         </TableCell>
                       </TableRow>
@@ -663,7 +656,7 @@ export default function IncomeTaxSimulation() {
                   </TableBody>
                 </Table>
                 <InfoBox className="mt-4 bg-amber-50 border-amber-200 text-amber-900">
-                  Revenue increases monotonically across the tested range. Laffer peak at ~83% (ETI=0.20). Sweet spot 25/50 chosen for distributional fairness — $75–200K bracket stays better off vs prior Accord when VAT cut (10%{'\u2192'}4%) is included.
+                  Revenue increases monotonically across the tested range. Laffer peak at ~83% (ETI=0.20). Sweet spot 25/50 chosen for distributional fairness — $75–200K bracket stays better off vs prior Accord when VAT cut (10%{'\u2192'}3%) is included.
                 </InfoBox>
               </CardContent>
             </Card>
@@ -784,22 +777,22 @@ export default function IncomeTaxSimulation() {
                           <td className="px-2 py-1.5 text-muted-foreground">{(d.filers / 1e6).toFixed(1)}M</td>
                           {/* Marginal rates */}
                           <td className="px-2 py-1.5 text-right bg-muted/30">{fmtPct(clMarginal)}</td>
-                          <td className={`px-2 py-1.5 text-right font-bold bg-muted/30 ${newMarginal < clMarginal ? 'text-emerald-600' : newMarginal > clMarginal ? 'text-red-600' : 'text-foreground'}`}>
+                          <td className={`px-2 py-1.5 text-right font-bold bg-muted/30 ${newMarginal < clMarginal ? 'text-[#307ca6]' : newMarginal > clMarginal ? 'text-[#c27040]' : 'text-foreground'}`}>
                             {fmtPct(newMarginal)}
                           </td>
-                          <td className={`px-2 py-1.5 text-right font-bold bg-muted/30 ${marginalDelta < 0 ? 'text-emerald-600' : marginalDelta > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          <td className={`px-2 py-1.5 text-right font-bold bg-muted/30 ${marginalDelta < 0 ? 'text-[#307ca6]' : marginalDelta > 0 ? 'text-[#c27040]' : 'text-muted-foreground'}`}>
                             {marginalDelta > 0 ? '+' : ''}{fmtPct(marginalDelta)}
                           </td>
                           {/* Effective rates */}
                           <td className="px-2 py-1.5 text-right bg-blue-50">{fmtPct(d.effCL)}</td>
-                          <td className={`px-2 py-1.5 text-right font-bold bg-blue-50 ${d.eff > d.effCL ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <td className={`px-2 py-1.5 text-right font-bold bg-blue-50 ${d.eff > d.effCL ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                             {fmtPct(d.eff)}
                           </td>
-                          <td className={`px-2 py-1.5 text-right font-bold bg-blue-50 ${effectiveDelta > 0.005 ? 'text-red-600' : effectiveDelta < -0.005 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                          <td className={`px-2 py-1.5 text-right font-bold bg-blue-50 ${effectiveDelta > 0.005 ? 'text-[#c27040]' : effectiveDelta < -0.005 ? 'text-[#307ca6]' : 'text-muted-foreground'}`}>
                             {effectiveDelta > 0 ? '+' : ''}{fmtPct(effectiveDelta)}
                           </td>
                           {/* Tax delta */}
-                          <td className={`px-2 py-1.5 text-right font-bold ${delta > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <td className={`px-2 py-1.5 text-right font-bold ${delta > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                             {delta > 0 ? '+' : ''}{fmt(delta, 0)}
                           </td>
                           <td className="px-2 py-1.5 text-right text-muted-foreground">{d.bFactor.toFixed(3)}</td>
@@ -807,9 +800,9 @@ export default function IncomeTaxSimulation() {
                             {paradox
                               ? <span className="text-amber-600 font-bold">{'⚠ Marginal\u2193 Effective\u2191'}</span>
                               : delta < -100
-                                ? <span className="text-emerald-600 font-bold">Lower bill</span>
+                                ? <span className="text-[#307ca6] font-bold">Lower bill</span>
                                 : delta > 500
-                                  ? <span className="text-red-600 font-bold">Higher bill</span>
+                                  ? <span className="text-[#c27040] font-bold">Higher bill</span>
                                   : <span className="text-muted-foreground">{'\u2248'} Same</span>}
                           </td>
                         </tr>
@@ -868,7 +861,7 @@ export default function IncomeTaxSimulation() {
                   />
                 </div>
                 {/* AMCF stats derived from equity × combined yield — not a free parameter */}
-                <div className="px-3.5 py-2 bg-emerald-50 rounded-lg border border-emerald-200 text-xs leading-relaxed">
+                <div className="px-3.5 py-2 bg-[#307ca6]/10 rounded-lg border border-[#307ca6]/30 text-xs leading-relaxed">
                   <strong>AMCF at Year {snapshotYear}</strong><br />
                   Equity: <strong>{fmt(amcfEquity, 1)}</strong><br />
                   Yield: <strong>{fmtPct(amcfYield)}</strong> (3.63%{'\u2192'}6.0% by Yr 15)<br />
@@ -880,7 +873,7 @@ export default function IncomeTaxSimulation() {
                   <Button
                     variant={showPSU ? 'default' : 'outline'}
                     onClick={() => setShowPSU(s => !s)}
-                    className={showPSU ? 'bg-emerald-900 hover:bg-emerald-800' : ''}
+                    className={showPSU ? 'bg-[#307ca6] hover:bg-[#307ca6]' : ''}
                   >
                     {showPSU ? '\u2713 Equity On' : 'Equity Off'}
                   </Button>
@@ -910,8 +903,8 @@ export default function IncomeTaxSimulation() {
                     <tr className="bg-[#374151] text-white">
                       <th className="px-2.5 py-2 text-left font-bold">Bracket</th>
                       <th className="px-2.5 py-2 text-right font-bold">Avg Income</th>
-                      {showPSU && <th className="px-2.5 py-2 text-right font-bold bg-emerald-900">PSU Div</th>}
-                      {showPSU && <th className="px-2.5 py-2 text-right font-bold bg-emerald-800">Cashout (ann.)</th>}
+                      {showPSU && <th className="px-2.5 py-2 text-right font-bold bg-[#307ca6]">PSU Div</th>}
+                      {showPSU && <th className="px-2.5 py-2 text-right font-bold bg-[#307ca6]">Cashout (ann.)</th>}
                       <th className="px-2.5 py-2 text-right font-bold bg-[#4b5563]">Prior Accord {'\u0394'} vs CL</th>
                       <th className="px-2.5 py-2 text-right font-bold bg-[#1e3a5f]">New Accord {'\u0394'} vs CL</th>
                       <th className="px-2.5 py-2 text-right font-bold bg-[#1a5276]">New vs Prior</th>
@@ -922,8 +915,8 @@ export default function IncomeTaxSimulation() {
                     {distribDisplay.map((d, i) => {
                       const betterVsPrior = d.deltaNewVsPrior < -100;
                       const worseVsPrior  = d.deltaNewVsPrior >  100;
-                      const bg = betterVsPrior ? (i%2===0 ? 'bg-emerald-50' : 'bg-emerald-50/80')
-                               : worseVsPrior  ? (i%2===0 ? 'bg-red-50' : 'bg-red-50')
+                      const bg = betterVsPrior ? (i%2===0 ? 'bg-[#307ca6]/10' : 'bg-[#307ca6]/10')
+                               : worseVsPrior  ? (i%2===0 ? 'bg-[#c27040]/10' : 'bg-[#c27040]/10')
                                : (i%2===0 ? 'bg-white' : 'bg-muted/30');
                       const dPrior = d.deltaPriorWithPSU;
                       const dNew   = d.deltaWithPSU;
@@ -932,31 +925,31 @@ export default function IncomeTaxSimulation() {
                           <td className="px-2.5 py-1.5 font-bold text-[#1e3a5f]">{d.label}</td>
                           <td className="px-2.5 py-1.5 text-right text-muted-foreground">${(d.avgInc/1000).toFixed(0)}K</td>
                           {showPSU && (
-                            <td className="px-2.5 py-1.5 text-right font-bold text-emerald-600 bg-emerald-50">
+                            <td className="px-2.5 py-1.5 text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                               {'\u2212'}{fmt(d.psuDividend, 0)}
                             </td>
                           )}
                           {showPSU && (
-                            <td className="px-2.5 py-1.5 text-right font-bold text-emerald-600 bg-emerald-50/80">
+                            <td className="px-2.5 py-1.5 text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                               {'\u2212'}{fmt(d.psuCashout, 0)}
                             </td>
                           )}
-                          <td className={`px-2.5 py-1.5 text-right font-semibold bg-muted/30 ${dPrior < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <td className={`px-2.5 py-1.5 text-right font-semibold bg-muted/30 ${dPrior < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                             {dPrior < 0 ? '\u2212' : '+'}{fmt(Math.abs(dPrior), 0)}
                             <span className="text-[10px] text-muted-foreground ml-1">({dPrior < 0 ? '\u2212' : '+'}{Math.abs(d.deltaPriorPct).toFixed(1)}%)</span>
                           </td>
-                          <td className={`px-2.5 py-1.5 text-right font-bold bg-blue-50/50 ${dNew < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <td className={`px-2.5 py-1.5 text-right font-bold bg-blue-50/50 ${dNew < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                             {dNew < 0 ? '\u2212' : '+'}{fmt(Math.abs(dNew), 0)}
                             <span className="text-[10px] text-muted-foreground ml-1">({dNew < 0 ? '\u2212' : '+'}{Math.abs(d.deltaPct).toFixed(1)}%)</span>
                           </td>
-                          <td className={`px-2.5 py-1.5 text-right font-bold bg-violet-50/50 ${d.deltaNewVsPrior < 0 ? 'text-emerald-600' : d.deltaNewVsPrior > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                          <td className={`px-2.5 py-1.5 text-right font-bold bg-violet-50/50 ${d.deltaNewVsPrior < 0 ? 'text-[#307ca6]' : d.deltaNewVsPrior > 0 ? 'text-[#c27040]' : 'text-muted-foreground'}`}>
                             {d.deltaNewVsPrior < 0 ? '\u2212' : d.deltaNewVsPrior > 0 ? '+' : ''}{fmt(Math.abs(d.deltaNewVsPrior), 0)}
                           </td>
                           <td className="px-2.5 py-1.5 text-center font-bold text-xs">
                             {betterVsPrior
-                              ? <span className="text-emerald-600">{'\u2713'} New better</span>
+                              ? <span className="text-[#307ca6]">{'\u2713'} New better</span>
                               : worseVsPrior
-                                ? <span className="text-red-600">{'\u2717'} Prior better</span>
+                                ? <span className="text-[#c27040]">{'\u2717'} Prior better</span>
                                 : <span className="text-muted-foreground">{'\u2248'} Similar</span>}
                           </td>
                         </tr>
@@ -966,7 +959,7 @@ export default function IncomeTaxSimulation() {
                 </table>
               </div>
               {showPSU && (
-                <InfoBox className="mt-3 bg-emerald-50 border-emerald-200 text-emerald-900">
+                <InfoBox className="mt-3 bg-[#307ca6]/10 border-[#307ca6]/30 text-[#307ca6]">
                   Worker equity is identical in both Accord designs — shifts both "Prior {'\u0394'}" and "New {'\u0394'}" equally, so "New vs Prior" is unaffected by the toggle. <strong>PSU Div:</strong> annual income from held stakes (Tier 1 sectoral fund dividends + Tier 2 phantom-equity fund dividends + Tier 3 PSU dividends at 3.5% yield). Tier 3 PSU values appreciate at 7.5%/yr after Year 5 ramp. <strong>Cashout (ann.):</strong> wealth event when worker changes jobs — PSU/phantom equity redeemed at FMV (7.5% appreciation over ~4.1-year avg tenure), annualized as value {'\u00F7'} tenure. This is a wealth transfer, not take-home pay — typically reinvested or used for a down payment. Tier 1 sectoral fund is portable: no cashout event.
                 </InfoBox>
               )}
@@ -1001,7 +994,7 @@ export default function IncomeTaxSimulation() {
                       ].map((h, i) => (
                         <th key={i} className={`px-2 py-2 text-[11px] font-bold ${i > 2 ? 'text-right' : 'text-left'}`}
                           style={{
-                            background: h === 'Prebate' ? '#14532d' : h === 'PSU Div' ? '#14532d' : h === 'Cashout (ann.)' ? '#166534' : h === 'NET \u0394 vs CL' ? '#1a5276' : undefined,
+                            background: h === 'Prebate' ? '#1a4d68' : h === 'PSU Div' ? '#1a4d68' : h === 'Cashout (ann.)' ? '#1f5d7e' : h === 'NET \u0394 vs CL' ? '#1a5276' : undefined,
                           }}>
                           {h}
                         </th>
@@ -1013,8 +1006,8 @@ export default function IncomeTaxSimulation() {
                       const incTaxDelta = d.newTax - d.clTax;
                       const warn = d.avgInc > 75000 && d.avgInc < 250000 && !d.betterOff;
                       const bg = d.betterOff
-                        ? i % 2 === 0 ? 'bg-emerald-50' : 'bg-emerald-50/80'
-                        : warn ? 'bg-yellow-100' : 'bg-red-50';
+                        ? i % 2 === 0 ? 'bg-[#307ca6]/10' : 'bg-[#307ca6]/10'
+                        : warn ? 'bg-yellow-100' : 'bg-[#c27040]/10';
                       return (
                         <tr key={i} className={`border-b border-border ${bg}`}>
                           <td className="px-2 py-1.5 font-bold text-[#1e3a5f]">{d.label}</td>
@@ -1022,46 +1015,46 @@ export default function IncomeTaxSimulation() {
                           <td className="px-1.5 py-1.5 text-right text-muted-foreground">{(d.filers / 1e6).toFixed(1)}M</td>
                           <td className="px-1.5 py-1.5 text-right text-muted-foreground">${(d.clTax / 1000).toFixed(1)}K</td>
                           <td className="px-1.5 py-1.5 text-right font-semibold">${(d.newTax / 1000).toFixed(1)}K</td>
-                          <td className={`px-1.5 py-1.5 text-right ${incTaxDelta > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <td className={`px-1.5 py-1.5 text-right ${incTaxDelta > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                             {incTaxDelta > 0 ? '+' : ''}{fmt(incTaxDelta, 0)}
                           </td>
-                          <td className="px-1.5 py-1.5 text-right text-red-600">
+                          <td className="px-1.5 py-1.5 text-right text-[#c27040]">
                             +{fmt(d.vatNew, 0)}
                           </td>
-                          <td className={`px-1.5 py-1.5 text-right ${d.lvtBurden > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <td className={`px-1.5 py-1.5 text-right ${d.lvtBurden > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                             {d.lvtBurden > 0 ? '+' : ''}{fmt(d.lvtBurden, 0)}
                           </td>
-                          <td className={`px-1.5 py-1.5 text-right ${d.carbonNet > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          <td className={`px-1.5 py-1.5 text-right ${d.carbonNet > 0 ? 'text-[#c27040]' : 'text-[#307ca6]'}`}>
                             {d.carbonNet > 0 ? '+' : ''}{fmt(d.carbonNet, 0)}
                           </td>
-                          <td className="px-1.5 py-1.5 text-right font-bold text-emerald-600 bg-emerald-50">
+                          <td className="px-1.5 py-1.5 text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                             {'\u2212'}{fmt(d.prebate, 0)}
                           </td>
-                          <td className="px-1.5 py-1.5 text-right text-emerald-600">
+                          <td className="px-1.5 py-1.5 text-right text-[#307ca6]">
                             {'\u2212'}{fmt(d.amcfBenefit, 0)}
                           </td>
                           {showPSU && (
-                            <td className="px-1.5 py-1.5 text-right font-bold text-emerald-600 bg-emerald-50">
+                            <td className="px-1.5 py-1.5 text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                               {'\u2212'}{fmt(d.psuDividend, 0)}
                             </td>
                           )}
                           {showPSU && (
-                            <td className="px-1.5 py-1.5 text-right font-bold text-emerald-600 bg-emerald-50/80">
+                            <td className="px-1.5 py-1.5 text-right font-bold text-[#307ca6] bg-[#307ca6]/10">
                               {'\u2212'}{fmt(d.psuCashout, 0)}
                             </td>
                           )}
-                          <td className={`px-2 py-1.5 text-right font-extrabold bg-blue-50/50 ${d.delta < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <td className={`px-2 py-1.5 text-right font-extrabold bg-blue-50/50 ${d.delta < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                             {d.delta < 0 ? '\u2212' : '+'}{fmt(Math.abs(d.delta), 0)}
                           </td>
-                          <td className={`px-1.5 py-1.5 text-right ${d.delta < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <td className={`px-1.5 py-1.5 text-right ${d.delta < 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
                             {d.delta < 0 ? '\u2212' : '+'}{Math.abs(d.deltaPct).toFixed(1)}%
                           </td>
                           <td className="px-2 py-1.5 text-center font-bold text-xs">
                             {d.betterOff
-                              ? <span className="text-emerald-600">{'\u2713'} Better</span>
+                              ? <span className="text-[#307ca6]">{'\u2713'} Better</span>
                               : warn
                                 ? <span className="text-amber-600">{'⚠'} Review</span>
-                                : <span className="text-red-600">{'\u2717'} Higher</span>}
+                                : <span className="text-[#c27040]">{'\u2717'} Higher</span>}
                           </td>
                         </tr>
                       );
@@ -1138,10 +1131,10 @@ export default function IncomeTaxSimulation() {
                         <TableCell className={d.s === stdS ? 'font-bold' : ''}>${d.s.toLocaleString()}{d.s === stdS ? ' \u2190' : ''}</TableCell>
                         <TableCell>${(d.s * 2).toLocaleString()}</TableCell>
                         <TableCell className="font-semibold">{fmt(d.rev, 3)}</TableCell>
-                        <TableCell className={d.rev >= CL_REVENUE ? 'text-emerald-600' : 'text-red-600'}>
+                        <TableCell className={d.rev >= CL_REVENUE ? 'text-[#307ca6]' : 'text-[#c27040]'}>
                           {d.rev >= CL_REVENUE ? '+' : ''}{fmt(d.rev - CL_REVENUE, 0)}
                         </TableCell>
-                        <TableCell className={d.rev >= base30 ? 'text-emerald-600' : 'text-red-600'}>
+                        <TableCell className={d.rev >= base30 ? 'text-[#307ca6]' : 'text-[#c27040]'}>
                           {d.rev >= base30 ? '+' : ''}{fmt(d.rev - base30, 0)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{(filersAbove / 1e6).toFixed(0)}M</TableCell>
@@ -1150,7 +1143,7 @@ export default function IncomeTaxSimulation() {
                   })}
                 </TableBody>
               </Table>
-              <InfoBox className="mt-4 bg-emerald-50 border-emerald-200 text-emerald-900">
+              <InfoBox className="mt-4 bg-[#307ca6]/10 border-[#307ca6]/30 text-[#307ca6]">
                 <strong>$30K standard deduction</strong> fully exempts households below ~median income from income tax exposure and generates +{fmt(stdSensitivity[2].rev - CL_REVENUE, 0)} vs CL. Raising to $50K costs ~{fmt(stdSensitivity[2].rev - stdSensitivity[4].rev, 0)} in revenue. Lowering to $20K raises an additional ~{fmt(stdSensitivity[0].rev - stdSensitivity[2].rev, 0)}.
               </InfoBox>
             </CardContent>
@@ -1176,7 +1169,7 @@ export default function IncomeTaxSimulation() {
                     <div className="text-sm font-bold mb-2">{sc.label}</div>
                     <div className="text-xs text-muted-foreground mb-3">{sc.note}</div>
                     <div className="text-2xl font-extrabold text-blue-600">{fmt(revenue.total + sc.extra, 2)}</div>
-                    <div className={`text-xs mt-1 ${sc.extra > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                    <div className={`text-xs mt-1 ${sc.extra > 0 ? 'text-[#307ca6]' : 'text-muted-foreground'}`}>
                       {sc.extra > 0 ? `+${fmt(sc.extra, 0)} CG premium` : 'No CG uplift'}
                     </div>
                   </button>
@@ -1209,7 +1202,7 @@ export default function IncomeTaxSimulation() {
                           <td className="px-2 py-1.5">{(rateA * 100).toFixed(0)}%</td>
                           <td className="px-2 py-1.5">{(rateB * 100).toFixed(0)}%</td>
                           <td className="px-2 py-1.5 font-bold text-blue-600">{(rateC * 100).toFixed(0)}%</td>
-                          <td className={`px-2 py-1.5 ${extraRev > 1e9 ? 'text-emerald-600' : 'text-muted-foreground'} ${extraRev > 50e9 ? 'font-bold' : ''}`}>
+                          <td className={`px-2 py-1.5 ${extraRev > 1e9 ? 'text-[#307ca6]' : 'text-muted-foreground'} ${extraRev > 50e9 ? 'font-bold' : ''}`}>
                             {extraRev > 1e9 ? `+${fmt(extraRev, 0)}` : '< $1B'}
                           </td>
                         </tr>

@@ -256,10 +256,10 @@ export default function MarketStabilization() {
           />
           <Tooltip content={<DrawdownTooltip />} />
           <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-          <ReferenceLine y={100} stroke="#10B981" strokeDasharray="4 3"
-            label={{ value: 'Pre-crash peak', position: 'right', fontSize: 10, fill: '#10B981' }} />
+          <ReferenceLine y={100} stroke="#307ca6" strokeDasharray="4 3"
+            label={{ value: 'Pre-crash peak', position: 'right', fontSize: 10, fill: '#307ca6' }} />
           <Line type="monotone" dataKey="Historical (Actual)"
-            stroke="#DC2626" strokeWidth={2} strokeDasharray="6 3" dot={false} activeDot={{ r: 4 }} />
+            stroke="#c27040" strokeWidth={2} strokeDasharray="6 3" dot={false} activeDot={{ r: 4 }} />
           <Line type="monotone" dataKey={`With AMCF (${amcfShare}% passive ownership)`}
             stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
         </LineChart>

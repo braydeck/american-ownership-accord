@@ -150,7 +150,7 @@ const GROUPS = {
 // Color palette: each group gets a color family; dark = Accord, light = current
 const PALETTE = {
   white:    { accord: '#1E40AF', current: '#93C5FD' },
-  black:    { accord: '#065F46', current: '#6EE7B7' },
+  black:    { accord: '#1f5d7e', current: '#a9cde0' },
   hispanic: { accord: '#6D28D9', current: '#C4B5FD' },
 };
 
@@ -178,8 +178,8 @@ function runSimulation() {
     const baseSave = g.income * (1 - 0.07) * g.savingsRate + g.k401Part * 0.09 * g.income;
 
     // Accord: net fiscal benefit from prebate − VAT − slight income tax increase
-    // 4% VAT on consumption, $6,250/capita prebate (unconditional)
-    const netFiscal    = Math.max(0, PREBATE_REDIRECTED * g.hhSize - 0.04 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
+    // 3% VAT on consumption, $6,250/capita prebate (unconditional)
+    const netFiscal    = Math.max(0, PREBATE_REDIRECTED * g.hhSize - 0.03 * g.consumeRatio * g.income - g.incomeTaxAdj * g.income);
     const prebateSave  = netFiscal * g.prebateSaveRate;
 
     // PSU equilibrium wealth (takes ~5 years to ramp via 4%/yr Equity Excise Tax)
@@ -305,12 +305,12 @@ function runSimulation() {
 
 const DECOMP_COLORS = {
   'Base Wealth':        '#93C5FD',
-  'AMCF Grants':        '#10B981',
-  'PSU Equity':         '#059669',
-  'PSU Dividends':      '#6EE7B7',
+  'AMCF Grants':        '#307ca6',
+  'PSU Equity':         '#307ca6',
+  'PSU Dividends':      '#a9cde0',
   'Prebate / Net VAT':  '#FBBF24',
   'Rent Savings (LVT)': '#A3E635',
-  'Stock Return Drag':  '#EF4444',
+  'Stock Return Drag':  '#c27040',
 };
 
 export default function RacialWealthGap() {
@@ -327,19 +327,19 @@ export default function RacialWealthGap() {
   return (
     <PageShell>
       {/* ── Header ── */}
-      <div className="border-l-4 border-emerald-500 pl-5">
+      <div className="border-l-4 border-[#307ca6] pl-5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
           American Ownership Accord
         </p>
         <h1 className="text-2xl font-bold tracking-tight">Racial Wealth Gap</h1>
-        <p className="text-base font-semibold text-emerald-700 mt-2">
+        <p className="text-base font-semibold text-[#307ca6] mt-2">
           The Accord's universal mechanisms narrow the white-to-Black wealth ratio
           from 6.3:1 today to {wb_accord}:1 by Year 30 — compared to {wb_current}:1 under the current system.
         </p>
         <p className="text-sm text-muted-foreground mt-1 mb-6 leading-relaxed">
           Equal per-capita AMCF grants, universal worker equity (three-tier: Tier 1 sectoral fund, Tier 2 phantom equity, Tier 3 PSU),
           and net prebate transfers disproportionately benefit Black and Hispanic households, which start with less wealth
-          and a higher consumption-to-income ratio. The New Accord (VAT 4%, LVT 10%) further amplifies rent relief for renters.
+          and a higher consumption-to-income ratio. The New Accord (VAT 3%, LVT 10%) further amplifies rent relief for renters.
           Simultaneously, the four-percent annual Equity Excise and EV Growth Tax reduce returns on existing stock portfolios — held overwhelmingly by white households.
         </p>
       </div>
@@ -384,10 +384,10 @@ export default function RacialWealthGap() {
           <YAxis domain={[1, 7]} tickFormatter={v => `${v}:1`} tick={CHART_AXIS.tick} width={50} />
           <Tooltip content={<RatioTooltip />} />
           <Legend wrapperStyle={{ fontSize: 13, paddingTop: 12 }} />
-          <ReferenceLine y={1} stroke="#10B981" strokeDasharray="4 4" label={{ value: 'Parity (1:1)', position: 'right', fontSize: 11, fill: '#10B981' }} />
+          <ReferenceLine y={1} stroke="#307ca6" strokeDasharray="4 4" label={{ value: 'Parity (1:1)', position: 'right', fontSize: 11, fill: '#307ca6' }} />
 
-          <Line dataKey="White:Black (Accord)"     stroke="#065F46" strokeWidth={2.5} dot={false} />
-          <Line dataKey="White:Black (Current)"    stroke="#6EE7B7" strokeWidth={1.5} dot={false} strokeDasharray="5 4" />
+          <Line dataKey="White:Black (Accord)"     stroke="#1f5d7e" strokeWidth={2.5} dot={false} />
+          <Line dataKey="White:Black (Current)"    stroke="#a9cde0" strokeWidth={1.5} dot={false} strokeDasharray="5 4" />
           <Line dataKey="White:Hispanic (Accord)"  stroke="#6D28D9" strokeWidth={2.5} dot={false} />
           <Line dataKey="White:Hispanic (Current)" stroke="#C4B5FD" strokeWidth={1.5} dot={false} strokeDasharray="5 4" />
         </LineChart>
@@ -422,7 +422,7 @@ export default function RacialWealthGap() {
         </p>
         <ChartContainer
           source={decompMode === 'advantage'
-            ? 'Wealth-building mechanisms only — each bar shows what the Accord adds vs. current law. AMCF grants compound at 5% real. PSU equity builds to equilibrium over 5 years (~$65K weighted average). Prebate/VAT net is positive for all groups at 4% VAT. Rent savings reflect 25% reduction in renter costs from LVT-driven housing supply expansion. The gap closes because these mechanisms deliver more absolute benefit to lower-wealth households.'
+            ? 'Wealth-building mechanisms only — each bar shows what the Accord adds vs. current law. AMCF grants compound at 5% real. PSU equity builds to equilibrium over 5 years (~$65K weighted average). Prebate/VAT net is positive for all groups at 3% VAT. Rent savings reflect 25% reduction in renter costs from LVT-driven housing supply expansion. The gap closes because these mechanisms deliver more absolute benefit to lower-wealth households.'
             : 'Blue base = current system wealth at Year 30 (starting wealth + savings compounded). Colored segments = additional Accord sources. Sum = total Accord wealth. White\'s base wealth (~$1.1M) dwarfs minority bases, illustrating the structural compounding advantage the Accord mechanisms work against.'}
           height={300}
         >
@@ -458,7 +458,7 @@ export default function RacialWealthGap() {
                 <TableHead>Group</TableHead>
                 <TableHead>Year</TableHead>
                 <TableHead className="text-blue-600">Current System</TableHead>
-                <TableHead className="text-emerald-700">Accord</TableHead>
+                <TableHead className="text-[#307ca6]">Accord</TableHead>
                 <TableHead>Accord Gain</TableHead>
                 <TableHead>
                   White:Group Ratio
@@ -490,8 +490,8 @@ export default function RacialWealthGap() {
                       </TableCell>
                       <TableCell>Year {yr}</TableCell>
                       <TableCell className="text-blue-700">{fmtK(c)}</TableCell>
-                      <TableCell className="text-emerald-700 font-semibold">{fmtK(a)}</TableCell>
-                      <TableCell className={gain >= 0 ? 'text-emerald-600' : 'text-red-600'}>+{fmtK(gain)}</TableCell>
+                      <TableCell className="text-[#307ca6] font-semibold">{fmtK(a)}</TableCell>
+                      <TableCell className={gain >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}>+{fmtK(gain)}</TableCell>
                       <TableCell>{key !== 'white' ? `${ratioC}:1 → ${ratioA}:1` : '—'}</TableCell>
                     </TableRow>
                   );
@@ -513,10 +513,10 @@ export default function RacialWealthGap() {
       <InfoBox className="mt-12">
         <strong className="text-foreground">Methodology:</strong> Deterministic annual model for representative median household of each racial group.
         Current system: base wealth compounds at asset-class-weighted real returns; savings = after-tax income × savings rate + 401(k) employer match.
-        Accord system (New Accord: VAT 4%, LVT 10%): same base with (1) 2% drag on stock return component from codetermination + EV growth tax,
+        Accord system (New Accord: VAT 3%, LVT 10%): same base with (1) 2% drag on stock return component from codetermination + EV growth tax,
         (2) AMCF citizen grants growing from $500/yr (Yr 1) to $14,784/yr (Yr 30) per capita as AMCF fund scales (Sim 6 validated, uncapped) compounding at 5% real,
         (3) worker equity building to equilibrium over 5 years — blended Tier 1 (sectoral fund $1K/yr), Tier 2 (phantom equity ~$55K), Tier 3 (4%/yr Equity Excise → 20% PSU);
-        weighted average ~$65K for eligible workers, paying 3.5% annual dividends, (4) net prebate/VAT (4% New Accord rate) fiscal transfer saved at income-appropriate rate, and
+        weighted average ~$65K for eligible workers, paying 3.5% annual dividends, (4) net prebate/VAT (3% New Accord rate) fiscal transfer saved at income-appropriate rate, and
         (5) LVT-driven rent reduction phased in over 10 years for renter households (25% maximum at full phase-in, calibrated to 10% LVT rate).
         All values in 2024 inflation-adjusted dollars. The model does not include behavioral changes (e.g., increased labor force participation),
         second-order growth effects, or healthcare cost changes — which would further benefit lower-income households.

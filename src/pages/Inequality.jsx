@@ -35,55 +35,55 @@ import { useUrlValue } from '@/lib/url-state';
 // ╚═══════════════════════════════════════════════════════════════════════════╝
 
 const DEMOS = {
-  B10:  { label:'P0–P10',   short:'B10',  color:'#ef4444',
+  B10:  { label:'P0–P10',   short:'B10',  color:'#0B3D91',
     income:14500,   nw:-2000,   incG:0.005, nwG:0.005,  accordNWG:0.005,
     hhSz:1.8,  save:0.05, ret:0.04, consume:0.98,
     taxChg:-145,   lvt:0,      homePct:0,    k401Pct:0.05, finPct:0,    bizPct:0    },
-  P10:  { label:'P10–P20',  short:'P10',  color:'#f97316',
+  P10:  { label:'P10–P20',  short:'P10',  color:'#2563C9',
     income:28000,   nw:7000,    incG:0.008, nwG:0.040,  accordNWG:0.040,
     hhSz:2.1,  save:0.05, ret:0.04, consume:0.95,
     taxChg:-1540,  lvt:200,    homePct:0.20, k401Pct:0.15, finPct:0.05, bizPct:0    },
-  P20:  { label:'P20–P30',  short:'P20',  color:'#fb923c',
+  P20:  { label:'P20–P30',  short:'P20',  color:'#4A90D9',
     income:40000,   nw:26000,   incG:0.010, nwG:0.020,  accordNWG:0.020,
     hhSz:2.2,  save:0.10, ret:0.04, consume:0.90,
     taxChg:-3400,  lvt:500,    homePct:0.35, k401Pct:0.20, finPct:0.08, bizPct:0.03 },
-  P30:  { label:'P30–P40',  short:'P30',  color:'#fbbf24',
+  P30:  { label:'P30–P40',  short:'P30',  color:'#7FBCEA',
     income:52000,   nw:58000,   incG:0.013, nwG:0.028,  accordNWG:0.028,
     hhSz:2.3,  save:0.12, ret:0.05, consume:0.87,
     taxChg:-1751,  lvt:1000,   homePct:0.45, k401Pct:0.25, finPct:0.12, bizPct:0.06 },
-  P40:  { label:'P40–P50',  short:'P40',  color:'#84cc16',
+  P40:  { label:'P40–P50',  short:'P40',  color:'#0E7C5A',
     income:64000,   nw:95000,   incG:0.013, nwG:0.030,  accordNWG:0.030,
     hhSz:2.4,  save:0.15, ret:0.05, consume:0.85,
     taxChg:-1659,  lvt:1000,   homePct:0.50, k401Pct:0.28, finPct:0.10, bizPct:0.05 },
-  P50:  { label:'P50–P60',  short:'P50',  color:'#22c55e',
+  P50:  { label:'P50–P60',  short:'P50',  color:'#2FA873',
     income:79000,   nw:148000,  incG:0.015, nwG:0.038,  accordNWG:0.038,
     hhSz:2.5,  save:0.17, ret:0.05, consume:0.82,
     taxChg:-1048,  lvt:1800,   homePct:0.52, k401Pct:0.32, finPct:0.12, bizPct:0.06 },
-  P60:  { label:'P60–P70',  short:'P60',  color:'#10b981',
+  P60:  { label:'P60–P70',  short:'P60',  color:'#69C79B',
     income:97000,   nw:228000,  incG:0.018, nwG:0.040,  accordNWG:0.040,
     hhSz:2.5,  save:0.20, ret:0.06, consume:0.80,
     taxChg:1138,   lvt:2500,   homePct:0.50, k401Pct:0.30, finPct:0.13, bizPct:0.08 },
-  P70:  { label:'P70–P80',  short:'P70',  color:'#06b6d4',
+  P70:  { label:'P70–P80',  short:'P70',  color:'#B5841E',
     income:124000,  nw:380000,  incG:0.022, nwG:0.050,  accordNWG:0.050,
     hhSz:2.5,  save:0.22, ret:0.06, consume:0.77,
     taxChg:2180,   lvt:4000,   homePct:0.47, k401Pct:0.30, finPct:0.17, bizPct:0.12 },
-  P80:  { label:'P80–P90',  short:'P80',  color:'#3b82f6',
+  P80:  { label:'P80–P90',  short:'P80',  color:'#E0A92E',
     income:186000,  nw:750000,  incG:0.028, nwG:0.058,  accordNWG:0.058,
     hhSz:2.5,  save:0.25, ret:0.06, consume:0.60,
     taxChg:6307,   lvt:7000,   homePct:0.35, k401Pct:0.25, finPct:0.25, bizPct:0.15 },
-  T10:  { label:'P90–P99',  short:'T10',  color:'#8b5cf6',
+  T10:  { label:'P90–P99',  short:'T10',  color:'#E8722A',
     income:320000,  nw:2700000, incG:0.035, nwG:0.065,  accordNWG:0.063,
     hhSz:2.3,  save:0.40, ret:0.07, consume:0.45,
     taxChg:14665,  lvt:12000,  homePct:0.25, k401Pct:0.20, finPct:0.35, bizPct:0.20 },
-  T1:   { label:'P99–P99.9',short:'T1',   color:'#ec4899',
+  T1:   { label:'P99–P99.9',short:'T1',   color:'#D33B22',
     income:1500000, nw:16700000,incG:0.045, nwG:0.075,  accordNWG:0.072, accordIncG:0.022,
     hhSz:2.1,  save:0.70, ret:0.08, consume:0.25,
     taxChg:202913, lvt:50000,  homePct:0.15, k401Pct:0.15, finPct:0.40, bizPct:0.30 },
-  BILL: { label:'Billionaires',short:'Bill',color:'#1d4ed8',
+  BILL: { label:'Billionaires',short:'Bill',color:'#AC1D1D',
     income:3e8,     nw:4.7e9,   incG:0.080, nwG:0.120,  accordIncG:0.050,
     hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,
     taxChg:83691871, lvt:5e5,  homePct:0.05, k401Pct:0.05, finPct:0.30, bizPct:0.60 },
-  ELON: { label:'Elon Musk', short:'Elon', color:'#334155',
+  ELON: { label:'Elon Musk', short:'Elon', color:'#6E0E14',
     income:1e10,    nw:2.5e11,  incG:0.150, nwG:0.150,  accordIncG:0.124,
     hhSz:1.0,  save:0.95, ret:0.12, consume:0.001,
     taxChg:2796462204, lvt:5e6, homePct:0.02, k401Pct:0.01, finPct:0.15, bizPct:0.82 },
@@ -221,7 +221,7 @@ function getInc(k, y, P) {
   if (P.has('TAX')) {
     if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P); }
     else {
-      const vatCost = 0.04 * DIST_BRACKETS[bi].cRat * base;
+      const vatCost = 0.03 * DIST_BRACKETS[bi].cRat * base;
       const lvtCost = lvtNetBr(k, y, P);
       const carbonCost = CARBON_TONS_BR[bi] * 100;
       tax = -taxAt(k) - vatCost - lvtCost - carbonCost;
@@ -507,7 +507,7 @@ const COUNTRIES = [
   { key: 'us', label: 'US Baseline', color: '#94a3b8', type: 'like',
     arch: 'Liberal market economy',
     marketInc: 0.510, dispInc: 0.490, netWorth: 0.850 },
-  { key: 'sg', label: 'Singapore', color: '#10b981', type: 'indicative',
+  { key: 'sg', label: 'Singapore', color: '#307ca6', type: 'indicative',
     arch: 'Forced individual accounts (CPF)',
     marketInc: 0.480, dispInc: 0.444, netWorth: 0.760 },
   { key: 'no', label: 'Norway', color: '#06b6d4', type: 'like',
@@ -603,7 +603,7 @@ const fD = n => {
 
 const GINI_META = [
   { key: 'dispInc', label: 'Disposable Income', color: '#f97316', group: 'income', desc: 'Post-tax, post-transfer. Dips early (prebate impact), then creeps up as top incomes compound faster than the fixed prebate.' },
-  { key: 'consCap', label: 'Consumption Capacity', color: '#22c55e', group: 'income', desc: 'Sustainable spending power. Goes up under both scenarios, but the Accord cuts the increase by ~70%. The DELTA widens every year.' },
+  { key: 'consCap', label: 'Consumption Capacity', color: '#307ca6', group: 'income', desc: 'Sustainable spending power. Goes up under both scenarios, but the Accord cuts the increase by ~70%. The DELTA widens every year.' },
   { key: 'netWorth', label: 'Net Worth', color: '#8b5cf6', group: 'wealth', desc: 'Ownership distribution. Goes DOWN under the Accord — AMCF scrip and PSU equity compress wealth inequality. The core success metric.' },
 ];
 
@@ -694,7 +694,7 @@ function OverviewTab({ P, params }) {
 
   const ccExtraLines = [
     <Line key="cl_cc_liq" dataKey="cl_consCap_liq" name="CC CL (liquid)" stroke="#94a3b8" dot={false} strokeWidth={1} strokeDasharray="3 2" />,
-    <Line key="acc_cc_liq" dataKey="acc_consCap_liq" name="CC Accord (liquid)" stroke="#22c55e" dot={false} strokeWidth={1.5} strokeDasharray="3 2" />,
+    <Line key="acc_cc_liq" dataKey="acc_consCap_liq" name="CC Accord (liquid)" stroke="#307ca6" dot={false} strokeWidth={1.5} strokeDasharray="3 2" />,
   ];
 
   return (
@@ -724,7 +724,7 @@ function OverviewTab({ P, params }) {
           </p>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(350px,1fr))] gap-4">
             {renderChart('Disposable Income Gini', '#f97316', ['dispInc'], domainFor('dispInc'))}
-            {renderChart('Consumption Capacity Gini \u2014 solid=illiquid, dashed=liquid', '#22c55e', ['consCap'], domainFor('consCap'), ccExtraLines)}
+            {renderChart('Consumption Capacity Gini \u2014 solid=illiquid, dashed=liquid', '#307ca6', ['consCap'], domainFor('consCap'), ccExtraLines)}
             {renderChart('Net Worth Gini', '#8b5cf6', ['netWorth'], domainFor('netWorth'))}
           </div>
         </CardContent>
@@ -755,7 +755,7 @@ function OverviewTab({ P, params }) {
                   <TableCell className="text-center">{c.dispInc?.toFixed(3) ?? '\u2014'}</TableCell>
                   <TableCell className="text-center">{c.netWorth?.toFixed(3) ?? '\u2014'}</TableCell>
                   <TableCell>
-                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${c.type === 'like' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${c.type === 'like' ? 'bg-[#307ca6]/15 text-[#307ca6]' : 'bg-amber-100 text-amber-800'}`}>
                       {c.type === 'like' ? 'Like-for-like' : 'Indicative'}
                     </span>
                   </TableCell>
@@ -801,14 +801,14 @@ function OverviewTab({ P, params }) {
             Step pattern reflects 13-bracket model resolution. Actual transition would be gradual.
           </p>
           {zeroYear != null && (
-            <div className="mt-3 rounded-lg bg-green-50 p-4 text-center">
-              <div className="text-[11px] font-semibold text-green-800 uppercase tracking-widest">
+            <div className="mt-3 rounded-lg bg-[#307ca6]/10 p-4 text-center">
+              <div className="text-[11px] font-semibold text-[#307ca6] uppercase tracking-widest">
                 Every American household can afford basic needs by
               </div>
-              <div className="text-[42px] font-extrabold text-green-600 font-serif">
+              <div className="text-[42px] font-extrabold text-[#307ca6] font-serif">
                 Year {zeroYear}
               </div>
-              <div className="text-xs text-green-800">
+              <div className="text-xs text-[#307ca6]">
                 Consumption capacity above ${(ccThreshold/1000).toFixed(0)}K/yr for 100% of households
               </div>
             </div>
@@ -848,7 +848,7 @@ function TablesTab({ P, params }) {
               : (k, y, pSet) => getNW(k, y, pSet).total;
             return (
               <div key={metric} className="mb-5">
-                <div className="text-xs font-bold mb-1.5" style={{ color: isCC ? '#22c55e' : '#8b5cf6' }}>{mLabel}</div>
+                <div className="text-xs font-bold mb-1.5" style={{ color: isCC ? '#307ca6' : '#8b5cf6' }}>{mLabel}</div>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -868,7 +868,7 @@ function TablesTab({ P, params }) {
                             <TableCell key={y} className="text-center text-[10px] leading-snug">
                               <div className="text-slate-400">{fD(cl)}</div>
                               <div className="font-bold text-foreground">{fD(acc)}</div>
-                              <div className={`text-[9px] font-semibold ${pctChg > 1 ? 'text-green-600' : pctChg < -1 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                              <div className={`text-[9px] font-semibold ${pctChg > 1 ? 'text-[#307ca6]' : pctChg < -1 ? 'text-[#c27040]' : 'text-muted-foreground'}`}>
                                 {pctChg > 0 ? '+' : ''}{pctChg > 500 ? 'n/a' : pctChg.toFixed(0) + '%'}
                               </div>
                             </TableCell>
@@ -922,7 +922,7 @@ function TablesTab({ P, params }) {
                             else if (sup === 'p90p50') { clV = cl.p90p50; accV = acc.p90p50; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.01; }
                             else if (sup === 'nonPosShare') { clV = cl.nonPosShare != null ? cl.nonPosShare*100 : null; accV = acc.nonPosShare != null ? acc.nonPosShare*100 : null; delta = clV != null && accV != null ? accV - clV : 0; good = delta < -0.1; }
                             const fmt = v => { if (v == null) return '\u2014'; if (sup === 'gini' || sup === 'medMean') return v.toFixed(3); if (sup === 'b50' || sup === 'nonPosShare') return v.toFixed(1)+'%'; if (sup === 'p90p50') return v.toFixed(2); return isFinite(v) ? v.toFixed(1) : '\u221e'; };
-                            const dColor = isFinite(delta) && good ? 'text-green-600' : isFinite(delta) && !good && Math.abs(delta) > 0.001 ? 'text-red-600' : 'text-muted-foreground';
+                            const dColor = isFinite(delta) && good ? 'text-[#307ca6]' : isFinite(delta) && !good && Math.abs(delta) > 0.001 ? 'text-[#c27040]' : 'text-muted-foreground';
                             return (
                               <TableCell key={y} className="text-center text-[10px] leading-snug">
                                 <span className="text-slate-400">{fmt(clV)}</span>
@@ -953,7 +953,7 @@ function TablesTab({ P, params }) {
 // Provision decomposition: cumulative addition of provisions to measure marginal Gini reduction
 const PROV_LAYERS = [
   { key: 'TAX',   label: 'Tax Reform',         color: '#f97316', set: new Set(['BASE','TAX']) },
-  { key: 'PRE',   label: 'Prebate + Carbon',   color: '#22c55e', set: new Set(['BASE','TAX','PRE']) },
+  { key: 'PRE',   label: 'Prebate + Carbon',   color: '#307ca6', set: new Set(['BASE','TAX','PRE']) },
   { key: 'AMCF',  label: 'AMCF Grants',        color: '#3b82f6', set: new Set(['BASE','TAX','PRE','AMCF']) },
   { key: 'PSU_D', label: 'PSU Dividends',       color: '#a855f7', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D']) },
   { key: 'PSU_C', label: 'PSU Cashouts',        color: '#f59e0b', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']) },
@@ -1058,7 +1058,7 @@ function MethodologyTab({ params }) {
                   <TableCell>{v.expected}</TableCell>
                   <TableCell>{v.actual}</TableCell>
                   <TableCell>
-                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${v.pass ? 'bg-green-100 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${v.pass ? 'bg-[#307ca6]/15 text-[#307ca6]' : 'bg-[#c27040]/10 text-[#c27040]'}`}>
                       {v.pass ? 'PASS' : 'FAIL'}
                     </span>
                   </TableCell>
@@ -1136,7 +1136,7 @@ export default function InequalityMeasurement() {
   return (
     <PageShell className="max-w-[1300px]">
       {/* Header */}
-      <div className="border-l-4 border-emerald-600 pl-4 mb-6">
+      <div className="border-l-4 border-[#307ca6] pl-4 mb-6">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Inequality</p>
         <h1 className="text-2xl font-bold tracking-tight">Inequality Measurement Module</h1>
         <p className="text-sm text-muted-foreground mt-1">

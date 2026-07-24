@@ -98,6 +98,15 @@ export function SiteHeader({ activePage, onNavigate }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
+
+      <a
+        href="https://brayden-decker-contact.pages.dev/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ml-4 px-4 py-1.5 text-sm font-medium rounded-md border border-primary-foreground/30 text-primary-foreground/90 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors"
+      >
+        Contact
+      </a>
     </header>
   );
 }

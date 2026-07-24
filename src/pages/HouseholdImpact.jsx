@@ -39,59 +39,59 @@ import { useUrlValue } from '@/lib/url-state';
 // Income: CBO Distribution of Household Income 2022, 2024-adjusted
 // Wealth: Federal Reserve SCF 2022 mean by percentile band
 const DEMOS = {
-  B10:  { label:'P0–P10',   short:'B10',  color:'#ef4444',
+  B10:  { label:'P0–P10',   short:'B10',  color:'#0B3D91',
     income:14500,   nw:-2000,   incG:0.005, nwG:0.005,  accordNWG:0.005,
     hhSz:1.8,  save:0.05, ret:0.04, consume:0.98,
     taxChg:-145,   lvt:0,      homePct:0,    k401Pct:0.05, finPct:0,    bizPct:0    }, // std ded > income → 0 new tax; CL rate ≈0
-  P10:  { label:'P10–P20',  short:'P10',  color:'#f97316',
+  P10:  { label:'P10–P20',  short:'P10',  color:'#2563C9',
     income:28000,   nw:7000,    incG:0.008, nwG:0.040,  accordNWG:0.040,
     hhSz:2.1,  save:0.05, ret:0.04, consume:0.95,
     taxChg:-1540,  lvt:200,    homePct:0.20, k401Pct:0.15, finPct:0.05, bizPct:0    }, // std ded ($39.6K) > income → 0 new tax; full CL relief
-  P20:  { label:'P20–P30',  short:'P20',  color:'#fb923c',
+  P20:  { label:'P20–P30',  short:'P20',  color:'#4A90D9',
     income:40000,   nw:26000,   incG:0.010, nwG:0.020,  accordNWG:0.020,
     hhSz:2.2,  save:0.10, ret:0.04, consume:0.90,
     taxChg:-3400,  lvt:500,    homePct:0.35, k401Pct:0.20, finPct:0.08, bizPct:0.03 }, // std ded ($41.4K) > income → 0 new tax; full CL relief
-  P30:  { label:'P30–P40',  short:'P30',  color:'#fbbf24',
+  P30:  { label:'P30–P40',  short:'P30',  color:'#7FBCEA',
     income:52000,   nw:58000,   incG:0.013, nwG:0.028,  accordNWG:0.028,
     hhSz:2.3,  save:0.12, ret:0.05, consume:0.87,
     taxChg:-1751,  lvt:1000,   homePct:0.45, k401Pct:0.25, finPct:0.12, bizPct:0.06 }, // 25% on $10.6K taxable < CL 8.5% effective
-  P40:  { label:'P40–P50',  short:'P40',  color:'#84cc16',
+  P40:  { label:'P40–P50',  short:'P40',  color:'#0E7C5A',
     income:64000,   nw:95000,   incG:0.013, nwG:0.030,  accordNWG:0.030,
     hhSz:2.4,  save:0.15, ret:0.05, consume:0.85,
     taxChg:-1659,  lvt:1000,   homePct:0.50, k401Pct:0.28, finPct:0.10, bizPct:0.05 }, // 25% on $21.4K taxable < CL 11% effective
-  P50:  { label:'P50–P60',  short:'P50',  color:'#22c55e',
+  P50:  { label:'P50–P60',  short:'P50',  color:'#2FA873',
     income:79000,   nw:148000,  incG:0.015, nwG:0.038,  accordNWG:0.038,
     hhSz:2.5,  save:0.17, ret:0.05, consume:0.82,
     taxChg:-1048,  lvt:1800,   homePct:0.52, k401Pct:0.32, finPct:0.12, bizPct:0.06 }, // 25% on $35.2K taxable < CL 12.5% effective
-  P60:  { label:'P60–P70',  short:'P60',  color:'#10b981',
+  P60:  { label:'P60–P70',  short:'P60',  color:'#69C79B',
     income:97000,   nw:228000,  incG:0.018, nwG:0.040,  accordNWG:0.040,
     hhSz:2.5,  save:0.20, ret:0.06, consume:0.80,
     taxChg:1138,   lvt:2500,   homePct:0.50, k401Pct:0.30, finPct:0.13, bizPct:0.08 }, // 25% on $53.2K taxable slightly > CL 12.5% effective
-  P70:  { label:'P70–P80',  short:'P70',  color:'#06b6d4',
+  P70:  { label:'P70–P80',  short:'P70',  color:'#B5841E',
     income:124000,  nw:380000,  incG:0.022, nwG:0.050,  accordNWG:0.050,
     hhSz:2.5,  save:0.22, ret:0.06, consume:0.77,
     taxChg:2180,   lvt:4000,   homePct:0.47, k401Pct:0.30, finPct:0.17, bizPct:0.12 },
-  P80:  { label:'P80–P90',  short:'P80',  color:'#3b82f6',
+  P80:  { label:'P80–P90',  short:'P80',  color:'#E0A92E',
     income:186000,  nw:750000,  incG:0.028, nwG:0.058,  accordNWG:0.058,
     hhSz:2.5,  save:0.25, ret:0.06, consume:0.60,
     taxChg:6307,   lvt:7000,   homePct:0.35, k401Pct:0.25, finPct:0.25, bizPct:0.15 },
-  T10:  { label:'P90–P99',  short:'T10',  color:'#8b5cf6',
+  T10:  { label:'P90–P99',  short:'T10',  color:'#E8722A',
     income:320000,  nw:2700000, incG:0.035, nwG:0.065,  accordNWG:0.063,
     // ETR now model-derived from Sim-2 distributional engine (VAT+LVT+carbon+income reform)
     hhSz:2.3,  save:0.40, ret:0.07, consume:0.45,
     taxChg:14665,  lvt:12000,  homePct:0.25, k401Pct:0.20, finPct:0.35, bizPct:0.20 },
-  T1:   { label:'P99–P99.9',short:'T1',   color:'#ec4899',
+  T1:   { label:'P99–P99.9',short:'T1',   color:'#D33B22',
     income:1500000, nw:16700000,incG:0.045, nwG:0.075,  accordNWG:0.072, accordIncG:0.022,
     // ETR now model-derived from Sim-2 distributional engine (VAT+LVT+carbon+income reform)
     hhSz:2.1,  save:0.70, ret:0.08, consume:0.25,
     taxChg:202913, lvt:50000,  homePct:0.15, k401Pct:0.15, finPct:0.40, bizPct:0.30 },
-  BILL: { label:'Billionaires',short:'Bill',color:'#1d4ed8',
+  BILL: { label:'Billionaires',short:'Bill',color:'#AC1D1D',
     income:3e8,     nw:4.7e9,   incG:0.080, nwG:0.120,  accordIncG:0.050,
     // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
     // Three Accord channels: income tax reform + PSU equity excise + mark-to-market phase-in
     hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,
     taxChg:83691871, lvt:5e5,  homePct:0.05, k401Pct:0.05, finPct:0.30, bizPct:0.60 },
-  ELON: { label:'Elon Musk', short:'Elon', color:'#334155',
+  ELON: { label:'Elon Musk', short:'Elon', color:'#6E0E14',
     income:1e10,    nw:2.5e11,  incG:0.150, nwG:0.150,  accordIncG:0.124,
     // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
     hhSz:1.0,  save:0.95, ret:0.12, consume:0.001,
@@ -274,7 +274,7 @@ const GINI_NW_WGTS   = [0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.
 const PROVS_CONFIG = [
   { key:'BASE',  label:'Current Law Baseline', color:'#64748b', fixed:true  },
   { key:'TAX',   label:'Tax Reform',            color:'#f97316', fixed:false },
-  { key:'PRE',   label:'Prebate + Carbon Div',  color:'#22c55e', fixed:false },
+  { key:'PRE',   label:'Prebate + Carbon Div',  color:'#307ca6', fixed:false },
   { key:'AMCF',  label:'AMCF Citizen Grants',   color:'#3b82f6', fixed:false },
   { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
   { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
@@ -353,8 +353,8 @@ function getInc(k, y, P) {
       // LVT they bear (residential + investment-land) — the latter is large for these personas.
       tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P);
     } else {
-      // Model-derived: income tax reform + VAT (4%, scales with income) + LVT + carbon cost
-      const vatCost    = 0.04 * DIST_BRACKETS[bi].cRat * base;
+      // Model-derived: income tax reform + VAT (3%, scales with income) + LVT + carbon cost
+      const vatCost    = 0.03 * DIST_BRACKETS[bi].cRat * base;
       const lvtCost    = lvtNetBr(k, y, P);
       const carbonCost = CARBON_TONS_BR[bi] * 100;
       tax = -taxAt(k, y) - vatCost - lvtCost - carbonCost;
@@ -484,7 +484,7 @@ function billionaireETR(k, y, P) {
 // Effective tax rate: net taxes paid (minus transfers) / income × 100
 // BILL/ELON → billionaireETR() on economic income (buy-borrow-die requires this treatment)
 // All others → model-derived from Sim-2 distributional engine on reported income:
-//   CL income tax + income tax reform (taxAt) + VAT (4%) + LVT net burden + carbon cost
+//   CL income tax + income tax reform (taxAt) + VAT (3%) + LVT net burden + carbon cost
 function getETR(k, y, P) {
   if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P);
 
@@ -494,7 +494,7 @@ function getETR(k, y, P) {
   let taxes = g * CL_ETR[k], bens = 0;
 
   if (P.has('TAX')) {
-    const vatCost    = 0.04 * DIST_BRACKETS[bi].cRat * g;
+    const vatCost    = 0.03 * DIST_BRACKETS[bi].cRat * g;
     const lvtCost    = lvtNetBr(k, y, P);
     const carbonCost = CARBON_TONS_BR[bi] * 100;
     taxes += taxAt(k, y) + vatCost + lvtCost + carbonCost;
@@ -615,7 +615,7 @@ function SnapshotTable({ title, demos, getValue, getCL, fmt, deltaFmt, note }) {
                     return (
                       <TableCell key={k} className={cn(
                         'text-right text-[11px] font-semibold',
-                        d >= 0 ? 'text-green-600' : 'text-red-600'
+                        d >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'
                       )}>
                         {dFmt(d, cl)}
                       </TableCell>
@@ -694,10 +694,10 @@ function CompositionTable({ title, demos, getRows, note }) {
                         const v = yr[ri]?.value ?? 0;
                         const pct = Math.min(Math.abs(v) / maxPerRow[ri] * 100, 100);
                         const isNeg = v < 0;
-                        const barColor = isNeg ? 'rgba(239,68,68,0.10)' : 'rgba(34,197,94,0.10)';
+                        const barColor = isNeg ? 'rgba(194,112,64,0.10)' : 'rgba(48,124,166,0.10)';
                         const textColor = isTotal ? '#0f172a'
-                          : isNeg ? '#dc2626'
-                          : v > 0 ? '#15803d' : '#94a3b8';
+                          : isNeg ? '#c27040'
+                          : v > 0 ? '#235f7f' : '#94a3b8';
                         return (
                           <td key={yi} className="p-1 px-2.5 text-right whitespace-nowrap tabular-nums"
                             style={{
@@ -764,9 +764,9 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar }) {
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <Bar dataKey="base" stackId="s" name="Current Law" fill="#94a3b8"/>
           {P.has('TAX') && <Bar dataKey="tax" stackId="s" name="Tax Reform">
-            {normData.map((d, i) => <Cell key={i} fill={d.tax >= 0 ? '#86efac' : '#fca5a5'}/>)}
+            {normData.map((d, i) => <Cell key={i} fill={d.tax >= 0 ? '#a9cde0' : '#e3bda6'}/>)}
           </Bar>}
-          {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate+Carbon" fill="#22c55e"/>}
+          {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate+Carbon" fill="#307ca6"/>}
           {P.has('AMCF')  && <Bar dataKey="amcf" stackId="s" name="AMCF Grant"     fill="#3b82f6"/>}
           {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="PSU Dividend"   fill="#a855f7"/>}
           {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="PSU Cashout"    fill="#f59e0b"/>}
@@ -832,9 +832,9 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar }) {
           <Legend wrapperStyle={{ fontSize:12 }}/>
           <Bar dataKey="base" stackId="s" name="Current Law NW" fill="#94a3b8"/>
           {P.has('TAX') && <Bar dataKey="tax" stackId="s" name="Tax Impact">
-            {normData.map((d, i) => <Cell key={i} fill={d.tax >= 0 ? '#86efac' : '#fca5a5'}/>)}
+            {normData.map((d, i) => <Cell key={i} fill={d.tax >= 0 ? '#a9cde0' : '#e3bda6'}/>)}
           </Bar>}
-          {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate Savings"  fill="#22c55e"/>}
+          {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate Savings"  fill="#307ca6"/>}
           {P.has('AMCF')  && <Bar dataKey="amcf" stackId="s" name="AMCF Custodial"   fill="#3b82f6"/>}
           {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="PSU Div Savings"  fill="#a855f7"/>}
           {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="PSU Cashouts"     fill="#f59e0b"/>}
@@ -1052,7 +1052,7 @@ const _gAnchor = (() => {
 const GINI_COMPARISONS = {
   income: [
     { key: 'us',   label: 'US Baseline',    value: 0.490, color: '#94a3b8' },
-    { key: 'oecd', label: 'OECD Average',   value: 0.315, color: '#22c55e' },
+    { key: 'oecd', label: 'OECD Average',   value: 0.315, color: '#307ca6' },
     { key: 'gb',   label: 'Great Britain',   value: 0.350, color: '#8b5cf6' },
     { key: 'au',   label: 'Australia',       value: 0.320, color: '#f59e0b' },
     { key: 'dk',   label: 'Denmark',          value: 0.280, color: '#06b6d4' },
@@ -1060,7 +1060,7 @@ const GINI_COMPARISONS = {
   ],
   wealth: [
     { key: 'us',   label: 'US Baseline',    value: 0.850, color: '#94a3b8' },
-    { key: 'oecd', label: 'OECD Average',   value: 0.740, color: '#22c55e' },
+    { key: 'oecd', label: 'OECD Average',   value: 0.740, color: '#307ca6' },
     { key: 'gb',   label: 'Great Britain',   value: 0.710, color: '#8b5cf6' },
     { key: 'au',   label: 'Australia',       value: 0.650, color: '#f59e0b' },
     { key: 'dk',   label: 'Denmark',         value: 0.840, color: '#06b6d4' },
@@ -1130,7 +1130,7 @@ function Chart6({ P }) {
               <YAxis domain={[0.60, 0.90]} tickFormatter={v => v.toFixed(2)} tick={{ fill:'#475569', fontSize:10 }} width={40}/>
               <Tooltip content={<TTip fmt={v => v.toFixed(3)}/>}/>
               {refLines('wealth')}
-              <Line dataKey="wealthGini" name="US Accord" stroke="#dc2626" dot={false} strokeWidth={2.5}/>
+              <Line dataKey="wealthGini" name="US Accord" stroke="#c27040" dot={false} strokeWidth={2.5}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -1220,7 +1220,7 @@ function cashFlowPt(k, y, P, norm) {
   const taxRef = P.has('TAX')
     ? (d.accordIncG != null ? actualInc - gross : -taxAt(k, y))
     : 0;
-  const vat  = P.has('TAX') ? -(0.04 * d.consume * actualInc) : 0;
+  const vat  = P.has('TAX') ? -(0.03 * d.consume * actualInc) : 0;
   const lvt  = P.has('TAX') ? -lvtNetBr(k, y, P) : 0;
   // Carbon burden: linear with income up to ~$500K ($15K cap), then hard caps for ultra-HNW.
   // Carbon taxes fall on consumption of carbon-intensive goods, not on income directly.
@@ -1243,14 +1243,14 @@ function cashFlowPt(k, y, P, norm) {
 
 const CF_BARS = [
   { key:'grossInc', name:'Gross Income',       fill:'#94a3b8', prov:null   },
-  { key:'clTax',    name:'Income+Payroll Tax',  fill:'#dc2626', prov:null   },
+  { key:'clTax',    name:'Income+Payroll Tax',  fill:'#c27040', prov:null   },
   { key:'taxRef',   name:'Tax Reform Net',      fill:'#f97316', prov:'TAX'  },
-  { key:'vat',      name:'VAT Burden',          fill:'#fca5a5', prov:'TAX'  },
+  { key:'vat',      name:'VAT Burden',          fill:'#e3bda6', prov:'TAX'  },
   { key:'lvt',      name:'LVT Burden',          fill:'#fdba74', prov:'TAX'  },
   { key:'carb',     name:'Carbon Burden',       fill:'#fcd34d', prov:'TAX'  },
-  { key:'progLost', name:'Programs Replaced',    fill:'#b91c1c', prov:'PRE'  },
-  { key:'pre',      name:'Prebate',             fill:'#4ade80', prov:'PRE'  },
-  { key:'cdiv',     name:'Carbon Dividend',     fill:'#86efac', prov:'PRE'  },
+  { key:'progLost', name:'Programs Replaced',    fill:'#9a5530', prov:'PRE'  },
+  { key:'pre',      name:'Prebate',             fill:'#307ca6', prov:'PRE'  },
+  { key:'cdiv',     name:'Carbon Dividend',     fill:'#a9cde0', prov:'PRE'  },
   { key:'ag',       name:'AMCF Liquidation',    fill:'#60a5fa', prov:'AMCF' },
   { key:'pd',       name:'PSU Dividends',       fill:'#c084fc', prov:'PSU_D'},
   { key:'pc',       name:'PSU Cashouts',        fill:'#fbbf24', prov:'PSU_C'},
@@ -1323,7 +1323,7 @@ function wealthFlowPt(k, y, P, norm) {
 const WF_BARS = [
   { key:'base', name:'Base NW (CL)',     fill:'#94a3b8', prov:null    },
   { key:'tax',  name:'Tax Impact',       fill:'#f97316', prov:'TAX'   },
-  { key:'pre',  name:'Prebate Savings',  fill:'#4ade80', prov:'PRE'   },
+  { key:'pre',  name:'Prebate Savings',  fill:'#307ca6', prov:'PRE'   },
   { key:'amcf', name:'AMCF Custodial',   fill:'#60a5fa', prov:'AMCF'  },
   { key:'psuD', name:'PSU Div Savings',  fill:'#c084fc', prov:'PSU_D' },
   { key:'psuC', name:'PSU Cashouts',     fill:'#fbbf24', prov:'PSU_C' },
@@ -1355,18 +1355,18 @@ function cfRows(k, y, P) {
   const pt = cashFlowPt(k, y, P, false);
   const rows = [
     { name:'Gross Income',       value: pt.grossInc,  fill:'#94a3b8' },
-    { name:'Income/Payroll Tax', value: pt.clTax,     fill:'#dc2626' },
+    { name:'Income/Payroll Tax', value: pt.clTax,     fill:'#c27040' },
   ];
   if (P.has('TAX')) {
     rows.push({ name:'Tax Reform Net',  value: pt.taxRef, fill:'#f97316' });
-    rows.push({ name:'VAT Burden',      value: pt.vat,    fill:'#fca5a5' });
+    rows.push({ name:'VAT Burden',      value: pt.vat,    fill:'#e3bda6' });
     rows.push({ name:'LVT Burden',      value: pt.lvt,    fill:'#fdba74' });
     rows.push({ name:'Carbon Burden',   value: pt.carb,   fill:'#fcd34d' });
   }
   if (P.has('PRE')) {
-    rows.push({ name:'Programs Replaced', value: pt.progLost, fill:'#b91c1c' });
-    rows.push({ name:'Prebate',           value: pt.pre,      fill:'#4ade80' });
-    rows.push({ name:'Carbon Dividend',   value: pt.cdiv,     fill:'#86efac' });
+    rows.push({ name:'Programs Replaced', value: pt.progLost, fill:'#9a5530' });
+    rows.push({ name:'Prebate',           value: pt.pre,      fill:'#307ca6' });
+    rows.push({ name:'Carbon Dividend',   value: pt.cdiv,     fill:'#a9cde0' });
   }
   if (P.has('AMCF'))  rows.push({ name:'AMCF Liquidation', value: pt.ag, fill:'#60a5fa' });
   if (P.has('PSU_D')) rows.push({ name:'PSU Dividends',    value: pt.pd, fill:'#c084fc' });
@@ -1382,7 +1382,7 @@ function wfRows(k, y, P) {
     { name:'Base NW (Current Law)', value: clNW,  fill:'#94a3b8' },
   ];
   if (P.has('TAX'))   rows.push({ name:'Tax Impact',       value: l.tax,  fill:'#f97316' });
-  if (P.has('PRE'))   rows.push({ name:'Prebate Savings',  value: l.pre,  fill:'#4ade80' });
+  if (P.has('PRE'))   rows.push({ name:'Prebate Savings',  value: l.pre,  fill:'#307ca6' });
   if (P.has('AMCF'))  rows.push({ name:'AMCF Custodial',  value: l.amcf, fill:'#60a5fa' });
   if (P.has('PSU_D')) rows.push({ name:'PSU Div Savings',  value: l.psuD, fill:'#c084fc' });
   if (P.has('PSU_C')) rows.push({ name:'PSU Cashouts',     value: l.psuC, fill:'#fbbf24' });
@@ -1756,10 +1756,10 @@ export default function Dashboard() {
                     style={{ borderColor: `${DEMOS[k].color}20`, background: `${DEMOS[k].color}08` }}>
                     <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
                     <div className="text-base font-extrabold text-foreground mt-0.5">{fD(l.total)}</div>
-                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-green-600' : 'text-red-600')}>
+                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                       vs CL: {pos ? '+' : ''}{fD(delta)}
                     </div>
-                    <div className={cn('text-[11px]', pos ? 'text-green-600' : 'text-red-600')}>
+                    <div className={cn('text-[11px]', pos ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                       {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
                     </div>
                   </div>
@@ -1786,10 +1786,10 @@ export default function Dashboard() {
                     style={{ borderColor: `${DEMOS[k].color}20`, background: `${DEMOS[k].color}08` }}>
                     <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
                     <div className="text-base font-extrabold text-foreground mt-0.5">{fD(l.total)}</div>
-                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-green-600' : 'text-red-600')}>
+                    <div className={cn('text-[11px] mt-0.5', pos ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                       vs CL: {pos ? '+' : ''}{fD(delta)}
                     </div>
-                    <div className={cn('text-[11px]', pos ? 'text-green-600' : 'text-red-600')}>
+                    <div className={cn('text-[11px]', pos ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                       {pct !== null ? `${pos ? '+' : ''}${pct.toFixed(1)}%` : '—'}
                     </div>
                   </div>
@@ -1833,7 +1833,7 @@ export default function Dashboard() {
                       <div className="text-lg font-extrabold text-foreground mt-0.5">
                         {share.toFixed(2)}%
                       </div>
-                      <div className={cn('text-[11px] mt-0.5', delta >= 0 ? 'text-green-600' : 'text-red-600')}>
+                      <div className={cn('text-[11px] mt-0.5', delta >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                         vs CL: {delta >= 0 ? '+' : ''}{delta.toFixed(2)}pp
                       </div>
                     </div>
@@ -1860,7 +1860,7 @@ export default function Dashboard() {
                   <div key={k} className="px-3.5 py-2 rounded-lg min-w-[130px] border-2"
                     style={{ borderColor: `${DEMOS[k].color}30`, background: `${DEMOS[k].color}08` }}>
                     <div className="text-[11px] font-bold" style={{ color: DEMOS[k].color }}>{DEMOS[k].label}</div>
-                    <div className={cn('text-[15px] font-extrabold mt-0.5', crossover !== null ? 'text-green-600' : 'text-red-600')}>
+                    <div className={cn('text-[15px] font-extrabold mt-0.5', crossover !== null ? 'text-[#307ca6]' : 'text-[#c27040]')}>
                       {crossover !== null ? `Year ${crossover}${crossover === 1 ? ' (immediate)' : ''}` : 'Beyond Yr 30'}
                     </div>
                   </div>
@@ -1942,17 +1942,47 @@ export default function Dashboard() {
       )}
 
       {activeChart === 5 && demos.length > 0 && (
-        <Card className="mb-4">
-          <CardContent>
-            <SnapshotTable title="Effective Tax Rate Trajectory"
-              note="ETR = taxes minus prebate offset / gross income. AMCF/PSU excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
-              demos={demos}
-              getValue={(k, y) => getETR(k, y, P)}
-              getCL={(k, y) => getETR(k, y, BASE_ONLY)}
-              fmt={v => v.toFixed(1)+'%'}
-              deltaFmt={d => `${d>=0?'+':''}${d.toFixed(1)}pp`}/>
-          </CardContent>
-        </Card>
+        <>
+          <Card className="mb-4">
+            <CardContent>
+              <h3 className="text-sm font-semibold text-foreground">Effective Tax Rate by Household — Year {snYear}</h3>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
+                All taxes paid minus all benefits received, ÷ gross income, at the selected year.
+                Negative = the household receives more than it contributes.
+              </p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={demos.map(k => ({
+                    demo: DEMOS[k].short,
+                    'Current Law': +getETR(k, snYear, BASE_ONLY).toFixed(1),
+                    'Accord':      +getETR(k, snYear, P).toFixed(1),
+                  }))}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid {...CHART_GRID} />
+                  <XAxis dataKey="demo" tick={CHART_AXIS.tick} />
+                  <YAxis tickFormatter={v => `${v}%`} tick={CHART_AXIS.tick} />
+                  <Tooltip content={<TTip isBar fmt={v => `${(+v).toFixed(1)}%`} />} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <ReferenceLine y={0} stroke="#1f2937" strokeWidth={1} />
+                  <Bar dataKey="Current Law" fill="#94a3b8" radius={[2,2,0,0]} />
+                  <Bar dataKey="Accord"      fill="#307ca6" radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="mb-4">
+            <CardContent>
+              <SnapshotTable title="Effective Tax Rate Trajectory"
+                note="ETR = taxes minus prebate offset / gross income. AMCF/PSU excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
+                demos={demos}
+                getValue={(k, y) => getETR(k, y, P)}
+                getCL={(k, y) => getETR(k, y, BASE_ONLY)}
+                fmt={v => v.toFixed(1)+'%'}
+                deltaFmt={d => `${d>=0?'+':''}${d.toFixed(1)}pp`}/>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {activeChart === 7 && demos.length > 0 && (
@@ -2012,7 +2042,7 @@ export default function Dashboard() {
         <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
         <p>AMCF grants follow Sim-6 validated trajectory: $500/person (Yr 1) - $25,924/person (Yr 30). Custodial account: universal $10K at Year 0, 5% real return.</p>
         <p>PSU provisions ramp from 0-100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
-        <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 4% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
+        <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 3% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
         <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%-12%/yr; Billionaires: 12%-9.5%/yr).</p>
         <p>Charts 8 &amp; 10 (diverging bar): positive values stack above zero (income, benefits, wealth gains), negative values stack below zero (taxes, burdens). Net line shows total. &quot;% / 100%&quot; toggle normalizes to % of gross income (Ch.8) or base CL net worth (Ch.10). &quot;All Demos&quot; view shows all selected demographics at snapshot year.</p>
         <p>Gini: computed from full 13-point distribution (B10-Elon) for both income and wealth Gini. Population weights: deciles at 10% each, T10 9%, T1 0.94%, Billionaires 6e-6, Elon 7.5e-9. Anchor-calibrated to match official US statistics at Year 0. Lorenz trapezoid method.</p>
