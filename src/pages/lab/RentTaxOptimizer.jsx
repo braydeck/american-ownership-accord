@@ -186,7 +186,7 @@ function runFiscal(rentRates) {
     // AMCF cash flow + waterfall (identical to Sim-6)
     const combinedYield = 0.035 + 0.025 * Math.min(yr / 20, 1);
     const amcfCash = amcfEquity * combinedYield;
-    const grantFloorTotal = grantFloor(yr) * pop;
+    const grantFloorTotal = grantFloor(yr) * pop * priceLevel;
     const budgetGrantCost = Math.max(0, grantFloorTotal - amcfCash * 0.65);
 
     // GDP + population (identical to Sim-6)
@@ -207,7 +207,7 @@ function runFiscal(rentRates) {
       groundRentYield: rentRates.lvtGroundRentYield ?? 0.04,
       landGrowthElasticity: rentRates.lvtLandElasticity ?? LAND_GROWTH_ELASTICITY,
     });
-    const carbonRev  = carbonRevYr(rentRates.carbonRate, yr); // time-declining
+    const carbonRev  = carbonRevYr(rentRates.carbonRate, yr) * priceLevel; // time-declining, CPI-indexed rate
     const stableRev  = nomGdp * stableFrac;                   // GDP-scaled
     const payrollFix = nomGdp * 0.008;
     const capGains   = nomGdp * 0.012;
@@ -227,8 +227,12 @@ function runFiscal(rentRates) {
     // Prebate is deficit-neutrally coupled to the exemption: exemption off (default) →
     // recovered revenue funds the higher $6,250 prebate; exemption on → base $5,000.
     const prebatePerCap = (rentRates.lvtExemption ?? 0) > 0 ? PREBATE_BASE : PREBATE_REDIRECTED;
-    const spending  = nomGdp * spendFrac + budgetGrantCost + prebatePerCap * pop
-      + 100e9 * popScale + 50e9 * popScale - amcfCash * 0.10;
+    // Prebate, childcare, and family leave are commitments in today's dollars, so they index
+    // to CPI. This page runs revenue off nominal GDP, so leaving them fixed in nominal terms
+    // shrinks them ~58% in real terms over 35 years. Matches NationalBalanceSheet.
+    const spending  = nomGdp * spendFrac + budgetGrantCost
+      + (prebatePerCap * pop + 100e9 * popScale + 50e9 * popScale) * priceLevel
+      - amcfCash * 0.10;
     const intToRev  = totalRev > 0 ? (interest / totalRev) * 100 : 0;
     const solvent   = intToRev > 10;
     const amcfPaydown = solvent ? amcfCash * 0.25 : 0;
@@ -245,7 +249,7 @@ function runFiscal(rentRates) {
     const clRate = Math.min(FP.baseInterestRate + FP.interestReflexivity * Math.max(0, clDtG - 1.20) / 100, 0.10);
     clDebt += clNomGdp * 0.22 + clDebt * clRate - clNomGdp * 0.174;
 
-    const grantsPerCap = Math.max(grantFloor(yr), (amcfCash * 0.65) / pop);
+    const grantsPerCap = Math.max(grantFloor(yr) * priceLevel, (amcfCash * 0.65) / pop);
     rows.push({
       year: yr,
       nomGdp:       +(nomGdp / 1e12).toFixed(2),
