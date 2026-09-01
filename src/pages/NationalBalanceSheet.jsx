@@ -69,7 +69,7 @@ const BASE_PARAMS = {
   startingPopulation:     335e6,
   populationGrowthRate:   0.004,
   recessionYear:          0,
-  recessionDepth:         0.04,
+  recessionSeverity:      'severe',
 };
 
 const EV_COHORTS = [
@@ -79,6 +79,59 @@ const EV_COHORTS = [
   { growth: 0.100, share: 0.25 },
   { growth: 0.150, share: 0.10 },
 ];
+
+// ─── Recession scenarios ───────────────────────────────────────────────────
+// profile: offsets from the trigger year → { ev: equity-value shock, gdp: pp off real growth }
+// scar:    permanent reduction in potential output (CBO revised US potential down ~5% post-2008)
+// recovery: share of the remaining cyclical gap closed each year once the shock window ends
+const RECESSION_SCENARIOS = {
+  none:     { label: "None", profile: {}, scar: 0, recovery: 0 },
+  mild: {
+    label: "Mild (2001 dot-com)",
+    // S&P −13% (2001) / −23% (2002); real growth 1.0% then 1.7% against a ~2.5% trend
+    profile: { 0: { ev: -0.12, gdp: -0.015 }, 1: { ev: -0.14, gdp: -0.008 } },
+    scar: 0.01, recovery: 0.40,
+  },
+  moderate: {
+    label: "Moderate (1990-91)",
+    profile: { 0: { ev: -0.15, gdp: -0.025 }, 1: { ev: -0.03, gdp: -0.010 } },
+    scar: 0.02, recovery: 0.40,
+  },
+  severe: {
+    label: "Severe (2008 GFC)",
+    // Equity trough in the crash year (S&P −37% in 2008, partial rebound in 2009);
+    // output trough one year later (real GDP +0.1% in 2008, −2.6% in 2009 vs 2.5% trend)
+    profile: { 0: { ev: -0.40, gdp: -0.024 }, 1: { ev: 0.08, gdp: -0.051 }, 2: { gdp: -0.010 } },
+    scar: 0.05, recovery: 0.35,
+  },
+  // A 1929-33 profile is deliberately omitted. The model has no fiscal reaction function, so
+  // it runs 30 years of depression with no rate, tax, or spending response — the result says
+  // more about that omission than about the Accord.
+};
+
+// Revenue cyclicality, per line, as an elasticity to the cyclical output gap.
+// Anything unlisted is 1.0 (falls one-for-one with output).
+// Capital gains realizations fell ~70% in 2009; land is the epicentre asset in a
+// credit crisis but assessments lag, so LVT keys off the prior year's gap.
+const REV_ELASTICITY = { incomeTax: 1.8, capGains: 5.0, payroll: 1.0, vat: 0.7, lvt: 2.0 };
+
+// Current-law receipts mix (share of the 17.4%-of-GDP total) and its own cyclicality.
+// Corporate receipts fell 55% in FY2009 — current law's most volatile line, and one
+// the Accord does not have; its equity-side hit runs through the Growth Tax instead.
+const CL_REV_MIX = [
+  { share: 0.50, elasticity: 1.8 },  // individual income
+  { share: 0.36, elasticity: 1.0 },  // payroll
+  { share: 0.07, elasticity: 6.0 },  // corporate
+  { share: 0.07, elasticity: 1.0 },  // excise, customs, estate, other
+];
+
+// Automatic stabilizers (UI, SNAP) surge under current law: FY2009 outlays hit 24.4% of
+// GDP vs 20.2% in FY2008 against a ~5% output gap. The Accord's equivalent is endogenous —
+// budgetGrantCost already rises as AMCF cash flow falls short of the grant floor.
+const CL_STABILIZER_ELASTICITY = 0.30;
+
+// Growth Tax loss-recovery window, in years. See the high-water mark in the engine.
+const GROWTH_TAX_HWM_YEARS = 5;
 
 const PRESET_OVERRIDES = {
   base:                {},
@@ -180,7 +233,6 @@ const PARAM_SECTIONS = [
     open: false,
     params: [
       { key: "populationGrowthRate", label: "Population Growth / Yr", min: 0, max: 0.015, step: 0.001, fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "recessionDepth",       label: "Recession Severity",     min: 0.01, max: 0.10, step: 0.01, fmt: v => `${(v*100).toFixed(0)}%` },
     ],
   },
 ];
@@ -204,6 +256,16 @@ function runFiscalSimulation(p) {
   let pop = p.startingPopulation;
   let cohortEVs = EV_COHORTS.map(c => c.share * p.startingEV);
   let prevTotalEV = p.startingEV;
+  let evHistory = [p.startingEV];
+
+  // Recession bookkeeping — trend paths are the no-shock counterfactual; scarLevel is the
+  // permanent hit to potential output, so the cyclical gap driving revenue elasticity
+  // closes over the recovery even though the level never returns to the old trend.
+  const rec = RECESSION_SCENARIOS[p.recessionSeverity] ?? RECESSION_SCENARIOS.severe;
+  let trendGdp = p.startingGdp;
+  let clTrendGdp = p.startingGdp;
+  let scarLevel = 0;
+  let prevCycGap = 0;
 
   // Parallel current-law path
   let clDebt = p.startingDebt;
@@ -211,6 +273,10 @@ function runFiscalSimulation(p) {
   let clPriceLevel = 1.0;
 
   for (let yr = 1; yr <= 35; yr++) {
+    const shockOffset = p.recessionYear > 0 ? yr - p.recessionYear : -1;
+    const shock = shockOffset >= 0 ? rec.profile[shockOffset] : undefined;
+    const shockWindow = Object.keys(rec.profile).length;
+    const inShockWindow = shockOffset >= 0 && shockOffset < shockWindow;
     // Ownership fraction at start of year — one-way: once cap is reached it stays reached
     const prevOwnershipFrac = prevTotalEV > 0 ? amcfEquity / prevTotalEV : 0;
     if (!hasReachedCap && prevOwnershipFrac >= 0.20) hasReachedCap = true;
@@ -218,11 +284,18 @@ function runFiscalSimulation(p) {
 
     // EV cohort evolution
     cohortEVs = cohortEVs.map((ev, i) => ev * (1 + EV_COHORTS[i].growth));
-    if (p.recessionYear > 0 && yr === p.recessionYear) {
-      cohortEVs = cohortEVs.map(ev => ev * (1 - p.recessionDepth));
-    }
+    if (shock?.ev) cohortEVs = cohortEVs.map(ev => ev * (1 + shock.ev));
     const totalEV = cohortEVs.reduce((a, b) => a + b, 0);
-    const evGrowth = Math.max(0, totalEV - prevTotalEV);
+    // Rolling high-water mark: the Growth Tax applies only to enterprise value above the
+    // highest level of the last GROWTH_TAX_HWM_YEARS years, so a post-crash rebound that
+    // merely restores prior value is not taxed as new growth. Without it a 40% crash
+    // produces a windfall the year after, because growth is measured off the depressed base.
+    // The window is rolling rather than permanent so a single crash does not exempt a
+    // company forever once the loss is well behind it.
+    const hwm = Math.max(prevTotalEV, ...evHistory);
+    const evGrowth = Math.max(0, totalEV - hwm);
+    evHistory.push(totalEV);
+    if (evHistory.length > GROWTH_TAX_HWM_YEARS) evHistory.shift();
     prevTotalEV = totalEV;
 
     // Growth Tax — zero once AMCF owns 20%; company obligation discharged
@@ -250,7 +323,7 @@ function runFiscalSimulation(p) {
     const amcfCashFlow = amcfEquity * combinedYield;
 
     // Grant floor (phase schedule — minimum commitment, SPV-bridged if AMCF falls short)
-    const floorPerCap = grantFloor(yr, p.grantPhaseMultiplier);
+    const floorPerCap = grantFloor(yr, p.grantPhaseMultiplier) * priceLevel;
     const grantAllocation = amcfCashFlow * 0.65; // 65% of cash flow to citizens
     const grantFloorTotal = floorPerCap * pop;
     const grantsTotal = Math.max(grantAllocation, grantFloorTotal);
@@ -262,11 +335,35 @@ function runFiscalSimulation(p) {
     const debtDragRatio = grossDebt / prevNomGdp;
     const gdpDrag = 0.002 * Math.max(0, debtDragRatio - 1.0);
     const codetermEffect = p.codetermBonus * Math.min(yr / 10, 1.0);
-    let gdpGrowth = p.baseRealGdpGrowth + codetermEffect - gdpDrag;
-    if (p.recessionYear > 0 && yr === p.recessionYear) gdpGrowth -= p.recessionDepth;
+    const trendGrowth = p.baseRealGdpGrowth + codetermEffect - gdpDrag;
+    const gdpGrowth = trendGrowth + (shock?.gdp ?? 0);
+
+    // Trend = no-shock counterfactual; potential = trend less the permanent scar.
+    // The scar phases in across the shock window, then output recovers toward potential.
+    trendGdp *= (1 + trendGrowth);
+    if (inShockWindow) scarLevel += rec.scar / shockWindow;
+    const potentialGdp = trendGdp * (1 - scarLevel);
     realGdp *= (1 + gdpGrowth);
+    if (!inShockWindow) realGdp += (potentialGdp - realGdp) * rec.recovery;
+    realGdp = Math.min(realGdp, potentialGdp);
+
+    const cycGap = Math.max(0, 1 - realGdp / potentialGdp);
+    // Revenue lines already fall 1-for-1 with output because they are GDP-scaled, so el()
+    // applies only the EXCESS elasticity above 1. VAT's 0.7 lifts it (consumption is
+    // smoother than output); LVT keys off the prior year's gap because assessments lag.
+    const el = line => Math.max(0, 1 - ((REV_ELASTICITY[line] ?? 1.0) - 1) * cycGap);
+    const elLvt = Math.max(0, 1 - (REV_ELASTICITY.lvt - 1) * prevCycGap);
+
     priceLevel *= (1 + p.inflationRate);
     const nominalGdp = realGdp * priceLevel;
+    // Spending commitments are rigid in dollars, so they are sized off the pre-shock trend
+    // rather than actual or scarred-potential output. Two artifacts this avoids: scaling by
+    // actual GDP hands the budget an automatic spending cut in a downturn (FY2009 outlays
+    // rose to 24.4% of GDP from 20.2% because dollar commitments did not shrink); scaling by
+    // scarred potential pays a permanent dividend for a permanent depression, because
+    // spending is a larger share of GDP than revenue. Entitlements do not shrink 5% because
+    // potential output fell 5%.
+    const trendNomGdp = trendGdp * priceLevel;
     pop *= (1 + p.populationGrowthRate);
 
     // Revenue — individual income (7.8% GDP, no corporate, bracket adj included),
@@ -274,20 +371,25 @@ function runFiscalSimulation(p) {
     // LVT from the bottom-up capitalized land model, payroll donut-hole fix at 0.8% GDP.
     // Prebate is a SPENDING item, not a revenue deduction.
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
-    const vatGross = nominalGdp * 0.55 * p.vatRate * vatCompliance;
+    const vatGross = nominalGdp * 0.55 * p.vatRate * vatCompliance * el('vat');
     const lvtRev = lvtRevForFiscal({
       rate: p.lvtRate, year: yr, nominalGdp,
       model: p.lvtModel, exemption: p.lvtExemption,
       assessmentBasis: p.lvtAssessmentBasis,
       groundRentYield: p.lvtGroundRentYield,
       landGrowthElasticity: p.lvtLandElasticity,
-    });
+    }) * elLvt;
     // Carbon: Laffer peak ~$165/ton; natural decarbonization 2.5%/yr
-    const carbonRev = p.carbonRate * 5e9 * (1 - p.carbonRate / 330) * Math.pow(0.975, yr - 1);
+    // Carbon is a tonnage base, not a GDP share, so it takes the full gap (US emissions
+    // fell ~7% in 2009) rather than the excess-only multiplier the GDP-scaled lines use.
+    // The $/ton rate indexes to CPI for the same reason the prebate does — a fixed nominal
+    // rate is a real carbon-price cut every year, and the Laffer peak scales with it.
+    const carbonRev = p.carbonRate * priceLevel * 5e9 * (1 - p.carbonRate / 330)
+      * Math.pow(0.975, yr - 1) * Math.max(0, 1 - cycGap);
     // Stable rent-based taxes: FTT + FSL + royalties + spectrum + water ≈ 0.76% GDP
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
     const payrollFix = nominalGdp * 0.008;
-    const capGainsTax = nominalGdp * 0.012;
+    const capGainsTax = nominalGdp * 0.012 * el('capGains');
     const incomeTax = incomeTaxRevForFiscal({
       nominalGdp,
       lowRate: p.incomeTaxLow,
@@ -296,8 +398,8 @@ function runFiscalSimulation(p) {
       exemptSingle: p.incomeTaxExemptSingle,
       exemptJoint: p.incomeTaxExemptJoint,
       etiTop: p.incomeTaxEtiTop,
-    });
-    const payrollTax = nominalGdp * 0.054;
+    }) * el('incomeTax');
+    const payrollTax = nominalGdp * 0.054 * el('payroll');
     const otherTax = nominalGdp * 0.010;
     const totalRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax + incomeTax + payrollTax + otherTax;
 
@@ -309,11 +411,14 @@ function runFiscalSimulation(p) {
     const effectiveRate = p.baseInterestRate + p.interestReflexivity * Math.max(0, debtToGdp - 1.20) / 100;
     const interest = grossDebt * effectiveRate;
     const spendFrac = Math.max(0.14, p.baselineSpendingFrac - p.spendingEfficiencyGain * yr);
-    const baseSpend = nominalGdp * spendFrac;
+    const baseSpend = trendNomGdp * spendFrac;
+    // The prebate, childcare, and family leave are commitments in today's dollars, so they
+    // index to CPI. Leaving them fixed in nominal terms inside a model whose revenue scales
+    // with nominal GDP would quietly shrink them ~58% in real terms over 35 years.
     const popScale = pop / p.startingPopulation;
-    const prebateSpend = p.prebatePerCapita * pop;
-    const childcareSpend = 100e9 * popScale;
-    const familyLeaveSpend = 50e9 * popScale;
+    const prebateSpend = p.prebatePerCapita * pop * priceLevel;
+    const childcareSpend = 100e9 * popScale * priceLevel;
+    const familyLeaveSpend = 50e9 * popScale * priceLevel;
 
     // AMCF Distribution Waterfall
     // 10% Healthcare Reserve (spending offset) | 25% Debt Reduction OR Discretionary | 65% Citizen Grants
@@ -331,18 +436,30 @@ function runFiscalSimulation(p) {
     grossDebt = grossDebt + deficit - debtReductionAMCF;
     const netSovPos = grossDebt - amcfEquity;
 
-    // Current Law parallel path
-    clRealGdp *= (1 + p.baseRealGdpGrowth);
+    // Current Law parallel path — takes the same macro shock, on its own (more cyclical)
+    // revenue mix, so the recession comparison is symmetric rather than Accord-only.
+    clTrendGdp *= (1 + p.baseRealGdpGrowth);
+    clRealGdp *= (1 + p.baseRealGdpGrowth + (shock?.gdp ?? 0));
+    const clPotentialGdp = clTrendGdp * (1 - scarLevel);
+    if (!inShockWindow) clRealGdp += (clPotentialGdp - clRealGdp) * rec.recovery;
+    clRealGdp = Math.min(clRealGdp, clPotentialGdp);
+    const clCycGap = Math.max(0, 1 - clRealGdp / clPotentialGdp);
     clPriceLevel *= (1 + p.inflationRate);
     const clNomGdp = clRealGdp * clPriceLevel;
-    const clRev = clNomGdp * 0.174;
+    const clRevDamping = CL_REV_MIX.reduce(
+      (a, m) => a + m.share * Math.max(0, 1 - (m.elasticity - 1) * clCycGap), 0);
+    const clRev = clNomGdp * 0.174 * clRevDamping;
     const clDtG = clDebt / clNomGdp;
     // Cap at 10%: beyond this, a real sovereign would restructure/monetize before rates go higher
     const clRate = Math.min(p.baseInterestRate + p.interestReflexivity * Math.max(0, clDtG - 1.20) / 100, 0.10);
     const clInterest = clDebt * clRate;
-    // CL primary spending ≈ 22% of GDP (includes welfare programs the Accord dissolves)
-    const clDeficit = clNomGdp * 0.22 + clInterest - clRev;
+    // CL primary spending ≈ 22% of GDP (includes welfare programs the Accord dissolves),
+    // plus the automatic-stabilizer surge the Accord's standing grant floor replaces.
+    const clTrendNomGdp = clTrendGdp * clPriceLevel;
+    const clStabilizer = clTrendNomGdp * CL_STABILIZER_ELASTICITY * clCycGap;
+    const clDeficit = clTrendNomGdp * 0.22 + clStabilizer + clInterest - clRev;
     clDebt += clDeficit;
+    prevCycGap = cycGap;
 
     rows.push({
       year:            yr,
@@ -377,6 +494,8 @@ function runFiscalSimulation(p) {
       payrollTax:      +(payrollTax / 1e12).toFixed(2),
       otherTax:        +(otherTax / 1e12).toFixed(2),
       totalRev:        +(totalRev / 1e12).toFixed(2),
+      cycGap:          +(cycGap * 100).toFixed(2),
+      clCycGap:        +(clCycGap * 100).toFixed(2),
       prebateSpend:    +(prebateSpend / 1e12).toFixed(2),
       childcareSpend:  +(childcareSpend / 1e12).toFixed(2),
       familyLeaveSpend:+(familyLeaveSpend / 1e12).toFixed(2),
@@ -818,6 +937,27 @@ function ParameterPanel({ params, setParam }) {
           <option value={15}>Year 15</option>
           <option value={20}>Year 20</option>
         </select>
+      </div>
+
+      <div className="pt-2">
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Recession Severity
+        </label>
+        <select
+          value={params.recessionSeverity}
+          onChange={e => setParam("recessionSeverity", e.target.value)}
+          disabled={params.recessionYear === 0}
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm disabled:opacity-50"
+        >
+          {Object.entries(RECESSION_SCENARIOS)
+            .filter(([k]) => k !== 'none')
+            .map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+        </select>
+        <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+          Each scenario is a multi-year equity and output shock with a permanent scar to
+          potential output and a recovery path. Applied to the Accord and current law alike,
+          each on its own revenue mix.
+        </p>
       </div>
     </div>
   );
