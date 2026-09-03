@@ -2079,7 +2079,7 @@ export default function Dashboard() {
       <InfoBox className="columns-2 gap-6">
         <div className="text-xs font-bold text-muted-foreground mb-1.5">Model Notes &amp; Assumptions</div>
         <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
-        <p>AMCF grants follow the National Balance Sheet engine: $488/person (Yr 1) - $7,401/person (Yr 30), in 2024 real dollars. Custodial account: universal $10K at Year 0, 5% real return.</p>
+        <p>AMCF grants follow the National Balance Sheet engine: $488/person (Yr 1) - $7,401/person (Yr 30), in 2024 real dollars. Custodial account: 18 years of childhood grants compounding at 5% real, $28,690 at age 18 for a child born in Year 0.</p>
         <p>PSU provisions ramp from 0-100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
         <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 3% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
         <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%-12%/yr; Billionaires: 12%-9.5%/yr).</p>
