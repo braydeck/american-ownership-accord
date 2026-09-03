@@ -25,6 +25,10 @@ import {
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
+import { AMCF_ANC } from '@/lib/demographics';
+import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
+import { useFiscalParams, FISCAL_KEYS } from '@/lib/use-fiscal-params';
+import { FiscalControls } from '@/components/controls/FiscalControls';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
@@ -124,7 +128,7 @@ const PROG_LOST = {
 };
 
 // PSU dividends and cashouts are now model-derived from the three-tier equity engine (see below).
-// Carbon dividend is now formula-derived: CARBON_DIV_PER_CAP × hhSz (see below).
+// Carbon dividend is now formula-derived: carbonDivPC(fx.carbonRate) × hhSz (see below).
 
 // AMCF unit liquidation rates: fraction of annual grant liquidated for cash in a given year.
 // Citizens receive AMCF units (equity, not cash) — liquidation is optional. Default = accumulate.
@@ -137,8 +141,7 @@ const AMCF_LIQ_BASE = {
 // Current-law all-in effective tax rate (income + payroll − credits)
 const CL_ETR   = { B10:0.05,P10:0.12,P20:0.14,P30:0.17,P40:0.18,P50:0.21,P60:0.22,P70:0.24,P80:0.26,T10:0.30,T1:0.37,BILL:0.22,ELON:0.15 };
 
-// AMCF citizen grant per person per year (Sim-6 validated trajectory; Year 1 = $64 confirmed)
-const AMCF_ANC = [[0,0],[1,64],[5,503],[10,1724],[15,4421],[20,9430],[25,15397],[30,25924]];
+// AMCF_ANC now lives in src/lib/demographics.js so the three pages cannot drift apart.
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  DISTRIBUTIONAL ENGINE  (ported from Sim-2; calibrated to IRS SOI + BLS)   ║
@@ -185,7 +188,6 @@ const AVG_TENURE = 4.1;     // BLS median job tenure for cashout annualization
 const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00];
 
 // Carbon dividend: 80% of $348B revenue distributed equally per capita (equal per person, not per HH)
-const CARBON_DIV_PER_CAP = 5e9 * 100 * 0.80 / 330e6; // ≈ $843/person/yr
 
 // Demo → bracket index mapping (0–14, matching DIST_BRACKETS)
 // Based on matching DEMO stated income to bracket income midpoint
@@ -203,14 +205,18 @@ const DEMO_BRACKET = {
 // of non-residential land LVT is real and lives in the fiscal/revenue aggregate
 // (NationalBalanceSheet / Rent Tax Optimizer, which tax the full land base) — it is just
 // not pinned onto the median household of each bracket here.
-function lvtNetBr(k, y, P) {
+function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
+  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y })[DEMO_BRACKET[k]];
 }
 
 // Prebate per person: redirected $6,250 by default; reverts to base $5,000 when the
 // $500k homeowner exemption is toggled on (deficit-neutral coupling).
-const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
+// Prebate per person. The slider sets the no-exemption (redirected) level; turning the
+// $500k homeowner exemption on gives back the redirected portion, as in the engine.
+const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
+const prebatePC = (P, fx = FISCAL_DEFAULTS) =>
+  P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita;
 
 // Sectoral fund balance at Year y with fixed annual contribution C at 6% gross growth
 function sectoralFundBalance(C, y) {
@@ -324,7 +330,14 @@ function lerp(anc, x) {
   return anc[anc.length-1][1];
 }
 
-const amcfG        = y => lerp(AMCF_ANC, y);
+// fx = fiscal context shared with the National Balance Sheet: the AMCF grant series in
+// 2024 real dollars plus the tax rates households actually pay. Defaults to the engine's
+// own defaults; the Dashboard passes live values when the sidebar assumptions are changed.
+const FISCAL_DEFAULTS = { ...Object.fromEntries(FISCAL_KEYS.map(k => [k, BASE_PARAMS[k]])), grants: AMCF_ANC };
+const amcfG      = (y, fx = FISCAL_DEFAULTS) => lerp(fx.grants, y);
+// Carbon dividend: 80% of receipts returned per capita, so it scales with the rate.
+// Shared with the engine so the dividend matches the revenue actually collected.
+const carbonDivPC = carbonDividendPerCapita;
 // AMCF liquidation rate: structural pressure × time-decay.
 // pressure_decay: 1.0 at Year 0, decays toward 0.5 asymptote as household wealth builds.
 const pressureDecay = y => 0.5 + 0.5 * Math.exp(-y / 15);
@@ -334,7 +347,25 @@ const psuDAt  = (k, y) => psuDividendPerFiler(DEMO_BRACKET[k], y);
 const psuCAt  = (k, y) => psuCashoutPerFiler(DEMO_BRACKET[k], y);
 // taxAt: income tax reform delta vs current law, constant in real 2024 dollars.
 // (VAT, LVT, carbon are handled separately via DIST_BRACKETS model)
-const taxAt   = (k, y) => DEMOS[k].taxChg;
+// Income tax under the Accord's two-bracket structure, for one demographic's income.
+// Deduction blends single and joint by household size: a 1-person household gets the single
+// deduction, 2+ gets the joint one, and fractional average sizes interpolate.
+function accordIncomeTax(income, hhSz, fx) {
+  const jFrac = Math.min(1, Math.max(0, hhSz - 1));
+  const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
+  const mid   = Math.max(0, Math.min(income, fx.incomeTaxThreshold) - ded);
+  const top   = Math.max(0, income - fx.incomeTaxThreshold);
+  return fx.incomeTaxLow * mid + fx.incomeTaxHigh * top;
+}
+
+// DEMOS[k].taxChg is a calibrated delta (Accord income tax minus current law) at the engine's
+// default rates. Backing current law out of it once lets the delta respond to rate changes
+// while reproducing the original calibration exactly when the sliders are at their defaults.
+const CL_INCOME_TAX = Object.fromEntries(DEMO_KEYS.map(k =>
+  [k, accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, FISCAL_DEFAULTS) - DEMOS[k].taxChg]));
+
+const taxAt = (k, y, fx = FISCAL_DEFAULTS) =>
+  accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, fx) - CL_INCOME_TAX[k];
 
 // ╔═══════════════════════════════════════╗
 // ║  COMPUTATION ENGINE                   ║
@@ -342,7 +373,7 @@ const taxAt   = (k, y) => DEMOS[k].taxChg;
 
 // Returns layered income components for (demographic, year, active provisions)
 // tax: negative = net cost to household; positive = net relief (stacks downward in charts)
-function getInc(k, y, P) {
+function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const d  = DEMOS[k];
   const bi = DEMO_BRACKET[k];
   const base = d.income * Math.pow(1 + d.incG, y);
@@ -351,28 +382,28 @@ function getInc(k, y, P) {
     if (d.accordIncG != null) {
       // High-wealth demos (T1/BILL/ELON): income compression from capital reform, plus the
       // LVT they bear (residential + investment-land) — the latter is large for these personas.
-      tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P);
+      tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P, fx);
     } else {
       // Model-derived: income tax reform + VAT (3%, scales with income) + LVT + carbon cost
-      const vatCost    = 0.03 * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost    = lvtNetBr(k, y, P);
-      const carbonCost = CARBON_TONS_BR[bi] * 100;
-      tax = -taxAt(k, y) - vatCost - lvtCost - carbonCost;
+      const vatCost    = fx.vatRate * DIST_BRACKETS[bi].cRat * base;
+      const lvtCost    = lvtNetBr(k, y, P, fx);
+      const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
+      tax = -taxAt(k, y, fx) - vatCost - lvtCost - carbonCost;
     }
   }
   // PRE: universal prebate + carbon dividend (equal per capita) − programs replaced
-  const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-  const pre  = P.has('PRE')   ? (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
+  const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
+  const pre  = P.has('PRE')   ? (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF: only the liquidated fraction is cash income. Retained units go to wealth (getNW).
   const adults = Math.min(d.hhSz, 2); // children's AMCF is custodial
-  const ag   = P.has('AMCF')  ? amcfG(y) * adults * liqRate(k, y) : 0;
+  const ag   = P.has('AMCF')  ? amcfG(y, fx) * adults * liqRate(k, y) : 0;
   const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
   const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
   return { base, tax, pre, amcf:ag, psuD:pd, psuC:pc, total: base+tax+pre+ag+pd+pc };
 }
 
 // Returns layered NW components — compounded cumulative effects
-function getNW(k, y, P) {
+function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k], r = d.ret;
   // Accord NW growth rate (cap gains reform + PSU excise). LVT has no per-persona wealth
   // effect: owner-occupied land capitalization is ~offset by lower lifetime housing costs,
@@ -390,12 +421,12 @@ function getNW(k, y, P) {
     // taxAt handles the explicit tax burden on top; no separate accordIncG channel here
     // because income compression for capital earners is already baked into accordNWG.
     let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k, t) * d.save);
+    for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k, t, fx) * d.save);
     tax = c;
   }
   if (P.has('PRE')) {
-    const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const ann = (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
+    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
+    const ann = (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
     pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
   }
   if (P.has('AMCF')) {
@@ -409,7 +440,7 @@ function getNW(k, y, P) {
       // Cohort turning 18 in Accord Year c had min(c, 18) years of childhood grants
       const grantYears = Math.min(c, 18);
       let acct = 0;
-      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t);
+      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t, fx);
       acct *= Math.pow(1.05, y - c); // compound growth since turning 18
       cust += acct;
     }
@@ -420,7 +451,7 @@ function getNW(k, y, P) {
     let liqSavings  = 0;
     const adults = Math.min(d.hhSz, 2);
     for (let t = 1; t <= y; t++) {
-      const grant = amcfG(t) * adults;
+      const grant = amcfG(t, fx) * adults;
       const lr = liqRate(k, t);
       retainedAcc = retainedAcc * 1.05 + grant * (1 - lr);
       liqSavings  = liqSavings  * (1 + r) + grant * lr * d.save;
@@ -454,7 +485,7 @@ function getNW(k, y, P) {
 //
 // Denominator uses ECONOMIC income (reported + unrealized biz + unrealized fin) so that
 // current-law 9% and Accord 30–55%+ are directly comparable on the same basis.
-function billionaireETR(k, y, P) {
+function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const d    = DEMOS[k];
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
   const nwY  = d.nw * Math.pow(1 + nwGr, y);
@@ -469,14 +500,14 @@ function billionaireETR(k, y, P) {
   let taxes = incY * CL_ETR[k];
 
   if (P.has('TAX')) {
-    taxes += taxAt(k, y);                              // (1) income tax reform on reported income
+    taxes += taxAt(k, y, fx);                              // (1) income tax reform on reported income
     taxes += 0.04 * d.bizPct * nwY;                   // (2) PSU equity excise on business equity
     const mtmRate = Math.max(0, Math.min(1, (y - 5) / 10));  // ramp 0→1 from Year 5 to Year 15
     taxes += mtmRate * 0.50 * (unrealBiz + unrealFin); // (3) MTM at 50% rate (Accord >$1M rate)
-    taxes += lvtNetBr(k, y, P);                        // (4) LVT (residential + investment land)
+    taxes += lvtNetBr(k, y, P, fx);                        // (4) LVT (residential + investment land)
   }
   if (P.has('PRE')) {
-    taxes -= (prebatePC(P) * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k]);
+    taxes -= (prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate) * d.hhSz - PROG_LOST[k]);
   }
   return econInc > 0 ? taxes / econInc * 100 : 0;
 }
@@ -485,8 +516,8 @@ function billionaireETR(k, y, P) {
 // BILL/ELON → billionaireETR() on economic income (buy-borrow-die requires this treatment)
 // All others → model-derived from Sim-2 distributional engine on reported income:
 //   CL income tax + income tax reform (taxAt) + VAT (3%) + LVT net burden + carbon cost
-function getETR(k, y, P) {
-  if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P);
+function getETR(k, y, P, fx = FISCAL_DEFAULTS) {
+  if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P, fx);
 
   const d  = DEMOS[k];
   const bi = DEMO_BRACKET[k];
@@ -494,15 +525,15 @@ function getETR(k, y, P) {
   let taxes = g * CL_ETR[k], bens = 0;
 
   if (P.has('TAX')) {
-    const vatCost    = 0.03 * DIST_BRACKETS[bi].cRat * g;
-    const lvtCost    = lvtNetBr(k, y, P);
-    const carbonCost = CARBON_TONS_BR[bi] * 100;
-    taxes += taxAt(k, y) + vatCost + lvtCost + carbonCost;
+    const vatCost    = fx.vatRate * DIST_BRACKETS[bi].cRat * g;
+    const lvtCost    = lvtNetBr(k, y, P, fx);
+    const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
+    taxes += taxAt(k, y, fx) + vatCost + lvtCost + carbonCost;
   }
   // PRE: universal prebate + carbon dividend − programs replaced.
   // AMCF and PSU are equity returns, not tax offsets — excluded from ETR.
   if (P.has('PRE')) {
-    bens += prebatePC(P) * d.hhSz + CARBON_DIV_PER_CAP * d.hhSz - PROG_LOST[k];
+    bens += prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate) * d.hhSz - PROG_LOST[k];
   }
   return g > 0 ? (taxes - bens) / g * 100 : 0;
 }
@@ -733,16 +764,16 @@ const noData = (
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 1: AVERAGE ANNUAL INCOME                      ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart1({ demos, P, mode, snYear, logScale, normalizedBar }) {
+function Chart1({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
   const lData = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const r = { year: y };
-    demos.forEach(k => { r[k] = getInc(k, y, Q).total; });
+    demos.forEach(k => { r[k] = getInc(k, y, Q, fx).total; });
     return r;
   }), [demos.join(','), [...P].sort().join(',')]);
 
   const bData = useMemo(() => demos.map(k => {
-    const l = getInc(k, snYear, P);
+    const l = getInc(k, snYear, P, fx);
     return { demo:DEMOS[k].short, key:k, base:l.base, tax:l.tax, pre:l.pre, amcf:l.amcf, psuD:l.psuD, psuC:l.psuC };
   }), [demos.join(','), [...P].sort().join(','), snYear]);
 
@@ -793,16 +824,16 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar }) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 2: AVERAGE NET WORTH                          ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart2({ demos, P, mode, snYear, logScale, normalizedBar }) {
+function Chart2({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
   const lData = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const r = { year: y };
-    demos.forEach(k => { const t = getNW(k, y, Q).total; r[k] = logScale ? Math.max(t, 1) : t; });
+    demos.forEach(k => { const t = getNW(k, y, Q, fx).total; r[k] = logScale ? Math.max(t, 1) : t; });
     return r;
   }), [demos.join(','), [...P].sort().join(','), logScale]);
 
   const bData = useMemo(() => demos.map(k => {
-    const l = getNW(k, snYear, P);
+    const l = getNW(k, snYear, P, fx);
     return {
       demo:DEMOS[k].short, key:k,
       base: Math.max(l.base, 0),
@@ -875,18 +906,18 @@ function buildShareData(demos, getVal) {
   });
 }
 
-function Chart3({ demos, P, stacked }) {
+function Chart3({ demos, P, stacked, fx }) {
   const lineData = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const vals = {}; let total = 0;
-    DEMO_KEYS.forEach(k => { const v = Math.max(getNW(k, y, Q).total, 0) * POP[k]; vals[k] = v; total += v; });
+    DEMO_KEYS.forEach(k => { const v = Math.max(getNW(k, y, Q, fx).total, 0) * POP[k]; vals[k] = v; total += v; });
     const r = { year: y };
     demos.forEach(k => { r[k] = total > 0 ? vals[k] / total * 100 : 0; });
     return r;
   }), [demos.join(','), [...P].sort().join(',')]);
 
   const stackData = useMemo(() =>
-    buildShareData(demos, (k, y) => getNW(k, y, y === 0 ? BASE_ONLY : P).total),
+    buildShareData(demos, (k, y) => getNW(k, y, y === 0 ? BASE_ONLY : P, fx).total),
   [demos.join(','), [...P].sort().join(',')]);
 
   if (!demos.length) return noData;
@@ -938,18 +969,18 @@ function Chart3({ demos, P, stacked }) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 4: SHARE OF NATIONAL INCOME                   ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart4({ demos, P, stacked }) {
+function Chart4({ demos, P, stacked, fx }) {
   const lineData = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const vals = {}; let total = 0;
-    DEMO_KEYS.forEach(k => { const v = Math.max(getInc(k, y, Q).total, 0) * POP[k]; vals[k] = v; total += v; });
+    DEMO_KEYS.forEach(k => { const v = Math.max(getInc(k, y, Q, fx).total, 0) * POP[k]; vals[k] = v; total += v; });
     const r = { year: y };
     demos.forEach(k => { r[k] = total > 0 ? vals[k] / total * 100 : 0; });
     return r;
   }), [demos.join(','), [...P].sort().join(',')]);
 
   const stackData = useMemo(() =>
-    buildShareData(demos, (k, y) => getInc(k, y, y === 0 ? BASE_ONLY : P).total),
+    buildShareData(demos, (k, y) => getInc(k, y, y === 0 ? BASE_ONLY : P, fx).total),
   [demos.join(','), [...P].sort().join(',')]);
 
   if (!demos.length) return noData;
@@ -1001,11 +1032,11 @@ function Chart4({ demos, P, stacked }) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 5: EFFECTIVE TAX RATE                         ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart5({ demos, P }) {
+function Chart5({ demos, P, fx }) {
   const data = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const r = { year: y };
-    demos.forEach(k => { r[k] = parseFloat(getETR(k, y, Q).toFixed(2)); });
+    demos.forEach(k => { r[k] = parseFloat(getETR(k, y, Q, fx).toFixed(2)); });
     return r;
   }), [demos.join(','), [...P].sort().join(',')]);
 
@@ -1068,15 +1099,15 @@ const GINI_COMPARISONS = {
   ],
 };
 
-function Chart6({ P }) {
+function Chart6({ P, fx }) {
   const [showCountries, setShowCountries] = useState({ us: true, oecd: true, gb: false, au: false, dk: false, de: false });
   const data = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? BASE_ONLY : P;
     const incPts = GINI_INC_DEMOS.map((k, i) => ({
-      v: Math.max(getInc(k, y, Q).total, 0), w: GINI_INC_WGTS[i]
+      v: Math.max(getInc(k, y, Q, fx).total, 0), w: GINI_INC_WGTS[i]
     }));
     const nwPts = GINI_NW_DEMOS.map((k, i) => ({
-      v: Math.max(getNW(k, y, Q).total, 0), w: GINI_NW_WGTS[i]
+      v: Math.max(getNW(k, y, Q, fx).total, 0), w: GINI_NW_WGTS[i]
     }));
     return {
       year: y,
@@ -1142,10 +1173,10 @@ function Chart6({ P }) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 7: WEALTH COMPOSITION BREAKDOWN               ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart7({ demos, P, snYear, normalizedBar }) {
+function Chart7({ demos, P, snYear, normalizedBar, fx }) {
   const data = useMemo(() => demos.map(k => {
     const d = DEMOS[k];
-    const l = getNW(k, snYear, P);
+    const l = getNW(k, snYear, P, fx);
     const b = Math.max(l.base, 0);
     const other = Math.max(0, b * (1 - d.homePct - d.k401Pct - d.finPct - d.bizPct));
     return {
@@ -1203,7 +1234,7 @@ function Chart7({ demos, P, snYear, normalizedBar }) {
 // ║  CHART 8: CASH FLOW DIVERGING BAR                    ║
 // ╚══════════════════════════════════════════════════════╝
 
-function cashFlowPt(k, y, P, norm) {
+function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
   const gross = d.income * Math.pow(1 + d.incG, y);
   // For accordIncG demos with TAX active, actual earned income is compressed.
@@ -1218,20 +1249,20 @@ function cashFlowPt(k, y, P, norm) {
     ? 0
     : -(actualInc * CL_ETR[k]);
   const taxRef = P.has('TAX')
-    ? (d.accordIncG != null ? actualInc - gross : -taxAt(k, y))
+    ? (d.accordIncG != null ? actualInc - gross : -taxAt(k, y, fx))
     : 0;
-  const vat  = P.has('TAX') ? -(0.03 * d.consume * actualInc) : 0;
-  const lvt  = P.has('TAX') ? -lvtNetBr(k, y, P) : 0;
+  const vat  = P.has('TAX') ? -(fx.vatRate * d.consume * actualInc) : 0;
+  const lvt  = P.has('TAX') ? -lvtNetBr(k, y, P, fx) : 0;
   // Carbon burden: linear with income up to ~$500K ($15K cap), then hard caps for ultra-HNW.
   // Carbon taxes fall on consumption of carbon-intensive goods, not on income directly.
   // Even a billionaire household can only physically consume so much fossil fuel.
   const carbCap = (k === 'BILL' || k === 'ELON') ? 150000 : 15000;
   const carb = P.has('TAX') ? -Math.min(d.income / 68000 * 1800, carbCap) : 0;
   const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;  // programs replaced (negative = lost benefit)
-  const pre  = P.has('PRE') ? (prebatePC(P) * d.hhSz) : 0;
-  const cdiv = P.has('PRE') ? CARBON_DIV_PER_CAP * d.hhSz : 0;
+  const pre  = P.has('PRE') ? (prebatePC(P, fx) * d.hhSz) : 0;
+  const cdiv = P.has('PRE') ? carbonDivPC(fx.carbonRate) * d.hhSz : 0;
   // AMCF: only liquidated fraction is cash income in cash flow chart
-  const ag   = P.has('AMCF')  ? amcfG(y) * Math.min(d.hhSz, 2) * liqRate(k, y) : 0;
+  const ag   = P.has('AMCF')  ? amcfG(y, fx) * Math.min(d.hhSz, 2) * liqRate(k, y) : 0;
   const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
   const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
   const net  = gross + clTax + taxRef + vat + lvt + carb + progLost + pre + cdiv + ag + pd + pc;
@@ -1256,14 +1287,14 @@ const CF_BARS = [
   { key:'pc',       name:'PSU Cashouts',        fill:'#fbbf24', prov:'PSU_C'},
 ];
 
-function Chart8({ demos, P, snYear, view, normalizedBar }) {
+function Chart8({ demos, P, snYear, view, normalizedBar, fx }) {
   const timeData = useMemo(() => {
     const k = demos[0]; if (!k) return [];
-    return YEARS.map(y => ({ year:y, ...cashFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar) }));
+    return YEARS.map(y => ({ year:y, ...cashFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar, fx) }));
   }, [demos[0], [...P].sort().join(','), normalizedBar]);
 
   const demosData = useMemo(() =>
-    demos.map(k => ({ demo:DEMOS[k].short, ...cashFlowPt(k, snYear, P, normalizedBar) })),
+    demos.map(k => ({ demo:DEMOS[k].short, ...cashFlowPt(k, snYear, P, normalizedBar, fx) })),
   [demos.join(','), [...P].sort().join(','), snYear, normalizedBar]);
 
   if (!demos.length) return noData;
@@ -1306,9 +1337,9 @@ function Chart8({ demos, P, snYear, view, normalizedBar }) {
 // ║  CHART 10: WEALTH FLOW DIVERGING BAR                 ║
 // ╚══════════════════════════════════════════════════════╝
 
-function wealthFlowPt(k, y, P, norm) {
-  const l = getNW(k, y, P);
-  const clNW = getNW(k, y, BASE_ONLY).total;
+function wealthFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
+  const l = getNW(k, y, P, fx);
+  const clNW = getNW(k, y, BASE_ONLY, fx).total;
   // Normalized: CL NW = 100% reference. base bar always anchors at 100%.
   // Tax impact absorbs both the explicit burden AND the Growth Tax compounding drag
   // (accordNWG < nwG), so high-wealth demos see a larger negative tax bar.
@@ -1333,9 +1364,9 @@ const WF_BARS = [
 // Each returns an array of { name, value, fill, isTotal? } for a given (demo, year, provisions).
 // Row order is stable across years (same P ⇒ same schema), enabling year-column layout.
 
-function wealthMixRows(k, y, P) {
+function wealthMixRows(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
-  const l = getNW(k, y, P);
+  const l = getNW(k, y, P, fx);
   const b = Math.max(l.base, 0);
   const rows = [
     { name:'Home Equity',  value: b * d.homePct, fill:'#f97316' },
@@ -1351,8 +1382,8 @@ function wealthMixRows(k, y, P) {
   return rows;
 }
 
-function cfRows(k, y, P) {
-  const pt = cashFlowPt(k, y, P, false);
+function cfRows(k, y, P, fx = FISCAL_DEFAULTS) {
+  const pt = cashFlowPt(k, y, P, false, fx);
   const rows = [
     { name:'Gross Income',       value: pt.grossInc,  fill:'#94a3b8' },
     { name:'Income/Payroll Tax', value: pt.clTax,     fill:'#c27040' },
@@ -1375,9 +1406,9 @@ function cfRows(k, y, P) {
   return rows;
 }
 
-function wfRows(k, y, P) {
-  const l   = getNW(k, y, P);
-  const clNW = getNW(k, y, BASE_ONLY).total;
+function wfRows(k, y, P, fx = FISCAL_DEFAULTS) {
+  const l   = getNW(k, y, P, fx);
+  const clNW = getNW(k, y, BASE_ONLY, fx).total;
   const rows = [
     { name:'Base NW (Current Law)', value: clNW,  fill:'#94a3b8' },
   ];
@@ -1390,14 +1421,14 @@ function wfRows(k, y, P) {
   return rows;
 }
 
-function Chart10({ demos, P, snYear, view, normalizedBar, logScale }) {
+function Chart10({ demos, P, snYear, view, normalizedBar, logScale, fx }) {
   const timeData = useMemo(() => {
     const k = demos[0]; if (!k) return [];
-    return YEARS.map(y => ({ year:y, ...wealthFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar) }));
+    return YEARS.map(y => ({ year:y, ...wealthFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar, fx) }));
   }, [demos[0], [...P].sort().join(','), normalizedBar]);
 
   const demosData = useMemo(() =>
-    demos.map(k => ({ demo:DEMOS[k].short, ...wealthFlowPt(k, snYear, P, normalizedBar) })),
+    demos.map(k => ({ demo:DEMOS[k].short, ...wealthFlowPt(k, snYear, P, normalizedBar, fx) })),
   [demos.join(','), [...P].sort().join(','), snYear, normalizedBar]);
 
   if (!demos.length) return noData;
@@ -1440,15 +1471,15 @@ function Chart10({ demos, P, snYear, view, normalizedBar, logScale }) {
 // ╔══════════════════════════════════════════════════════╗
 // ║  CHART 9: CROSSOVER MOMENT                           ║
 // ╚══════════════════════════════════════════════════════╝
-function Chart9({ demos, P, logScale }) {
+function Chart9({ demos, P, logScale, fx }) {
   const clProvs = new Set(['BASE']);
 
   const data = useMemo(() => YEARS.map(y => {
     const Q = y === 0 ? clProvs : P;   // Year 0 = both lines share CL baseline
     const r = { year: y };
     demos.forEach(k => {
-      const cl  = getNW(k, y, clProvs).total;
-      const acc = getNW(k, y, Q).total;
+      const cl  = getNW(k, y, clProvs, fx).total;
+      const acc = getNW(k, y, Q, fx).total;
       r[`${k}_cl`]  = logScale ? Math.max(cl, 1)  : cl;
       r[`${k}_acc`] = logScale ? Math.max(acc, 1) : acc;
     });
@@ -1460,8 +1491,8 @@ function Chart9({ demos, P, logScale }) {
     const out = {};
     demos.forEach(k => {
       for (let y = 1; y <= 30; y++) {
-        const cl  = getNW(k, y, clProvs).total;
-        const acc = getNW(k, y, P).total;
+        const cl  = getNW(k, y, clProvs, fx).total;
+        const acc = getNW(k, y, P, fx).total;
         if (acc > cl) { out[k] = y; break; }
       }
     });
@@ -1536,6 +1567,9 @@ export default function Dashboard() {
   const [chart8View, setChart8View]     = useState('time');   // 'time' | 'demos'
   const [chart10View, setChart10View]   = useState('time');
 
+  // Fiscal assumptions, shared with the National Balance Sheet and Inequality.
+  const { fx, values: fxValues, set: fxSet, isDefault: fxIsDefault, reset: fxReset, grants } = useFiscalParams();
+
   const toggleDemo = k => setActiveDemos(prev => {
     const n = new Set(prev);
     if (n.has(k)) n.delete(k); else n.add(k);
@@ -1563,13 +1597,13 @@ export default function Dashboard() {
 
   const renderChart = () => {
     switch (activeChart) {
-      case 1:  return <Chart1  demos={demos} P={P} mode={currentMode} snYear={snYear} logScale={logScale} normalizedBar={normalizedBar}/>;
-      case 2:  return <Chart2  demos={demos} P={P} mode={currentMode} snYear={snYear} logScale={logScale} normalizedBar={normalizedBar}/>;
-      case 3:  return <Chart3  demos={demos} P={P} stacked={stackedShare}/>;
-      case 4:  return <Chart4  demos={demos} P={P} stacked={stackedShare}/>;
-      case 5:  return <Chart5  demos={demos} P={P}/>;
+      case 1:  return <Chart1  demos={demos} P={P} mode={currentMode} snYear={snYear} logScale={logScale} normalizedBar={normalizedBar} fx={fx}/>;
+      case 2:  return <Chart2  demos={demos} P={P} mode={currentMode} snYear={snYear} logScale={logScale} normalizedBar={normalizedBar} fx={fx}/>;
+      case 3:  return <Chart3  demos={demos} P={P} stacked={stackedShare} fx={fx}/>;
+      case 4:  return <Chart4  demos={demos} P={P} stacked={stackedShare} fx={fx}/>;
+      case 5:  return <Chart5  demos={demos} P={P} fx={fx}/>;
       case 6:  return null; // Gini moved to standalone Inequality module
-      case 7:  return <Chart7  demos={demos} P={P} snYear={snYear} normalizedBar={normalizedBar}/>;
+      case 7:  return <Chart7  demos={demos} P={P} snYear={snYear} normalizedBar={normalizedBar} fx={fx}/>;
       case 8:  return (
         <div>
           <div className="flex gap-2.5 mb-3.5 flex-wrap items-center">
@@ -1579,10 +1613,10 @@ export default function Dashboard() {
             <Button variant={chart8View==='demos' ? 'default' : 'outline'} size="sm"
               onClick={() => setChart8View('demos')}>All Demos (Yr {snYear})</Button>
           </div>
-          <Chart8 demos={demos} P={P} snYear={snYear} view={chart8View} normalizedBar={normalizedBar}/>
+          <Chart8 demos={demos} P={P} snYear={snYear} view={chart8View} normalizedBar={normalizedBar} fx={fx}/>
         </div>
       );
-      case 9:  return <Chart9  demos={demos} P={P} logScale={logScale}/>;
+      case 9:  return <Chart9  demos={demos} P={P} logScale={logScale} fx={fx}/>;
       case 10: return (
         <div>
           <div className="flex gap-2.5 mb-3.5 flex-wrap items-center">
@@ -1592,7 +1626,7 @@ export default function Dashboard() {
             <Button variant={chart10View==='demos' ? 'default' : 'outline'} size="sm"
               onClick={() => setChart10View('demos')}>All Demos (Yr {snYear})</Button>
           </div>
-          <Chart10 demos={demos} P={P} snYear={snYear} view={chart10View} normalizedBar={normalizedBar} logScale={logScale}/>
+          <Chart10 demos={demos} P={P} snYear={snYear} view={chart10View} normalizedBar={normalizedBar} logScale={logScale} fx={fx}/>
         </div>
       );
       default: return null;
@@ -1664,6 +1698,11 @@ export default function Dashboard() {
           step={1}
           helpText="Used by bar charts, Charts 7/8/10 'All Demos' view."
         />
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-border">
+        <FiscalControls values={fxValues} set={fxSet} isDefault={fxIsDefault}
+                        reset={fxReset} grants={grants} />
       </div>
     </div>
   );
@@ -1746,8 +1785,8 @@ export default function Dashboard() {
             <div className="text-sm font-bold text-foreground mb-2.5">Year {snYear} Income Snapshot</div>
             <div className="flex gap-3 flex-wrap">
               {demos.map(k => {
-                const l   = getInc(k, snYear, P);
-                const cl  = getInc(k, snYear, BASE_ONLY);
+                const l   = getInc(k, snYear, P, fx);
+                const cl  = getInc(k, snYear, BASE_ONLY, fx);
                 const delta = l.total - cl.total;
                 const pct = cl.total > 0 ? delta / cl.total * 100 : null;
                 const pos = delta >= 0;
@@ -1776,8 +1815,8 @@ export default function Dashboard() {
             <div className="text-sm font-bold text-foreground mb-2.5">Year {snYear} Net Worth Snapshot</div>
             <div className="flex gap-3 flex-wrap">
               {demos.map(k => {
-                const l   = getNW(k, snYear, P);
-                const cl  = getNW(k, snYear, BASE_ONLY);
+                const l   = getNW(k, snYear, P, fx);
+                const cl  = getNW(k, snYear, BASE_ONLY, fx);
                 const delta = l.total - cl.total;
                 const pct = cl.total > 0 ? delta / cl.total * 100 : null;
                 const pos = delta >= 0;
@@ -1813,17 +1852,17 @@ export default function Dashboard() {
                 const vals = {};
                 DEMO_KEYS.forEach(k => {
                   const v = Math.max(
-                    activeChart === 3 ? getNW(k, snYear, P).total : getInc(k, snYear, P).total, 0
+                    activeChart === 3 ? getNW(k, snYear, P, fx).total : getInc(k, snYear, P, fx).total, 0
                   ) * POP[k];
                   vals[k] = v; total += v;
                 });
                 return snapDemos.map(k => {
                   const share = total > 0 ? vals[k] / total * 100 : 0;
                   const clTotal = DEMO_KEYS.reduce((s, j) => s + Math.max(
-                    activeChart === 3 ? getNW(j, snYear, BASE_ONLY).total : getInc(j, snYear, BASE_ONLY).total, 0
+                    activeChart === 3 ? getNW(j, snYear, BASE_ONLY, fx).total : getInc(j, snYear, BASE_ONLY, fx).total, 0
                   ) * POP[j], 0);
                   const clShare = clTotal > 0 ? Math.max(
-                    activeChart === 3 ? getNW(k, snYear, BASE_ONLY).total : getInc(k, snYear, BASE_ONLY).total, 0
+                    activeChart === 3 ? getNW(k, snYear, BASE_ONLY, fx).total : getInc(k, snYear, BASE_ONLY, fx).total, 0
                   ) * POP[k] / clTotal * 100 : 0;
                   const delta = share - clShare;
                   return (
@@ -1854,7 +1893,7 @@ export default function Dashboard() {
                 let crossover = null;
                 const clP = new Set(['BASE']);
                 for (let y = 1; y <= 30; y++) {
-                  if (getNW(k, y, P).total > getNW(k, y, clP).total) { crossover = y; break; }
+                  if (getNW(k, y, P, fx).total > getNW(k, y, clP, fx).total) { crossover = y; break; }
                 }
                 return (
                   <div key={k} className="px-3.5 py-2 rounded-lg min-w-[130px] border-2"
@@ -1878,8 +1917,8 @@ export default function Dashboard() {
           <CardContent>
             <SnapshotTable title="Annual Income Trajectory"
               demos={demos}
-              getValue={(k, y) => getInc(k, y, P).total}
-              getCL={(k, y) => getInc(k, y, BASE_ONLY).total}
+              getValue={(k, y) => getInc(k, y, P, fx).total}
+              getCL={(k, y) => getInc(k, y, BASE_ONLY, fx).total}
               fmt={fD}/>
           </CardContent>
         </Card>
@@ -1890,8 +1929,8 @@ export default function Dashboard() {
           <CardContent>
             <SnapshotTable title="Net Worth Trajectory"
               demos={demos}
-              getValue={(k, y) => getNW(k, y, P).total}
-              getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
+              getValue={(k, y) => getNW(k, y, P, fx).total}
+              getCL={(k, y) => getNW(k, y, BASE_ONLY, fx).total}
               fmt={fD}/>
           </CardContent>
         </Card>
@@ -1905,12 +1944,12 @@ export default function Dashboard() {
               demos={demos}
               getValue={(k, y) => {
                 let t = 0; const v = {};
-                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
+                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, P, fx).total, 0)*POP[j]; v[j]=x; t+=x; });
                 return t > 0 ? v[k]/t*100 : 0;
               }}
               getCL={(k, y) => {
                 let t = 0; const v = {};
-                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
+                DEMO_KEYS.forEach(j => { const x = Math.max(getNW(j, y, BASE_ONLY, fx).total, 0)*POP[j]; v[j]=x; t+=x; });
                 return t > 0 ? v[k]/t*100 : 0;
               }}
               fmt={v => v.toFixed(2)+'%'}
@@ -1927,12 +1966,12 @@ export default function Dashboard() {
               demos={demos}
               getValue={(k, y) => {
                 let t = 0; const v = {};
-                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, P).total, 0)*POP[j]; v[j]=x; t+=x; });
+                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, P, fx).total, 0)*POP[j]; v[j]=x; t+=x; });
                 return t > 0 ? v[k]/t*100 : 0;
               }}
               getCL={(k, y) => {
                 let t = 0; const v = {};
-                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, BASE_ONLY).total, 0)*POP[j]; v[j]=x; t+=x; });
+                DEMO_KEYS.forEach(j => { const x = Math.max(getInc(j, y, BASE_ONLY, fx).total, 0)*POP[j]; v[j]=x; t+=x; });
                 return t > 0 ? v[k]/t*100 : 0;
               }}
               fmt={v => v.toFixed(2)+'%'}
@@ -1954,8 +1993,8 @@ export default function Dashboard() {
                 <BarChart
                   data={demos.map(k => ({
                     demo: DEMOS[k].short,
-                    'Current Law': +getETR(k, snYear, BASE_ONLY).toFixed(1),
-                    'Accord':      +getETR(k, snYear, P).toFixed(1),
+                    'Current Law': +getETR(k, snYear, BASE_ONLY, fx).toFixed(1),
+                    'Accord':      +getETR(k, snYear, P, fx).toFixed(1),
                   }))}
                   margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
                 >
@@ -1976,8 +2015,8 @@ export default function Dashboard() {
               <SnapshotTable title="Effective Tax Rate Trajectory"
                 note="ETR = taxes minus prebate offset / gross income. AMCF/PSU excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
                 demos={demos}
-                getValue={(k, y) => getETR(k, y, P)}
-                getCL={(k, y) => getETR(k, y, BASE_ONLY)}
+                getValue={(k, y) => getETR(k, y, P, fx)}
+                getCL={(k, y) => getETR(k, y, BASE_ONLY, fx)}
                 fmt={v => v.toFixed(1)+'%'}
                 deltaFmt={d => `${d>=0?'+':''}${d.toFixed(1)}pp`}/>
             </CardContent>
@@ -1991,7 +2030,7 @@ export default function Dashboard() {
             <CompositionTable
               title="Wealth Composition Breakdown — Component x Year"
               demos={demos}
-              getRows={(k, y) => wealthMixRows(k, y, y === 0 ? BASE_ONLY : P)}
+              getRows={(k, y) => wealthMixRows(k, y, y === 0 ? BASE_ONLY : P, fx)}
               note="Bars show relative magnitude within each component row across snapshot years. Values in 2024 real dollars."
             />
           </CardContent>
@@ -2004,7 +2043,7 @@ export default function Dashboard() {
             <CompositionTable
               title="Cash Flow Breakdown — Component x Year"
               demos={demos}
-              getRows={(k, y) => cfRows(k, y, y === 0 ? BASE_ONLY : P)}
+              getRows={(k, y) => cfRows(k, y, y === 0 ? BASE_ONLY : P, fx)}
               note="Negative values (taxes, burdens) shown in red. Positive values (income, benefits) in green. Bars scale to each row's peak across snapshot years."
             />
           </CardContent>
@@ -2016,8 +2055,8 @@ export default function Dashboard() {
           <CardContent>
             <SnapshotTable title="Accord vs Current Law Net Worth Trajectory"
               demos={demos}
-              getValue={(k, y) => getNW(k, y, P).total}
-              getCL={(k, y) => getNW(k, y, BASE_ONLY).total}
+              getValue={(k, y) => getNW(k, y, P, fx).total}
+              getCL={(k, y) => getNW(k, y, BASE_ONLY, fx).total}
               fmt={fD}/>
           </CardContent>
         </Card>
@@ -2029,7 +2068,7 @@ export default function Dashboard() {
             <CompositionTable
               title="Wealth Flow Breakdown — Component x Year"
               demos={demos}
-              getRows={(k, y) => wfRows(k, y, y === 0 ? BASE_ONLY : P)}
+              getRows={(k, y) => wfRows(k, y, y === 0 ? BASE_ONLY : P, fx)}
               note="Tax Impact is negative for most demographics (Growth Tax drag on capital appreciation). AMCF and PSU rows show cumulative wealth added vs current law baseline."
             />
           </CardContent>
@@ -2040,7 +2079,7 @@ export default function Dashboard() {
       <InfoBox className="columns-2 gap-6">
         <div className="text-xs font-bold text-muted-foreground mb-1.5">Model Notes &amp; Assumptions</div>
         <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
-        <p>AMCF grants follow Sim-6 validated trajectory: $500/person (Yr 1) - $25,924/person (Yr 30). Custodial account: universal $10K at Year 0, 5% real return.</p>
+        <p>AMCF grants follow the National Balance Sheet engine: $488/person (Yr 1) - $7,401/person (Yr 30), in 2024 real dollars. Custodial account: universal $10K at Year 0, 5% real return.</p>
         <p>PSU provisions ramp from 0-100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
         <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 3% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
         <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%-12%/yr; Billionaires: 12%-9.5%/yr).</p>

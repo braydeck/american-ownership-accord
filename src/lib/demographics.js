@@ -1,3 +1,5 @@
+import { realGrantSeries } from '@/lib/fiscal-engine';
+
 // 13-bracket demographic model (CBO + Federal Reserve SCF, 2024 calibration)
 // Shared by Sim-10 (Dashboard) and Sim-11 (Inequality)
 
@@ -77,4 +79,10 @@ export const CL_ETR = {
   P60:0.22, P70:0.24, P80:0.26, T10:0.30, T1:0.37, BILL:0.22, ELON:0.15,
 };
 
-export const AMCF_ANC = [[0,0],[1,64],[5,503],[10,1724],[15,4421],[20,9430],[25,15397],[30,25924]];
+// Household-received AMCF grant per person, 2024 real dollars, by year.
+// Derived live from the shared fiscal engine rather than pinned to a copied table, so the
+// National Balance Sheet's defaults and the household pages can no longer drift apart.
+// The engine is nominal; realGrantSeries deflates by each row's price level.
+// No import cycle: fiscal-engine depends only on land, income-tax, and brackets.
+export const AMCF_ANC = realGrantSeries();
+

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { PREBATE_REDIRECTED } from '@/lib/land';
+import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -151,7 +152,7 @@ const QUINTILES = [
 // Accord's $30K standard deduction and 25% bracket. Single-filer basis; 1.6-person household.
 const RETIREE_HHSZ    = 1.6;
 const RETIREE_CONSUME = 0.90;  // retirees spend ~90% of income
-const CARBON_DIVIDEND = 843;   // $/person/yr (80% of carbon revenue, equal per capita)
+const CARBON_DIVIDEND = carbonDividendPerCapita(BASE_PARAMS.carbonRate); // $/person/yr, 80% of receipts
 const AMCF_GRANT_YR1  = 64;    // Year-1 universal AMCF citizen grant per person
 
 // Current-law Social Security taxability (single filer, IRS provisional-income rule)

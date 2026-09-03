@@ -20,6 +20,7 @@ import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, LVT_NET_BASE, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
+import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 
 // ─── THREE-TIER WORKER EQUITY (from Income Tax Design) ─────────────────────────────────────
 // Tier 1 (<$10M EV): $1K/yr sectoral fund at 6% gross; 3.5% distributed as dividends
@@ -141,7 +142,7 @@ function computeDistrib(vatRate, lvtRate, year, exemption = 0) {
     const lvtBurden  = lvtNet[i];
 
     const carbonPaid     = CARBON_TONS[i] * 100;
-    const carbonDividend = (5e9 * 100 * 0.80 / TOTAL_POP) * b.hhSz;
+    const carbonDividend = carbonDividendPerCapita(BASE_PARAMS.carbonRate, TOTAL_POP) * b.hhSz;
     const carbonNet      = carbonPaid - carbonDividend;
 
     const psuDividend = psuDividendPerFiler(i, year);
@@ -288,7 +289,7 @@ function computeCalcBurden(income, hhSize, children, capGains, filing) {
   const drag     = stockDrag(income);
   const cTons    = estimatedCarbonTons(income);
   const carbonPd = cTons * 100;
-  const carbonDv = (5e9 * 100 * 0.80 / 330e6) * hhSize; // ~$1,212/person returned
+  const carbonDv = carbonDividendPerCapita(BASE_PARAMS.carbonRate) * hhSize;
   const carbonNt = carbonPd - carbonDv;
   const lvtEst   = income > 75000 ? Math.min(income * 0.015, 15000) : 0; // rough renter/owner net
 
@@ -699,7 +700,7 @@ export default function DistributionalImpact() {
             </InfoBox>
           )}
           <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-            Accord parameters: VAT {(vatRate * 100).toFixed(0)}% on consumption (BLS consumption ratios by bracket) + LVT {(lvtRate * 100).toFixed(0)}% (net burden — renters receive rent relief; homeowners pay LVT on land value) + carbon $100/ton (80% recycled as equal per-capita dividend = ~${Math.round(5e9 * 100 * 0.80 / 330e6 * 2.5).toLocaleString()}/avg-household) + $5,000/person/yr universal prebate + AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Year {snapshotYear}, National Balance Sheet validated equity base ${(amcfEquity / 1e12).toFixed(1)}T × {(amcfYield * 100).toFixed(1)}% yield).
+            Accord parameters: VAT {(vatRate * 100).toFixed(0)}% on consumption (BLS consumption ratios by bracket) + LVT {(lvtRate * 100).toFixed(0)}% (net burden — renters receive rent relief; homeowners pay LVT on land value) + carbon ${BASE_PARAMS.carbonRate}/ton (80% of receipts recycled as an equal per-capita dividend, net of the behavioral response = ~${Math.round(carbonDividendPerCapita(BASE_PARAMS.carbonRate) * 2.5).toLocaleString()}/avg-household) + $5,000/person/yr universal prebate + AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (Year {snapshotYear}, National Balance Sheet validated equity base ${(amcfEquity / 1e12).toFixed(1)}T × {(amcfYield * 100).toFixed(1)}% yield).
             Income tax unchanged vs current law in this base distributional view (see Income Tax Design for income tax reform scenarios).
           </p>
         </TabsContent>
@@ -831,7 +832,7 @@ export default function DistributionalImpact() {
               <InfoBox className="mt-4">
                 <strong className="text-foreground">Calculator notes:</strong>{' '}
                 LVT net burden estimated as 1.5% of income above $75K (rough owner-weighted average at 10% LVT; renters net zero or positive from rent relief).
-                Carbon tax = ${estimatedCarbonTons(calcIncome)} estimated tons × $100/ton, less $1,212 per-person annual carbon dividend (80% of revenue recycled equally).
+                Carbon tax = ${estimatedCarbonTons(calcIncome)} estimated tons × ${BASE_PARAMS.carbonRate}/ton, less ${Math.round(carbonDividendPerCapita(BASE_PARAMS.carbonRate)).toLocaleString()} per-person annual carbon dividend (80% of receipts recycled equally, net of the behavioral response).
                 Worker equity dividends use income-bracket approximation ($1,200–$4,000/yr; executives excluded).
                 AMCF uses ~$600/person base (Year 1–2); dividend grows substantially by Year 10+ (see National Balance Sheet for trajectory).
                 Capital gains reform not modeled here — see Income Tax Design for full income tax + CG reform analysis.
@@ -846,7 +847,7 @@ export default function DistributionalImpact() {
         <strong className="text-foreground">Methodology:</strong>{' '}
         Bracket data: IRS Statistics of Income 2024 estimates (15 brackets, 162M filers). Effective current-law rates calibrated to IRS SOI.
         Accord parameters (base): VAT 3% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
-        carbon $100/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~$1,212/person/yr);
+        carbon ${BASE_PARAMS.carbonRate}/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~${Math.round(carbonDividendPerCapita(BASE_PARAMS.carbonRate)).toLocaleString()}/person/yr);
         $5,000/person/yr universal prebate; AMCF equity dividend from National Balance Sheet validated equity trajectory.
         Worker equity (three-tier): Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed); Tier 2 phantom equity ($25K–$100K/worker) via sectoral fund contributions;
         Tier 3 PSU (4%/yr Equity Excise → 20% ownership, appreciates at 7.5%/yr after Year 5 ramp, 3.5% dividend yield).

@@ -20,6 +20,7 @@ import { BRACKETS, CARBON_TONS, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_REDIRECTED } from '@/lib/land';
 import { bracketIncomeTax } from '@/lib/income-tax';
 import { useUrlValue } from '@/lib/url-state';
+import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 
 // BRACKET DATA, carbon, and net-LVT burden are shared via @/lib/brackets and the
 // capitalized land model in @/lib/land (imported above).
@@ -308,7 +309,7 @@ function computeAccordDistrib(mR, tR, stdS, stdJ, vatRate, lvtRate, etiM, etiT, 
 
     // Carbon: $100/ton, 80% returned as equal per-capita dividend
     const carbonPaid = CARBON_TONS[i] * 100;
-    const carbonDividend = (5e9 * 100 * 0.80 / TOTAL_POP) * b.hhSz;
+    const carbonDividend = carbonDividendPerCapita(BASE_PARAMS.carbonRate, TOTAL_POP) * b.hhSz;
     const carbonNet = carbonPaid - carbonDividend;
 
     // LVT for Prior Accord is always 3% — fixed, not slider-dependent

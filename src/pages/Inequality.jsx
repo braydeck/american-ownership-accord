@@ -28,6 +28,10 @@ import {
   PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
+import { AMCF_ANC } from '@/lib/demographics';
+import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
+import { useFiscalParams, FISCAL_KEYS } from '@/lib/use-fiscal-params';
+import { FiscalControls } from '@/components/controls/FiscalControls';
 
 // ╔═══════════════════════════════════════════════════════════════════════════╗
 // ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
@@ -101,7 +105,7 @@ const BRACKET_AGE = {
 
 const PROG_LOST = { B10:5500,P10:5500,P20:3200,P30:2200,P40:1800,P50:1800,P60:1400,P70:1300,P80:900,T10:400,T1:0,BILL:0,ELON:0 };
 const AMCF_LIQ_BASE = { B10:0.95,P10:0.90,P20:0.80,P30:0.70,P40:0.55,P50:0.40,P60:0.25,P70:0.15,P80:0.08,T10:0.03,T1:0.01,BILL:0.00,ELON:0.00 };
-const AMCF_ANC = [[0,0],[1,64],[5,503],[10,1724],[15,4421],[20,9430],[25,15397],[30,25924]];
+// AMCF_ANC now lives in src/lib/demographics.js so the three pages cannot drift apart.
 
 const DIST_BRACKETS = [
   {cRat:1.20},{cRat:1.00},{cRat:0.97},{cRat:0.95},{cRat:0.90},{cRat:0.84},{cRat:0.78},
@@ -117,7 +121,10 @@ const TIER2_PEQ = [25000,30000,38000,48000,60000,70000,80000,90000,100000,100000
 const TIER3_PSU = [40000,55000,75000,100000,135000,165000,200000,260000,325000,400000,500000,650000,800000,950000,1100000];
 const PSU_YIELD = 0.035, EV_GROWTH = 0.075, AVG_TENURE = 4.1;
 const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00];
-const CARBON_DIV_PER_CAP = 5e9 * 100 * 0.80 / 330e6;
+// Fiscal context shared with the National Balance Sheet and Household Impact.
+const FISCAL_DEFAULTS = { ...Object.fromEntries(FISCAL_KEYS.map(k => [k, BASE_PARAMS[k]])), grants: AMCF_ANC };
+// Shared with the engine so the dividend matches the revenue actually collected.
+const carbonDivPC = carbonDividendPerCapita;
 const DEMO_BRACKET = { B10:1,P10:3,P20:4,P30:4,P40:5,P50:6,P60:6,P70:7,P80:8,T10:9,T1:11,BILL:14,ELON:14 };
 
 // ─── LVT INCIDENCE (residential owner/renter split only) ────────────────────
@@ -126,12 +133,14 @@ const DEMO_BRACKET = { B10:1,P10:3,P20:4,P30:4,P40:5,P50:6,P60:6,P70:7,P80:8,T10
 // ~7–10% landlord minority that cuts across brackets plus REITs/pensions/foreign/corporate
 // owners — not the median household of any bracket. That ~$529B is real and lives in the
 // fiscal/revenue aggregate (which taxes the full land base), not in these per-persona charts.
-function lvtNetBr(k, y, P) {
+function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  return lvtNetIncidenceArray({ rate: 0.10, exemption, year: y })[DEMO_BRACKET[k]];
+  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y })[DEMO_BRACKET[k]];
 }
 // Prebate per person: redirected $6,250 by default; base $5,000 when the exemption is on.
-const prebatePC = P => (P.has('LVT_EX') ? PREBATE_BASE : PREBATE_REDIRECTED);
+const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
+const prebatePC = (P, fx = FISCAL_DEFAULTS) =>
+  P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita;
 
 const CL_CG_RATE  = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.238,T1:0.238,BILL:0.238,ELON:0.238 };
 const ACC_CG_RATE = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.25,T1:0.50,BILL:0.50,ELON:0.50 };
@@ -175,12 +184,26 @@ function lerp(anc, x) {
   return anc[anc.length-1][1];
 }
 
-const amcfG = y => lerp(AMCF_ANC, y);
+const amcfG = (y, fx = FISCAL_DEFAULTS) => lerp(fx.grants, y);
 const pressureDecay = y => 0.5 + 0.5 * Math.exp(-y / 15);
 const liqRate = (k, y) => AMCF_LIQ_BASE[k] * pressureDecay(y);
 const psuDAt = (k, y) => psuDividendPerFiler(DEMO_BRACKET[k], y);
 const psuCAt = (k, y) => psuCashoutPerFiler(DEMO_BRACKET[k], y);
-const taxAt = (k) => DEMOS[k].taxChg;
+// Accord income tax for one demographic under the two-bracket structure; deduction blends
+// single and joint by household size. DEMOS[k].taxChg is a delta calibrated at the engine's
+// default rates, so current law is backed out of it once and the delta then responds to the
+// sliders while reproducing the original calibration exactly at defaults.
+function accordIncomeTax(income, hhSz, fx) {
+  const jFrac = Math.min(1, Math.max(0, hhSz - 1));
+  const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
+  const mid   = Math.max(0, Math.min(income, fx.incomeTaxThreshold) - ded);
+  const top   = Math.max(0, income - fx.incomeTaxThreshold);
+  return fx.incomeTaxLow * mid + fx.incomeTaxHigh * top;
+}
+const CL_INCOME_TAX = Object.fromEntries(DEMO_KEYS.map(k =>
+  [k, accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, FISCAL_DEFAULTS) - DEMOS[k].taxChg]));
+const taxAt = (k, fx = FISCAL_DEFAULTS) =>
+  accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, fx) - CL_INCOME_TAX[k];
 
 function sectoralFundBalance(C, y) {
   return y <= 0 ? 0 : C * (Math.pow(1.06, y) - 1) / 0.06;
@@ -214,39 +237,40 @@ function computeAccordNWG(k) {
   return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag);
 }
 
-function getInc(k, y, P) {
+function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k], bi = DEMO_BRACKET[k];
   const base = d.income * Math.pow(1 + d.incG, y);
   let tax = 0;
   if (P.has('TAX')) {
-    if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P); }
+    if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P, fx); }
     else {
-      const vatCost = 0.03 * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost = lvtNetBr(k, y, P);
-      const carbonCost = CARBON_TONS_BR[bi] * 100;
-      tax = -taxAt(k) - vatCost - lvtCost - carbonCost;
+      // Rates come from the shared fiscal engine so this page cannot drift from it.
+      const vatCost = BASE_PARAMS.vatRate * DIST_BRACKETS[bi].cRat * base;
+      const lvtCost = lvtNetBr(k, y, P, fx);
+      const carbonCost = CARBON_TONS_BR[bi] * BASE_PARAMS.carbonRate;
+      tax = -taxAt(k, fx) - vatCost - lvtCost - carbonCost;
     }
   }
-  const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-  const pre = P.has('PRE') ? (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
+  const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
+  const pre = P.has('PRE') ? (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   const adults = Math.min(d.hhSz, 2);
-  const ag = P.has('AMCF') ? amcfG(y) * adults * liqRate(k, y) : 0;
+  const ag = P.has('AMCF') ? amcfG(y, fx) * adults * liqRate(k, y) : 0;
   const pd = P.has('PSU_D') ? psuDAt(k, y) : 0;
   const pc = P.has('PSU_C') ? psuCAt(k, y) : 0;
   return { base, tax, pre, amcf: ag, psuD: pd, psuC: pc, total: base + tax + pre + ag + pd + pc };
 }
 
-function getNW(k, y, P) {
+function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k], r = d.ret;
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
   // LVT has no per-persona wealth effect (owner-occ capitalization ~offset by lower housing
   // costs; investment-land capitalization falls on the landlord minority / institutions).
   const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
-  if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k) * d.save); tax = c; }
+  if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k, fx) * d.save); tax = c; }
   if (P.has('PRE')) {
-    const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const ann = (prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
+    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
+    const ann = (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
     pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
   }
   if (P.has('AMCF')) {
@@ -254,14 +278,14 @@ function getNW(k, y, P) {
     let cust = 0;
     for (let c = 1; c <= y; c++) {
       const grantYears = Math.min(c, 18); let acct = 0;
-      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t);
+      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t, fx);
       acct *= Math.pow(1.05, y - c); cust += acct;
     }
     cust /= WORK_SPAN;
     let retainedAcc = 0, liqSavings = 0;
     const adults = Math.min(d.hhSz, 2);
     for (let t = 1; t <= y; t++) {
-      const grant = amcfG(t) * adults;
+      const grant = amcfG(t, fx) * adults;
       const lr = liqRate(k, t);
       retainedAcc = retainedAcc * 1.05 + grant * (1 - lr);
       liqSavings = liqSavings * (1 + r) + grant * lr * d.save;
@@ -301,7 +325,7 @@ const US_GINI_CC = 0.420;  // consumption-capacity (income + annuitized wealth, 
 const logit = p => Math.log(Math.max(0.001, Math.min(0.999, p)) / (1 - Math.max(0.001, Math.min(0.999, p))));
 const invLogit = x => 1 / (1 + Math.exp(-x));
 
-const _defaultParams = { discountRate: 0.02, mortality: 'uniform', scripLiquid: false, psuLiquid: false };
+const _defaultParams = { discountRate: 0.02, mortality: 'uniform', scripLiquid: false, psuLiquid: false, fx: FISCAL_DEFAULTS };
 const _gAnchor = (() => {
   const mkPts = (fn) => DEMO_KEYS.map((k, i) => ({ v: Math.max(fn(k), 0), w: WGTS[i] }));
   const incRaw = computeGini(mkPts(k => getInc(k, 0, BASE_ONLY).total));
@@ -350,19 +374,19 @@ function getMarketIncome(k, y) {
   return DEMOS[k].income * Math.pow(1 + DEMOS[k].incG, y);
 }
 
-function getDisposableIncome(k, y, P) {
-  return getInc(k, y, P).total;
+function getDisposableIncome(k, y, P, params = _defaultParams) {
+  return getInc(k, y, P, params.fx ?? FISCAL_DEFAULTS).total;
 }
 
-function getNetWorthVal(k, y, P) {
-  return getNW(k, y, P).total;
+function getNetWorthVal(k, y, P, params = _defaultParams) {
+  return getNW(k, y, P, params.fx ?? FISCAL_DEFAULTS).total;
 }
 
 function getAugmentedWealth(k, y, P, params) {
   const { discountRate, mortality } = params;
   const currentAge = BRACKET_AGE[k]; // fixed cross-sectional age, not aging
   const surv = getSurvTable(mortality, k);
-  const nw = getNW(k, y, P).total;
+  const nw = getNW(k, y, P, params.fx ?? FISCAL_DEFAULTS).total;
   // PV of REMAINING Social Security benefits (shrinks as person ages)
   const pvSS = pvStream(SS_BENEFIT[k], currentAge, discountRate, surv);
 
@@ -370,10 +394,10 @@ function getAugmentedWealth(k, y, P, params) {
   let pvPrebateConsumed = 0;
   if (P.has('PRE')) {
     const d = DEMOS[k];
-    const carbonDiv = CARBON_DIV_PER_CAP * d.hhSz;
-    const annualPrebate = prebatePC(P) * d.hhSz + carbonDiv - PROG_LOST[k];
+    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
+    const annualPrebate = prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k];
     const pvPrebateFull = pvStream(annualPrebate, currentAge, discountRate, surv);
-    const prebateSavedInNW = getNW(k, y, P).pre;
+    const prebateSavedInNW = getNW(k, y, P, params.fx ?? FISCAL_DEFAULTS).pre;
     pvPrebateConsumed = Math.max(0, pvPrebateFull - prebateSavedInNW);
   }
 
@@ -385,8 +409,9 @@ function getConsumptionCapacity(k, y, P, params) {
   const { discountRate, mortality, scripLiquid, psuLiquid } = params;
   const currentAge = BRACKET_AGE[k]; // fixed cross-sectional age, not aging
   const surv = getSurvTable(mortality, k);
-  const inc = getInc(k, y, P);
-  const nwComp = getNW(k, y, P);
+  const fx = params.fx ?? FISCAL_DEFAULTS;
+  const inc = getInc(k, y, P, fx);
+  const nwComp = getNW(k, y, P, fx);
 
   let cc = inc.base;
   if (P.has('TAX')) cc += inc.tax;
@@ -445,9 +470,10 @@ function p90p50(getVal, y, P, params) {
   return p50 > 0 ? p90 / p50 : Infinity;
 }
 
-function nonPositiveNWShare(y, P) {
+function nonPositiveNWShare(y, P, params = _defaultParams) {
   let nonPos = 0;
-  DEMO_KEYS.forEach((k, i) => { if (getNW(k, y, P).total <= 0) nonPos += WGTS[i]; });
+  const fx = params.fx ?? FISCAL_DEFAULTS;
+  DEMO_KEYS.forEach((k, i) => { if (getNW(k, y, P, fx).total <= 0) nonPos += WGTS[i]; });
   return nonPos;
 }
 
@@ -845,7 +871,7 @@ function TablesTab({ P, params }) {
             const mLabel = isCC ? 'Consumption Capacity ($/yr per household)' : 'Net Worth ($ per household)';
             const getVal = isCC
               ? (k, y, pSet) => getConsumptionCapacity(k, y, pSet, params)
-              : (k, y, pSet) => getNW(k, y, pSet).total;
+              : (k, y, pSet) => getNW(k, y, pSet, params.fx ?? FISCAL_DEFAULTS).total;
             return (
               <div key={metric} className="mb-5">
                 <div className="text-xs font-bold mb-1.5" style={{ color: isCC ? '#307ca6' : '#8b5cf6' }}>{mLabel}</div>
@@ -1124,7 +1150,8 @@ export default function InequalityMeasurement() {
   const discountRate = 0.02;
   const mortality = 'uniform';
   const P = provs;
-  const params = { discountRate, mortality, scripLiquid: false, psuLiquid: false };
+  const { fx, values: fxValues, set: fxSet, isDefault: fxIsDefault, reset: fxReset, grants } = useFiscalParams();
+  const params = { discountRate, mortality, scripLiquid: false, psuLiquid: false, fx };
 
   const toggleProv = (key) => {
     if (key === 'BASE') return;
@@ -1146,7 +1173,7 @@ export default function InequalityMeasurement() {
 
       <div className="flex gap-5 items-start">
         {/* Sidebar — sticky */}
-        <div className="w-[220px] shrink-0 self-start sticky top-[72px]">
+        <div className="w-[260px] shrink-0 self-start sticky top-[72px] max-h-[calc(100vh-88px)] overflow-y-auto">
           <Card>
             <CardContent className="pt-4 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Accord Provisions</p>
@@ -1163,6 +1190,11 @@ export default function InequalityMeasurement() {
                     {p.label}
                   </Button>
                 ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-border">
+                <FiscalControls values={fxValues} set={fxSet} isDefault={fxIsDefault}
+                                reset={fxReset} grants={grants} />
               </div>
             </CardContent>
           </Card>

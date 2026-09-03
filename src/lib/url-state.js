@@ -39,6 +39,19 @@ function serialize(val, def) {
   return String(val);
 }
 
+// Fiscal assumptions are shared across pages: both National Balance Sheet and Household
+// Impact read the same engine, so changing an assumption on one and navigating to the other
+// should carry it. These keys survive a page change; every other key is page-local and is
+// cleared on navigation. Keys must match the BASE_PARAMS property names in fiscal-engine.js,
+// which is what NationalBalanceSheet's useUrlState writes.
+export const SHARED_PARAM_KEYS = new Set([
+  'growthTaxRate', 'amcfReturn', 'startingEV', 'grantPhaseMultiplier',
+  'recessionYear', 'recessionSeverity',
+  'incomeTaxLow', 'incomeTaxHigh', 'incomeTaxThreshold',
+  'incomeTaxExemptSingle', 'incomeTaxExemptJoint',
+  'vatRate', 'lvtRate', 'carbonRate', 'prebatePerCapita',
+]);
+
 function eq(a, b) {
   if (a instanceof Set && b instanceof Set) return a.size === b.size && [...a].every(x => b.has(x));
   return a === b;
@@ -59,7 +72,11 @@ export function useHashPage(defaultPage) {
     };
   }, [defaultPage]);
   const setPage = useCallback((p) => {
-    writeHash(p, new URLSearchParams(), true);
+    // Carry the shared fiscal assumptions across the page change; drop everything else.
+    const { params } = parseHash();
+    const carried = new URLSearchParams();
+    for (const [k, v] of params) if (SHARED_PARAM_KEYS.has(k)) carried.set(k, v);
+    writeHash(p, carried, true);
     setPageState(p);
   }, []);
   return [page, setPage];

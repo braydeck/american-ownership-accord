@@ -23,6 +23,7 @@ import {
   lvtRevForFiscal, lvtRevenueExemptionComparison,
   PREBATE_BASE, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, EXEMPTION_AMOUNT,
 } from '@/lib/land';
+import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REVENUE MODELS
@@ -135,11 +136,25 @@ const FP = { // Sim-6 fiscal base parameters (unchanged)
   baseRealGdpGrowth: 0.025, inflationRate: 0.025,
   baseInterestRate: 0.035, interestReflexivity: 5,
   startingPopulation: 335e6, populationGrowthRate: 0.004,
-  growthTaxRate: 0.20, equityExciseRate: 0.04, creditCapFrac: 0.20,
+  growthTaxRate: 0.21, equityExciseRate: 0.042, creditCapFrac: 0.20,
   amcfReturn: 0.07, codetermBonus: 0.003,
   baselineSpendingFrac: 0.165, spendingEfficiencyGain: 0.0004,
   prebatePerCapita: PREBATE_REDIRECTED, // default scenario: exemption off → redirected prebate
+  // Individual income tax — bottom-up two-bracket model (src/lib/income-tax.js), the same
+  // structure NationalBalanceSheet uses. Replaces the legacy flat `nomGdp * 0.078`.
+  incomeTaxLow:          INCOME_TAX_DEFAULTS.lowRate,
+  incomeTaxHigh:         INCOME_TAX_DEFAULTS.highRate,
+  incomeTaxThreshold:    INCOME_TAX_DEFAULTS.threshold,
+  incomeTaxExemptSingle: INCOME_TAX_DEFAULTS.exemptSingle,
+  incomeTaxExemptJoint:  INCOME_TAX_DEFAULTS.exemptJoint,
+  incomeTaxEtiTop:       INCOME_TAX_DEFAULTS.etiTop,
 };
+
+// Canonical ownership ceilings (doc §5.2): AMCF 21%, worker equity 21%, combined 42%.
+// Growth Tax window is the doc §1.1 rolling 3-year high-water mark.
+const AMCF_OWNERSHIP_CAP = 0.21;
+const WORKER_EQUITY_CAP  = 0.21;
+const GROWTH_TAX_HWM_YEARS = 3;
 
 function grantFloor(yr) {
   return yr <= 3 ? 500 : yr <= 6 ? 550 : yr <= 13 ? 800 : 1200;
@@ -155,6 +170,8 @@ function runFiscal(rentRates) {
 
   const rows = [];
   let amcfEquity = 0, creditBalance = 0, hasReachedCap = false;
+  let workerEquity = 0, workerHasReachedCap = false;
+  let evHistory = [FP.startingEV];
   let grossDebt = FP.startingDebt, realGdp = FP.startingGdp, priceLevel = 1.0;
   let pop = FP.startingPopulation;
   let cohortEVs = EV_COHORTS.map(c => c.share * FP.startingEV);
@@ -162,24 +179,38 @@ function runFiscal(rentRates) {
   let clDebt = FP.startingDebt, clRealGdp = FP.startingGdp, clPriceLevel = 1.0;
 
   for (let yr = 1; yr <= 35; yr++) {
-    // AMCF ownership cap check (one-way latch, identical to Sim-6)
-    if (!hasReachedCap && prevTotalEV > 0 && amcfEquity / prevTotalEV >= 0.20) hasReachedCap = true;
+    // Ownership cap checks (one-way latches, identical to Sim-6). The AMCF and the worker
+    // Phantom Equity Fund cap independently at 21% each, leaving 58% private permanently.
+    if (!hasReachedCap && prevTotalEV > 0 && amcfEquity / prevTotalEV >= AMCF_OWNERSHIP_CAP) hasReachedCap = true;
     const atCap = hasReachedCap;
+    if (!workerHasReachedCap && prevTotalEV > 0 && workerEquity / prevTotalEV >= WORKER_EQUITY_CAP) workerHasReachedCap = true;
+    const workerAtCap = workerHasReachedCap;
 
     // EV cohort evolution
     cohortEVs = cohortEVs.map((ev, i) => ev * (1 + EV_COHORTS[i].growth));
     const totalEV = cohortEVs.reduce((a, b) => a + b, 0);
-    const evGrowth = Math.max(0, totalEV - prevTotalEV);
+    // Rolling high-water mark: a post-crash rebound that merely restores prior value is
+    // not taxed as new growth (doc §1.1).
+    const evGrowth = Math.max(0, totalEV - Math.max(prevTotalEV, ...evHistory));
+    evHistory.push(totalEV);
+    if (evHistory.length > GROWTH_TAX_HWM_YEARS) evHistory.shift();
+    const evAppreciation = prevTotalEV > 0 ? totalEV / prevTotalEV : 1;
     prevTotalEV = totalEV;
 
     // Growth Tax + Codetermination Credit mechanics (unchanged from Sim-6)
     const growthTax = atCap ? 0 : evGrowth * FP.growthTaxRate;
-    const creditGen = totalEV * FP.equityExciseRate;
+    // Equity Excise issues new PSUs until worker ownership hits its cap, then stops. The
+    // worker share rises by exactly equityExciseRate per year: 4.2% reaches 21% in 5 years.
+    const creditGen = workerAtCap ? 0 : totalEV * FP.equityExciseRate;
+    workerEquity = workerAtCap
+      ? totalEV * WORKER_EQUITY_CAP
+      : workerEquity * evAppreciation + creditGen;
+    const workerOwnerPct = totalEV > 0 ? workerEquity / totalEV : 0;
     const avail = creditBalance + creditGen;
     const creditUsed = Math.min(avail, growthTax * FP.creditCapFrac);
     creditBalance = avail - creditUsed;
     amcfEquity = atCap
-      ? totalEV * 0.20
+      ? totalEV * AMCF_OWNERSHIP_CAP
       : amcfEquity * (1 + FP.amcfReturn) + (growthTax - creditUsed);
     const amcfOwnerPct = totalEV > 0 ? amcfEquity / totalEV : 0;
 
@@ -211,7 +242,15 @@ function runFiscal(rentRates) {
     const stableRev  = nomGdp * stableFrac;                   // GDP-scaled
     const payrollFix = nomGdp * 0.008;
     const capGains   = nomGdp * 0.012;
-    const income     = nomGdp * 0.078;
+    const income     = incomeTaxRevForFiscal({
+      nominalGdp: nomGdp,
+      lowRate:      FP.incomeTaxLow,
+      highRate:     FP.incomeTaxHigh,
+      threshold:    FP.incomeTaxThreshold,
+      exemptSingle: FP.incomeTaxExemptSingle,
+      exemptJoint:  FP.incomeTaxExemptJoint,
+      etiTop:       FP.incomeTaxEtiTop,
+    });
     const payroll    = nomGdp * 0.054;
     const other      = nomGdp * 0.010;
     const totalRev = vatGross + lvtRev + carbonRev + stableRev
@@ -264,6 +303,7 @@ function runFiscal(rentRates) {
       grossDebt:    +(grossDebt / 1e12).toFixed(1),
       amcfEquity:   +(amcfEquity / 1e12).toFixed(1),
       amcfOwnerPct: +(amcfOwnerPct * 100).toFixed(1),
+      workerOwnerPct: +(workerOwnerPct * 100).toFixed(1),
       netSov:       +(netSov / 1e12).toFixed(1),
       intToRev:     +intToRev.toFixed(1),
       debtToGdp:    +(debtToGdp * 100).toFixed(1),
