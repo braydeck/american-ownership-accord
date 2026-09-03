@@ -11,6 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
+import { AMCF_ANC } from '@/lib/demographics';
 import { PREBATE_REDIRECTED } from '@/lib/land';
 import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 
@@ -65,16 +66,18 @@ const PSU_RAMP   = 5;    // years to reach PSU equilibrium
 // Calibrated to Sim 6 validated outputs (base scenario).
 // Grants grow uncapped after AMCF self-funds (Yr 9): $1,066 at Yr 10, $2,678 at Yr 15,
 // $5,597 at Yr 20, $8,958 at Yr 25, $14,784 at Yr 30, $25,111 at Yr 35.
-const _S6_PTS = [[9,800],[10,1066],[15,2678],[20,5597],[25,8958],[30,14784],[35,25111]];
+// AMCF grant per person in 2024 real dollars, interpolated from the shared fiscal engine
+// (src/lib/fiscal-engine.js via demographics). Previously a frozen copy of an older engine's
+// NOMINAL series, which overstated Year-30 grants roughly twofold on a real-dollar page.
 function amcfGrant(year) {
-  if (year <= 3)  return 500;
-  if (year <= 6)  return 550;
-  if (year <= 9)  return 800;
-  for (let i = 1; i < _S6_PTS.length; i++) {
-    const [x0, y0] = _S6_PTS[i - 1], [x1, y1] = _S6_PTS[i];
+  if (year <= 0) return 0;
+  const a = AMCF_ANC, last = a[a.length - 1];
+  if (year >= last[0]) return last[1];
+  for (let i = 1; i < a.length; i++) {
+    const [x0, y0] = a[i - 1], [x1, y1] = a[i];
     if (year <= x1) return Math.round(y0 + (y1 - y0) * (year - x0) / (x1 - x0));
   }
-  return Math.round(25111 * Math.pow(1.10, year - 35));
+  return last[1];
 }
 
 // BLS age-wage multipliers relative to age-22 level

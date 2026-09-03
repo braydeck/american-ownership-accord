@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { AMCF_OWNERSHIP_CAP } from '@/lib/fiscal-engine';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine,
@@ -156,7 +157,7 @@ const CRASH_LABELS = { '2008': 'Financial Crisis', '2020': 'COVID Crash', '2022'
 
 export default function MarketStabilization() {
   const [crashKey, setCrashKey] = useState('2008');
-  const [amcfShare, setAmcfShare] = useState(15);
+  const [amcfShare, setAmcfShare] = useState(AMCF_OWNERSHIP_CAP * 100); // canonical 21% cap
 
   const crash = CRASH_DATA[crashKey];
   const { data: chartData, stats } = useMemo(
