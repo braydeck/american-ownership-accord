@@ -6,8 +6,8 @@
 //
 // The engine's default 35-year horizon is not enough to follow a cohort to 65, so this page
 // runs it long. Past Year 19 the AMCF sits at its 21% cap and simply tracks enterprise value,
-// so the path is well defined — but a run this long is an extrapolation of the model's growth
-// assumptions, not a validated projection, and the page says so.
+// so the path is well defined. A run this long still extrapolates the model's growth
+// assumptions well past where they were validated, and the page says so.
 import React, { useMemo } from 'react';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
@@ -142,7 +142,7 @@ export default function LifetimeGrants() {
                   label={`Your age when the Accord starts: ${currentAge}`}
                   value={currentAge} onChange={setCurrentAge}
                   min={0} max={60} step={1}
-                  helpText="Someone already alive gets no custodial years — grants start at whatever age they are."
+                  helpText="An adult when the Accord starts joins the grant path at their current age, with no custodial years behind them."
                 />
               </div>
               <div className="pt-4 border-t border-border">
@@ -158,7 +158,7 @@ export default function LifetimeGrants() {
           <ChartContainer
             title="Account balance by age"
             subtitle="AMCF grants accumulated and compounded at 5% real, 2024 dollars"
-            source="Shared fiscal engine (src/lib/fiscal-engine.js), grant path deflated by each year's price level. Full retention assumed — no liquidation."
+            source="Shared fiscal engine (src/lib/fiscal-engine.js), grant path deflated by each year's price level. Full retention assumed, with no liquidation."
           >
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
               <CartesianGrid {...CHART_GRID} />
