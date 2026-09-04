@@ -124,13 +124,13 @@ export default function LifetimeGrants() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <MilestoneCard label="Born Year 0, at 18" value={fmtFull(bornYear0At18.balance)}
-                       sub={`${fmtFull(bornYear0At18.paid)} paid in`} />
+                       sub={`${fmtFull(bornYear0At18.paid)} granted`} />
         <MilestoneCard label="Born Year 0, at 60" value={fmt(at('y0', 60).balance)}
-                       sub={`${fmt(at('y0', 60).paid)} paid in`} />
+                       sub={`${fmt(at('y0', 60).paid)} granted`} />
         <MilestoneCard label="Born Year 20, at 60" value={fmt(at('y20', 60).balance)}
-                       sub={`${fmt(at('y20', 60).paid)} paid in`} />
+                       sub={`${fmt(at('y20', 60).paid)} granted`} />
         <MilestoneCard label={`Age ${currentAge} today, at 60`} value={fmt(aliveAt60.balance)}
-                       sub={`${fmt(aliveAt60.paid)} paid in`} />
+                       sub={`${fmt(aliveAt60.paid)} granted`} />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5 items-start">
@@ -147,7 +147,8 @@ export default function LifetimeGrants() {
               </div>
               <div className="pt-4 border-t border-border">
                 <FiscalControls values={values} set={set} isDefault={isDefault}
-                                reset={reset} grants={grants} />
+                                reset={reset} grants={grants}
+                                only={['Ownership & grants']} />
               </div>
             </CardContent>
           </Card>
@@ -179,7 +180,10 @@ export default function LifetimeGrants() {
             <CardContent className="pt-4">
               <h3 className="text-sm font-semibold mb-1">Cohort comparison</h3>
               <p className="text-[11px] text-muted-foreground mb-3">
-                Account balance, with total grants actually paid in beneath it.
+                <strong>Account balance</strong> is what the account is worth: every grant received so
+                far, plus the {(REAL_RETURN * 100).toFixed(0)}% real return earned on the grants while
+                they sat in the fund. <strong>Granted</strong> is the undiscounted sum of the grants
+                themselves. The gap between them is investment return, not new money.
               </p>
               <Table>
                 <TableHeader>
@@ -202,7 +206,7 @@ export default function LifetimeGrants() {
                           {c ? (
                             <>
                               <div className="text-xs font-semibold">{fmtFull(c.balance)}</div>
-                              <div className="text-[10px] text-muted-foreground">{fmtFull(c.paid)} paid in</div>
+                              <div className="text-[10px] text-muted-foreground">{fmtFull(c.paid)} granted</div>
                             </>
                           ) : <span className="text-[10px] text-muted-foreground">—</span>}
                         </TableCell>

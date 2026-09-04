@@ -31,7 +31,10 @@ const GROUPS = [
   ]},
 ];
 
-export function FiscalControls({ values, set, isDefault, reset, grants, compact = false }) {
+// `only` limits the panel to named groups, for pages where the other parameters provably
+// do not change the output. Passing nothing shows all three.
+export function FiscalControls({ values, set, isDefault, reset, grants, compact = false, only }) {
+  const groups = only ? GROUPS.filter(g => only.includes(g.title)) : GROUPS;
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -45,13 +48,13 @@ export function FiscalControls({ values, set, isDefault, reset, grants, compact 
         )}
       </div>
       <p className="text-[10px] text-muted-foreground mb-3 leading-snug">
-        The same parameters the National Balance Sheet runs. Household figures stay in 2024 real
-        dollars. The Growth Tax and AMCF return move grants only during the ramp; once the fund
-        reaches its 21% cap the stake tracks enterprise value alone.
+        {only
+          ? 'Parameters from the National Balance Sheet that change the grant path. Tax rates are omitted because they do not enter this calculation.'
+          : 'The same parameters the National Balance Sheet runs. Household figures stay in 2024 real dollars. The Growth Tax and AMCF return move grants only during the ramp; once the fund reaches its 21% cap the stake tracks enterprise value alone.'}
       </p>
 
       <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4' : 'space-y-4'}>
-        {GROUPS.map(g => (
+        {groups.map(g => (
           <div key={g.title} className="space-y-3">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
               {g.title}
