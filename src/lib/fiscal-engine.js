@@ -126,7 +126,10 @@ function grantFloor(yr, mult) {
   return base * mult;
 }
 
-function runFiscalSimulation(p) {
+// horizon: how many years to project. 35 is the default the fiscal pages report on; the
+// lifetime calculator needs 60+ to follow a cohort from birth to retirement. Past the
+// AMCF's Year-19 cap the path is well defined — the stake simply tracks enterprise value.
+function runFiscalSimulation(p, horizon = 35) {
   const rows = [];
   let amcfEquity = 0, creditBalance = 0, hasReachedCap = false;
   let workerEquity = 0, workerHasReachedCap = false;
@@ -152,7 +155,7 @@ function runFiscalSimulation(p) {
   let clRealGdp = p.startingGdp;
   let clPriceLevel = 1.0;
 
-  for (let yr = 1; yr <= 35; yr++) {
+  for (let yr = 1; yr <= horizon; yr++) {
     const shockOffset = p.recessionYear > 0 ? yr - p.recessionYear : -1;
     const shock = shockOffset >= 0 ? rec.profile[shockOffset] : undefined;
     const shockWindow = Object.keys(rec.profile).length;
@@ -449,7 +452,7 @@ export function carbonDividendPerCapita(rate, pop = BASE_PARAMS.startingPopulati
 
 // Household-received AMCF grant per person, deflated to year-0 (2024) real dollars.
 // Year 0 is the current-law baseline and carries no grant.
-export function realGrantSeries(params = BASE_PARAMS) {
-  const { rows } = runFiscalSimulation(params);
+export function realGrantSeries(params = BASE_PARAMS, horizon = 35) {
+  const { rows } = runFiscalSimulation(params, horizon);
   return [[0, 0], ...rows.map(r => [r.year, Math.round(r.grantsPerCapita / r.priceLevel)])];
 }

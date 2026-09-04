@@ -12,6 +12,7 @@ import RacialWealthGap from '@/pages/lab/RacialWealthGap.jsx';
 import IncomeTaxDesign from '@/pages/lab/IncomeTaxDesign.jsx';
 import RentTaxOptimizer from '@/pages/lab/RentTaxOptimizer.jsx';
 import MarketStabilization from '@/pages/lab/MarketStabilization.jsx';
+import LifetimeGrants from '@/pages/lab/LifetimeGrants.jsx';
 
 const PAGES = {
   fiscal: NationalBalanceSheet,
@@ -24,6 +25,7 @@ const PAGES = {
   incometax: IncomeTaxDesign,
   renttax: RentTaxOptimizer,
   market: MarketStabilization,
+  lifetimegrants: LifetimeGrants,
 };
 
 function SiteFooter() {

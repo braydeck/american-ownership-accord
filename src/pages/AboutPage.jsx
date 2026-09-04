@@ -24,6 +24,7 @@ const LAB = [
   { key: 'incometax', title: 'Income Tax Design', desc: 'Two-rate income tax optimizer with distributional impact analysis' },
   { key: 'renttax', title: 'Rent Tax Optimizer', desc: 'LVT, carbon, and financial transaction tax portfolio builder' },
   { key: 'market', title: 'Market Stabilization', desc: 'Historical crash dampening model with AMCF float reduction' },
+  { key: 'lifetimegrants', title: 'Lifetime Grants', desc: 'AMCF grant accumulation from birth to 65 by birth cohort, 2024 real dollars' },
 ];
 
 function SimCard({ item, onNavigate }) {
