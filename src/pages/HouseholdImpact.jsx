@@ -420,8 +420,13 @@ function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
     // accordNWG (already applied to base) captures the Accord's drag on capital appreciation.
     // taxAt handles the explicit tax burden on top; no separate accordIncG channel here
     // because income compression for capital earners is already baked into accordNWG.
+    // VAT is a cash cost like income tax, so its saved share comes out of wealth too. The
+    // capital-income demos (accordIncG) are excluded here as they are in getInc.
+    const bi = DEMO_BRACKET[k];
+    const vatAt = t => d.accordIncG == null
+      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t) : 0;
     let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k, t, fx) * d.save);
+    for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, t, fx) + vatAt(t)) * d.save);
     tax = c;
   }
   if (P.has('PRE')) {

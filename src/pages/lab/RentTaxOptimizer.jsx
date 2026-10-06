@@ -24,6 +24,10 @@ import {
   PREBATE_BASE, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, EXEMPTION_AMOUNT,
 } from '@/lib/land';
 import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
+import {
+  fslRevYr1, fttRevYr1, royaltyRevYr1, spectrumRevYr1, waterRevYr1,
+  POLLUTION_REV, CONGESTION_REV, YR1_NOM_GDP,
+} from '@/lib/rent-taxes';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REVENUE MODELS
@@ -33,7 +37,6 @@ import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
 // Stable taxes (FSL, FTT, royalties, etc.): modeled as % of GDP so they scale with the economy.
 // ═══════════════════════════════════════════════════════════════════════════
 
-const YR1_NOM_GDP = 28.7e12; // $28T real × 1.025 price level (Year 1)
 
 // LVT — Year-1 revenue from the bottom-up capitalized land model (src/lib/land.js).
 // Default scenario: no homeowner exemption. Year 1 ⇒ land-growth factor = 1, so the
@@ -49,35 +52,6 @@ function carbonRevYr(ratePerTon, yr) {
   return ratePerTon * 5e9 * behaviorFactor * naturalDecline;
 }
 
-// Financial Stability Levy — on US G-SIB assets (~$20T), with modest base erosion
-function fslRevYr1(bps) {
-  const erosion = 1 - Math.min(bps / 50, 1) * 0.10;
-  return (bps / 10000) * 20e12 * erosion;
-}
-
-// Financial Transaction Tax — volume elasticity -20% per 0.1% rate (UK stamp duty evidence)
-function fttRevYr1(ratePct) {
-  const volRetention = Math.max(0.50, 1 - (ratePct / 0.1) * 0.20);
-  return (ratePct / 100) * 90e12 * volRetention;
-}
-
-// Resource royalties — incremental rate above current 12.5% federal rate on $600B extractive revenues
-function royaltyRevYr1(extraPct) {
-  return (extraPct / 100) * 600e9;
-}
-
-// Spectrum holding fee — annual % of spectrum license value (~$750B)
-function spectrumRevYr1(annualPct) {
-  return (annualPct / 100) * 750e9;
-}
-
-// Groundwater extraction fee
-function waterRevYr1(feePerAF) {
-  return feePerAF * 90e6; // 90M acre-feet/yr
-}
-
-const POLLUTION_REV = 20e9;  // non-carbon pollution fees (N, P, plastics) — flat estimate
-const CONGESTION_REV = 12e9; // congestion pricing federal share — flat estimate
 
 function computePortfolioYr1(r) {
   const lvt    = lvtRevYr1(r.lvtRate, r.lvtExemption ?? 0);

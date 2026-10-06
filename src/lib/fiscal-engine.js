@@ -8,12 +8,14 @@
 // realValue = nominalValue / row.priceLevel. See realGrantSeries below.
 import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY } from '@/lib/land';
 import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
+import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
 
 const BASE_PARAMS = {
   growthTaxRate:          0.21,   // canonical §1.1/§2.4: 21% on EV growth
   equityExciseRate:       0.042,  // canonical §6.2: 4.2%/yr → 21% worker equity in 5 yrs
   creditCapFrac:          0.20,
-  vatRate:                0.04,   // canonical §3.1: 4% universal base
+  vatRate:                0.04,
+  vatBaseFrac:            0.68,   // canonical §3.1 universal base: all personal consumption, ~68% of GDP (BEA)
   lvtRate:                0.10,
   // Land Value Tax — bottom-up capitalized model (src/lib/land.js). Default scenario:
   // NO homeowner exemption, with the recovered revenue redirected into the prebate.
@@ -31,7 +33,7 @@ const BASE_PARAMS = {
   incomeTaxExemptJoint:   INCOME_TAX_DEFAULTS.exemptJoint,
   incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop, // 0.15 Accord / 0.30 conventional
   carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
-  stableTaxFrac:          0.0076, // FTT + FSL + royalties + spectrum + water (% of GDP)
+  stableTaxFrac:          STABLE_RENT_FRAC, // FTT, levy, royalties, spectrum, water, pollution, congestion at default rates
   prebatePerCapita:       PREBATE_REDIRECTED, // $6,250 — base $5,000 + redirected exemption revenue
   grantPhaseMultiplier:   1.0,
   startingEV:             50e12,
@@ -267,11 +269,11 @@ function runFiscalSimulation(p, horizon = 35) {
     pop *= (1 + p.populationGrowthRate);
 
     // Revenue — individual income (7.8% GDP, no corporate, bracket adj included),
-    // VAT on 55% taxable base (food/housing/healthcare exempt) with compliance ramp,
+    // VAT on the universal consumption base (vatBaseFrac of GDP) with compliance ramp,
     // LVT from the bottom-up capitalized land model, payroll donut-hole fix at 0.8% GDP.
     // Prebate is a SPENDING item, not a revenue deduction.
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
-    const vatGross = nominalGdp * 0.55 * p.vatRate * vatCompliance * el('vat');
+    const vatGross = nominalGdp * p.vatBaseFrac * p.vatRate * vatCompliance * el('vat');
     const lvtRev = lvtRevForFiscal({
       rate: p.lvtRate, year: yr, nominalGdp,
       model: p.lvtModel, exemption: p.lvtExemption,
@@ -286,7 +288,7 @@ function runFiscalSimulation(p, horizon = 35) {
     // rate is a real carbon-price cut every year, and the Laffer peak scales with it.
     const carbonRev = carbonRevenueAtRate(p.carbonRate) * priceLevel
       * Math.pow(0.975, yr - 1) * Math.max(0, 1 - cycGap);
-    // Stable rent-based taxes: FTT + FSL + royalties + spectrum + water ≈ 0.76% GDP
+    // Stable rent taxes (src/lib/rent-taxes.js): FTT, levy, royalties, spectrum, water, pollution, congestion
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
     const payrollFix = nominalGdp * 0.008;
     const capGainsTax = nominalGdp * 0.012 * el('capGains');

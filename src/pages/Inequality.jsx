@@ -245,9 +245,9 @@ function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
     if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P, fx); }
     else {
       // Rates come from the shared fiscal engine so this page cannot drift from it.
-      const vatCost = BASE_PARAMS.vatRate * DIST_BRACKETS[bi].cRat * base;
+      const vatCost = fx.vatRate * DIST_BRACKETS[bi].cRat * base;
       const lvtCost = lvtNetBr(k, y, P, fx);
-      const carbonCost = CARBON_TONS_BR[bi] * BASE_PARAMS.carbonRate;
+      const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
       tax = -taxAt(k, fx) - vatCost - lvtCost - carbonCost;
     }
   }
@@ -267,7 +267,13 @@ function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   // costs; investment-land capitalization falls on the landlord minority / institutions).
   const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
-  if (P.has('TAX')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-taxAt(k, fx) * d.save); tax = c; }
+  if (P.has('TAX')) {
+    // VAT is a cash cost like income tax, so its saved share comes out of wealth too.
+    const bi = DEMO_BRACKET[k];
+    const vatAt = t => d.accordIncG == null
+      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t) : 0;
+    let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, fx) + vatAt(t)) * d.save); tax = c;
+  }
   if (P.has('PRE')) {
     const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
     const ann = (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
