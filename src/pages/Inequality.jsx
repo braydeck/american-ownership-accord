@@ -268,11 +268,14 @@ function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
   if (P.has('TAX')) {
-    // VAT is a cash cost like income tax, so its saved share comes out of wealth too.
+    // VAT and the carbon tax are cash costs like income tax, so their saved share comes out
+    // of wealth too. The carbon dividend is already counted in `pre`; this is its other side.
     const bi = DEMO_BRACKET[k];
-    const vatAt = t => d.accordIncG == null
-      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t) : 0;
-    let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, fx) + vatAt(t)) * d.save); tax = c;
+    const consTaxAt = t => d.accordIncG == null
+      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t)
+        + CARBON_TONS_BR[bi] * fx.carbonRate
+      : 0;
+    let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, fx) + consTaxAt(t)) * d.save); tax = c;
   }
   if (P.has('PRE')) {
     const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
