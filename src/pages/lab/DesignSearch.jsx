@@ -17,6 +17,11 @@ import {
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { useUrlValue } from '@/lib/url-state';
 import DATA from '@/data/design-search.json';
+import { DesignCompare } from '@/pages/lab/DesignCompare';
+
+// Designs compared by default: the two robust frontier designs and design 1321, which ties
+// design 133 on income Gini.
+const COMPARE_IDS = [133, 1321, 4456];
 
 const COLORS = { fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
@@ -137,6 +142,9 @@ export default function DesignSearch() {
       </ChartContainer>
 
       {selected && <DesignDetail d={selected} />}
+
+      <DesignCompare designs={DATA.passing}
+                     ids={selected && !COMPARE_IDS.includes(selected.id) ? [...COMPARE_IDS, selected.id] : COMPARE_IDS} />
 
       <Card className="mt-6">
         <CardContent className="pt-4">
