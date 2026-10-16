@@ -2,7 +2,7 @@
 // Each design is rerun on the shared engine and household model (paramsFromDesign), so the
 // numbers match Household Impact for the same settings.
 import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 import { scaleSymlog } from 'd3-scale';
 import { ChartContainer } from '@/components/charts/ChartContainer';
 import { SliderControl } from '@/components/controls/SliderControl';
@@ -45,9 +45,12 @@ function outcomes(fx, P) {
 
 const NW_TICKS = [-75, -50, -25, 0, 25, 50, 100, 250, 500, 1000];
 
-export function DesignCompare({ designs, ids }) {
+const GROUP_OPTIONS = DEMO_KEYS.map(k => ({ key: k, label: DEMOS[k].short }));
+
+export function DesignCompare({ designs, ids, onRemove }) {
   const [year, setYear] = useUrlValue('dsyr', 10);
   const [table, setTable] = useUrlValue('dstab', 'inc');
+  const [group, setGroup] = useUrlValue('dsgrp', 'P80');
 
   const series = useMemo(() => {
     const defaultFx = fxFromParams(BASE_PARAMS);
@@ -55,7 +58,7 @@ export function DesignCompare({ designs, ids }) {
       { key: 'Current Accord settings', color: ACCORD_COLOR, fx: defaultFx },
       ...ids.map((id, i) => {
         const d = designs.find(x => x.id === id);
-        return { key: d.name ?? `Design ${id}`, color: PALETTE[i % PALETTE.length], fx: fxFromParams(paramsFromDesign(d)) };
+        return { id, key: d.name ?? `Design ${id}`, color: PALETTE[i % PALETTE.length], fx: fxFromParams(paramsFromDesign(d)) };
       }),
     ];
     return {
@@ -79,6 +82,26 @@ export function DesignCompare({ designs, ids }) {
   const noBase = DEMO_KEYS.filter(k => law[k].nw <= 0).map(k => DEMOS[k].short);
   const metric = table === 'inc' ? 'inc' : 'nw';
 
+  // Timeline for one group: dollar change against current law in every year.
+  const timeline = metric => Array.from({ length: HORIZON }, (_, i) => {
+    const yy = i + 1, r = { year: yy };
+    for (const s of series.list) r[s.key] = s.data[yy][group][metric] - series.law[yy][group][metric];
+    return r;
+  });
+  const incLine = timeline('inc'), nwLine = timeline('nw');
+  const summary = series.list.map(s => {
+    const vals = incLine.map(r => ({ year: r.year, v: r[s.key] }));
+    const early = vals.slice(0, 10);
+    const worst = vals.reduce((a, b) => (b.v < a.v ? b : a));
+    const worstEarly = early.reduce((a, b) => (b.v < a.v ? b : a));
+    const firstBehind = vals.find(x => x.v < 0)?.year ?? null;
+    return { ...s, avgEarly: early.reduce((a, b) => a + b.v, 0) / 10, worstEarly, worst, firstBehind,
+      nw10: nwLine[9][s.key], nw30: nwLine[29][s.key] };
+  });
+  const lines = series.list.map(s => (
+    <Line key={s.key} dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} isAnimationActive={false} />
+  ));
+
   const tooltip = (
     <Tooltip formatter={(v, n) => [v == null ? 'n/a' : fmtPct(v), n]}
              labelFormatter={(g, p) => p?.[0]?.payload?.label ?? g} />
@@ -90,7 +113,75 @@ export function DesignCompare({ designs, ids }) {
   return (
     <Card className="mt-6">
       <CardContent className="pt-4">
-        <h3 className="text-sm font-semibold">Household outcomes by income group</h3>
+        <h3 className="text-sm font-semibold">Compared designs</h3>
+        <div className="flex flex-wrap gap-2 mt-2 mb-5">
+          {series.list.map(s => (
+            <span key={s.key} className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px]">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ background: s.color }} />
+              {s.key}
+              {s.id != null && onRemove && (
+                <button onClick={() => onRemove(s.id)} className="text-muted-foreground hover:text-foreground ml-0.5" aria-label={`Remove ${s.key}`}>×</button>
+              )}
+            </span>
+          ))}
+          <span className="text-[11px] text-muted-foreground self-center">Select any design above and use "Add to comparison" to add it.</span>
+        </div>
+
+        <h3 className="text-sm font-semibold">One group over time</h3>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Change against current law in every year from 1 to {HORIZON}, 2024 dollars.
+        </p>
+        <PresetSelector presets={GROUP_OPTIONS} value={group} onChange={setGroup} />
+        <ChartContainer title={`${DEMOS[group].short} (${DEMOS[group].label}) income change vs current law`} height={280} className="mt-4">
+          <LineChart data={incLine} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+            <CartesianGrid {...CHART_GRID} />
+            <XAxis dataKey="year" {...CHART_AXIS} />
+            <YAxis {...CHART_AXIS} tickFormatter={fmtMoney} width={64} />
+            <ReferenceLine y={0} stroke="#71717a" />
+            <Tooltip formatter={(v, n) => [fmtDelta(v), n]} labelFormatter={yy => `Year ${yy}`} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {lines}
+          </LineChart>
+        </ChartContainer>
+        <ChartContainer title={`${DEMOS[group].short} net worth change vs current law`} height={280} className="mt-6">
+          <LineChart data={nwLine} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+            <CartesianGrid {...CHART_GRID} />
+            <XAxis dataKey="year" {...CHART_AXIS} />
+            <YAxis {...CHART_AXIS} tickFormatter={fmtMoney} width={64} />
+            <ReferenceLine y={0} stroke="#71717a" />
+            <Tooltip formatter={(v, n) => [fmtDelta(v), n]} labelFormatter={yy => `Year ${yy}`} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {lines}
+          </LineChart>
+        </ChartContainer>
+        <div className="rounded-lg border overflow-x-auto mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                {['Design', 'Avg income, Yrs 1–10', 'Worst year, Yrs 1–10', `Worst year, Yrs 1–${HORIZON}`, 'First year behind', 'Net worth, Yr 10', 'Net worth, Yr 30'].map(h => (
+                  <TableHead key={h} className={h === 'Design' ? 'whitespace-nowrap' : 'text-right whitespace-nowrap'}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {summary.map(s => (
+                <TableRow key={s.key}>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ background: s.color }} />{s.key}
+                  </TableCell>
+                  <TableCell className="text-right text-xs">{fmtDelta(s.avgEarly)}</TableCell>
+                  <TableCell className="text-right text-xs">{fmtDelta(s.worstEarly.v)} <span className="text-muted-foreground">(Yr {s.worstEarly.year})</span></TableCell>
+                  <TableCell className="text-right text-xs">{fmtDelta(s.worst.v)} <span className="text-muted-foreground">(Yr {s.worst.year})</span></TableCell>
+                  <TableCell className="text-right text-xs">{s.firstBehind == null ? 'Never' : `Yr ${s.firstBehind}`}</TableCell>
+                  <TableCell className="text-right text-xs">{fmtDelta(s.nw10)}</TableCell>
+                  <TableCell className="text-right text-xs">{fmtDelta(s.nw30)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <h3 className="text-sm font-semibold mt-10">Every group in one year</h3>
         <p className="text-[11px] text-muted-foreground mb-4">
           Change against current law in the same year, for every group from the bottom 10% to the
           wealthiest individuals. Income is annual household income after taxes and transfers; net

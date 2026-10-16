@@ -26,7 +26,7 @@ const ALL_DESIGNS = [...DATA.passing, ...VARIANTS];
 const designName = d => d.name ?? `Design ${d.id}`;
 // Designs compared by default: design 1321 and its variants, and design 133, the robust design
 // with the lowest income Gini.
-const COMPARE_IDS = ['1321-lvt8', '1321-3rate', '1321-p80', 133];
+const COMPARE_IDS = ['1321-3rate', '1321-p80', 2019];
 
 const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
@@ -70,6 +70,9 @@ export default function DesignSearch() {
   const [sortKey, setSortKey] = useUrlValue('dssort', 'incomeGiniY30');
   const defaultId = '1321-p80';
   const [selectedId, setSelectedId] = useState(defaultId);
+  const [compareIds, setCompareIds] = useState(COMPARE_IDS);
+  const addCompare = id => setCompareIds(c => (c.includes(id) || c.length >= 5 ? c : [...c, id]));
+  const removeCompare = id => setCompareIds(c => c.filter(x => x !== id));
 
   const scatter = useMemo(() => {
     const out = { fail: [], pass15: [], pass10: [], robust: [] };
@@ -148,7 +151,8 @@ export default function DesignSearch() {
         </ScatterChart>
       </ChartContainer>
 
-      {selected && <DesignDetail d={selected} />}
+      {selected && <DesignDetail d={selected} compared={compareIds.includes(selected.id)}
+                                 full={compareIds.length >= 5} onAdd={() => addCompare(selected.id)} />}
 
       <Card className="mt-6">
         <CardContent className="pt-4">
@@ -165,8 +169,7 @@ export default function DesignSearch() {
         </CardContent>
       </Card>
 
-      <DesignCompare designs={ALL_DESIGNS}
-                     ids={selected && !COMPARE_IDS.includes(selected.id) ? [...COMPARE_IDS, selected.id] : COMPARE_IDS} />
+      <DesignCompare designs={ALL_DESIGNS} ids={compareIds} onRemove={removeCompare} />
 
       <Card className="mt-6">
         <CardContent className="pt-4">
@@ -242,7 +245,7 @@ export default function DesignSearch() {
 
 const stress = (d, v) => (d.stressTested ? yr(v) : 'Not tested: margin under $1,000');
 
-function DesignDetail({ d }) {
+function DesignDetail({ d, compared, full, onAdd }) {
   const items = [
     ['Income tax', bracketText(d.brackets)],
     ['Standard deduction', `${money(d.exemptJoint)} joint, ${money(d.exemptJoint / 2)} single`],
@@ -268,9 +271,15 @@ function DesignDetail({ d }) {
   return (
     <Card className="mt-6">
       <CardContent className="pt-4">
-        <h3 className="text-sm font-semibold mb-3">
-          {designName(d)}{d.robust ? ', robust to recessions' : ''}
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-semibold">
+            {designName(d)}{d.robust ? ', robust to recessions' : ''}
+          </h3>
+          <button onClick={onAdd} disabled={compared || full}
+                  className="text-xs rounded-md border border-border px-2.5 py-1 hover:bg-muted/50 disabled:opacity-50 disabled:cursor-default">
+            {compared ? 'In comparison' : full ? 'Comparison full (5)' : 'Add to comparison'}
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <dl className="text-xs space-y-1.5">
             {items.map(([k, v]) => (
