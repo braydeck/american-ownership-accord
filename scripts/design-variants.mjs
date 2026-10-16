@@ -1,6 +1,6 @@
 // Named variants of searched designs, evaluated like the search's passing designs and written to
 // src/data/design-variants.json for the Design Search page. Variants come from
-// scripts/bracket-test-1321.mjs and scripts/p80-local-search.mjs (2026-10-16).
+// scripts/bracket-test-1321.mjs, scripts/p80-local-search.mjs and scripts/refine-1321.mjs (2026-10-16).
 // Run: node scripts/design-variants.mjs
 import { createServer } from 'vite';
 import { writeFileSync, readFileSync } from 'node:fs';
@@ -18,6 +18,10 @@ const VARIANTS = [
     changes: { lvtRate: 0.08, brackets: [[400e3, d1321.brackets[0][1]], [800e3, 0.40], [null, d1321.brackets[1][1]]] } },
   { id: '1321-p80', name: '1321, tuned for P80', note: 'LVT 8%, a 10% low rate, $70K joint deduction, 14% VAT, $6,500 prebate and $110 carbon: the robust setting that keeps P80 furthest ahead in Years 1-10.',
     changes: { lvtRate: 0.08, brackets: [[400e3, 0.10], [null, d1321.brackets[1][1]]], exemptJoint: 70e3, vatRate: 0.14, prebate: 6500, carbonRate: 110 } },
+  { id: '1321-balanced', name: '1321, refined', note: 'After wage indexing: 12.5% to $400K, $50K joint deduction, 15% VAT, 10% LVT, $8,500 prebate and $137 carbon. Raises both P80 and the bottom half over design 1321, and P80 is never behind.',
+    changes: { lvtRate: 0.10, brackets: [[400e3, 0.125], [null, d1321.brackets[1][1]]], exemptJoint: 50e3, vatRate: 0.15, prebate: 8500, carbonRate: 137 } },
+  { id: '1321-bottom', name: '1321, refined for the bottom half', note: 'After wage indexing: 14% to $400K, $38K joint deduction, 15% VAT, 10% LVT, $9,200 prebate and $110 carbon. The largest bottom-half gain with P80 never behind.',
+    changes: { lvtRate: 0.10, brackets: [[400e3, 0.14], [null, d1321.brackets[1][1]]], exemptJoint: 38e3, vatRate: 0.15, prebate: 9200, carbonRate: 110 } },
 ];
 const delta = p => Object.fromEntries(Object.keys(p).filter(k => p[k] !== BASE_PARAMS[k]).map(k => [k, p[k]]));
 const out = [];

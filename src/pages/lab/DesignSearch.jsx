@@ -26,7 +26,7 @@ const ALL_DESIGNS = [...DATA.passing, ...VARIANTS];
 const designName = d => d.name ?? `Design ${d.id}`;
 // Designs compared by default: design 1321 and its variants, and design 133, the robust design
 // with the lowest income Gini.
-const COMPARE_IDS = ['1321-3rate', '1321-p80', 2019];
+const COMPARE_IDS = [1321, '1321-balanced', '1321-bottom', '1321-p80'];
 
 const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
@@ -68,7 +68,7 @@ function inView(d, view) {
 export default function DesignSearch() {
   const [view, setView] = useUrlValue('dsview', 'robust');
   const [sortKey, setSortKey] = useUrlValue('dssort', 'incomeGiniY30');
-  const defaultId = '1321-p80';
+  const defaultId = '1321-balanced';
   const [selectedId, setSelectedId] = useState(defaultId);
   const [compareIds, setCompareIds] = useState(COMPARE_IDS);
   const addCompare = id => setCompareIds(c => (c.includes(id) || c.length >= 5 ? c : [...c, id]));
