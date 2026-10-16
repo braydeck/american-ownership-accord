@@ -5,7 +5,9 @@
 // `priceLevel`, so pages that present real dollars deflate at the boundary:
 // realValue = nominalValue / row.priceLevel. See realGrantSeries and householdFiscalSeries.
 import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/land';
-import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
+import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS, accordSchedule, accordScheduleTax, accordMarginalRate,
+  clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE } from '@/lib/income-tax';
+import { BRACKETS } from '@/lib/brackets';
 import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
 import { cboFiscalShares, CBO_REV_MIX_2026 } from '@/lib/cbo-baseline';
 
@@ -52,11 +54,18 @@ const BASE_PARAMS = {
   incomeTaxExemptSingle:  INCOME_TAX_DEFAULTS.exemptSingle,
   incomeTaxExemptJoint:   INCOME_TAX_DEFAULTS.exemptJoint,
   incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop,
+  incomeTaxBrackets:      null,   // [[upper income bound, rate], ...]; null = the two-rate low/high/threshold form
+  realizationOn:          true,   // gains realized at death and on gifts (incl. charitable), pledged-asset backstop (gaps item 3)
+  ssUncapOn:              true,
+  retirementReserveShare: 0.10,   // share of Treasury-tranche cash credited to the OASDI trust funds (gaps item 4)
+  retirementReserveStart: 15,     // first year of Retirement Reserve transfers   // 12.4% Social Security contribution on all income above the cap, no benefit credit (gaps item 1)
   carbonRate:             100,
   stableTaxFrac:          STABLE_RENT_FRAC,
   publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
   // ── Spending ──
   prebatePerCapita:       PREBATE_REDIRECTED,
+  prebateIndex:           0,      // share of real GDP-per-person growth the prebate follows on top of CPI (0, 0.5, 1)
+  citizenFloorIndex:      0,      // same, for the $500 citizen grant floor
   spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
   rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled)
   drugSavings:            0.001,  // % of GDP by Yr 5 (doc §12: $25–40B)
@@ -142,6 +151,28 @@ const PUBLIC_EMPLOYEES = 23e6;
 const BRAKE_THRESHOLD_PCT = 10;   // net interest as % of revenue
 const FISCAL_GOAL_WINDOW = 75;    // years over which the fiscal goal must hold
 const ASSET_CREDIT_PHASE_YEARS = 6; // the rate credit reaches maturing debt over ~6 years
+// Gains realized at death and on gifts: Penn Wharton (2021) scores repealing step-up at
+// +$146B over FY2022-31 at a 39.6% rate (~0.052% of GDP). Scaled to the Accord's 62.4% top
+// rate (50% plus the 12.4% contribution), about 0.08% of GDP. Assumption: the $5M exclusion
+// and the added gift and charitable realizations roughly offset.
+const REALIZATION_GDP = 0.0008;
+// OASDI trust funds (2026 Trustees Report, intermediate). Cost rate, % of taxable payroll:
+// 15.37 in 2026, 16.2 in 2040 (CRR summary), 20.45 in 2085, 20.02 in 2100. Income rate: 12.91
+// in 2026 to 13.45 in 2100. Reserves start at 151% of 2026 cost. Taxable payroll is 35% of GDP
+// (FY2025: $1.32T of OASDI payroll tax at 12.4%).
+const SS_COST_RATE = [[2026, 0.1537], [2040, 0.162], [2085, 0.2045], [2100, 0.2002]];
+const SS_INCOME_RATE = [[2026, 0.1291], [2100, 0.1345]];
+const SS_START_RATIO = 1.51;
+const TAXABLE_PAYROLL_GDP = 0.35;
+const SS_IMMIGRANT_COST_LAG = 45; // years from arrival to the full benefit cost of an immigrant cohort (assumption)
+const interp = (pts, x) => {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+    return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+  }
+  return pts[pts.length - 1][1];
+};
 const IMMIGRANT_REVENUE_FACTOR = 0.6; // CBO 2024: revenue per immigrant-GDP dollar vs average
 
 // Dissolved programs (SNAP, refundable EITC and CTC, TANF, WIC), % of GDP, CBO Feb 2026.
@@ -160,8 +191,55 @@ const GROWTH_CHANNELS = {
   codetermination: [ 0.000,  0.003,   0.015,   5],
   housing:         [ 0.000,  0.001,   0.010,  15],
   entrepreneurship:[ 0.000,  0.001,   0.005,  10],
-  laborSupply:     [-0.008, -0.002,   0.003,   5],
 };
+// Labor supply responds to the tax and transfer system (replacing the fixed −0.2% channel).
+// Substitution: hours follow the earnings-weighted net-of-tax wage, with income tax, payroll and
+// the consumption taxes (VAT, carbon) in the wedge. Income effect: hours fall with the rise in
+// after-tax income from transfers net of taxes. Elasticities [low case, central, high case]:
+// substitution 0.3/0.2/0.1 and income −0.10/−0.05/0 (CBO 2012 review ranges; Bargain & Peichl
+// and the 2024 publication-bias meta-analysis put intensive margins near 0.2). Output responds
+// with the labor share, 0.65. Phased in over 5 years.
+const LABOR_SUB_ELASTICITY = [0.30, 0.20, 0.10];
+const LABOR_INC_ELASTICITY = [-0.10, -0.05, 0];
+const LABOR_OUTPUT_SHARE = 0.65;
+const LABOR_PHASE_YEARS = 5;
+const CL_EMPLOYEE_PAYROLL = 0.0765, CL_PAYROLL_ABOVE_CAP = 0.0145;
+// Current-law marginal rates from the programs the prebate replaces, by bracket: the EITC
+// phase-in (negative) at the bottom, then EITC and SNAP phase-outs. Assumption scaled to CBO
+// (2012, 2016): low- and moderate-income workers face ~30% effective marginal rates, about a
+// third from neither income nor payroll tax.
+const CL_PROGRAM_MARGINAL = [-0.05, -0.02, 0.06, 0.08, 0.05, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
+  const i = GROWTH_CASE_INDEX[p.growthCase] ?? 1;
+  const sched = accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
+    lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold });
+  const vatEff = p.vatRate * 0.9;
+  const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (p.vatBaseFrac * p.startingGdp * realIdx);
+  const tc = vatEff + carbonEff;
+  const prebate = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) / gdpPcIdx; // in snapshot-income terms
+  const cdiv = carbonDividendPerCapita(p.carbonRate) * carbonDecayFactor(yr) / gdpPcIdx;
+  // Brackets in the top rate respond through the elasticity of taxable income in income-tax.js,
+  // which already shrinks their base, so they are left out here.
+  const topFloor = sched.length > 1 ? sched[sched.length - 2][0] : Infinity;
+  let wSum = 0, sub = 0, inc = 0;
+  BRACKETS.forEach((b, bi) => {
+    const agi = b.agi / b.filers;
+    if (agi > topFloor) return;
+    const w = b.agi * (1 - b.cgShare);
+    const aboveCap = agi / earnersPerFiler(b.jFrac) > SS_CAP_SNAPSHOT;
+    const pay = aboveCap ? CL_PAYROLL_ABOVE_CAP : CL_EMPLOYEE_PAYROLL;
+    const ssExtra = p.ssUncapOn && aboveCap ? SS_RATE / 2 : 0;
+    const ded = b.jFrac * p.incomeTaxExemptJoint + (1 - b.jFrac) * p.incomeTaxExemptSingle;
+    const nCL = (1 - clMarginalRate(agi, b.jFrac) - CL_PROGRAM_MARGINAL[bi] - pay) / (1 + pay);
+    const nA = (1 - accordMarginalRate(agi, ded, sched) - pay - ssExtra) / (1 + pay + ssExtra) / (1 + tc);
+    const taxDelta = accordScheduleTax(agi, ded, sched) - b.effCL * agi + tc * b.cRat * agi
+      + (p.ssUncapOn ? SS_RATE * ssAboveCapBase(agi, b.jFrac) : 0);
+    const dY = ((prebate + cdiv) * b.hhSz - taxDelta) / (agi * (1 - b.effCL - pay));
+    wSum += w; sub += w * Math.log(Math.max(0.05, nA) / Math.max(0.05, nCL)); inc += w * dY;
+  });
+  const dL = LABOR_SUB_ELASTICITY[i] * sub / wSum + LABOR_INC_ELASTICITY[i] * inc / wSum;
+  return LABOR_OUTPUT_SHARE * dL * Math.min(1, yr / LABOR_PHASE_YEARS);
+}
 const GROWTH_CASE_INDEX = { low: 0, central: 1, high: 2 };
 
 function growthLevelFactor(yr, growthCase) {
@@ -213,6 +291,7 @@ function runFiscalSimulation(p, horizon = 35) {
   let priceLevel = 1.0;
   let scarLevel = 0, prevCycGap = 0;
   let debt = p.startingDebt;
+  let ssTrustFund = null, ssDepletionYear = null;
   let creditBp = 0; // phased-in borrowing-cost credit, in rate units
 
   // Corporate value. Fundamental values grow with nominal GDP; market value = fundamental ×
@@ -256,7 +335,11 @@ function runFiscalSimulation(p, horizon = 35) {
 
     const immigrants = abundanceImmigrants(yr, p); // millions, cumulative
     const immLevel = 1 + GDP_PER_MILLION_IMMIGRANTS * immigrants;
-    const growthLevel = growthLevelFactor(yr, p.growthCase);
+    const trendRealIdx = trendBase / p.startingGdp;
+    const trendPcIdx = trendRealIdx * p.startingPopulation
+      / (p.startingPopulation * Math.pow(1 + p.populationGrowthRate, yr) + immigrants * 1e6);
+    const laborLevel = 1 + laborSupplyEffect(p, trendRealIdx, trendPcIdx, yr);
+    const growthLevel = growthLevelFactor(yr, p.growthCase) * laborLevel;
     const accordLevel = growthLevel * immLevel;
     const realGdp = realGdpBase * accordLevel;
     priceLevel *= (1 + p.inflationRate);
@@ -264,6 +347,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const trendNomGdpBase = trendBase * priceLevel; // rigid commitments are sized off the trend
     const pop = p.startingPopulation * Math.pow(1 + p.populationGrowthRate, yr) + immigrants * 1e6;
     const popScale = pop / p.startingPopulation;
+    const gdpPcIdx = (realGdp / pop) / (p.startingGdp / p.startingPopulation);
     const nomGrowth = nominalGdp / prevNomGdp - 1;
 
     // ── Corporate value: incumbents and entrants ──
@@ -324,7 +408,7 @@ function runFiscalSimulation(p, horizon = 35) {
     tClaim += amcfNetScrip - citizenScrip;
     cClaim += citizenScrip;
     // Citizen floor in units, topped up from the Treasury tranche.
-    const floorTotal = citizenFloorPerCap(p, priceLevel) * pop;
+    const floorTotal = citizenFloorPerCap(p, priceLevel) * Math.pow(gdpPcIdx, p.citizenFloorIndex ?? 0) * pop;
     const topUp = Math.min(Math.max(0, floorTotal - citizenScrip), tClaim);
     tClaim -= topUp; cClaim += topUp;
     // Enhanced grants (care credit, public-employee units) are issued from the Treasury tranche,
@@ -409,19 +493,22 @@ function runFiscalSimulation(p, horizon = 35) {
     const carbonRev = carbonRevenueAtRate(p.carbonRate) * priceLevel
       * carbonDecayFactor(yr) * Math.max(0, 1 - cycGap);
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
-    const payrollFix = nominalGdp * 0.008;
     const incomeTaxSplit = incomeTaxSplitForFiscal({
-      nominalGdp,
+      nominalGdp, brackets: p.incomeTaxBrackets ?? undefined,
       lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
       exemptSingle: p.incomeTaxExemptSingle, exemptJoint: p.incomeTaxExemptJoint, etiTop: p.incomeTaxEtiTop,
+      ssUncapOn: p.ssUncapOn,
     });
+    // Social Security contribution above the cap (the former "payroll fix"), computed bottom-up.
+    const payrollFix = incomeTaxSplit.ss * el('incomeTax');
     const incomeTax = incomeTaxSplit.ordinary * el('incomeTax');
     const capGainsTax = incomeTaxSplit.capGains * el('capGains');
     const payrollTax = nominalGdp * 0.054 * el('payroll');
     const otherTax = nominalGdp * 0.010;
+    const realizationRev = p.realizationOn ? nominalGdp * REALIZATION_GDP : 0;
     const publicOptionRev = nominalGdp * p.publicOptionRevenue * ramp(yr, 2, 6);
     const grossRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax
-      + incomeTax + payrollTax + otherTax + publicOptionRev;
+      + incomeTax + payrollTax + otherTax + publicOptionRev + realizationRev;
     // Output added by immigrants is taxed at a lower average rate (CBO 2024).
     const immGdpShare = 1 - 1 / immLevel;
     const totalRev = grossRev * (1 - (1 - IMMIGRANT_REVENUE_FACTOR) * immGdpShare);
@@ -431,7 +518,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const baselineShare = cbo.noninterest - dissolvedProgramsFrac(yr) + p.spendingAdjustment
       - p.rateSettingSavings * ramp(yr, 2, 6) - p.drugSavings * Math.min(1, yr / 5) - p.patentBuyoutNet;
     const baseSpend = baselineShare * trendNomGdpBase * (1 + p.spendingElasticity * (accordLevel - 1));
-    const prebateSpend = p.prebatePerCapita * pop * priceLevel;
+    const prebateSpend = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) * pop * priceLevel;
     const childcareSpend = 100e9 * popScale * priceLevel;
     const familyLeaveSpend = 50e9 * popScale * priceLevel;
     const ceocSpend = p.ceocOn ? CEOC_DEPOSIT * CEOC_FTE * popScale * priceLevel : 0;
@@ -457,8 +544,25 @@ function runFiscalSimulation(p, horizon = 35) {
     const debtReductionAMCF = solventBrakeActive ? treasuryFlow : saleToDebt;
     const discretionaryAMCF = solventBrakeActive ? 0 : treasuryFlow - saleToDebt;
     // Net Treasury purchases of units (cap overflow, term repurchases) are a cost even when spent.
-    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
+    // Retirement Reserve: a share of Treasury-tranche cash is credited to the OASDI trust funds.
+    // Taken from post-brake budget cash, it is no longer spent, so it lowers the unified deficit;
+    // while the brake is on, the same cash already retires debt.
+    const reserveTransfer = yr >= p.retirementReserveStart ? cashT * p.retirementReserveShare : 0;
+    const reserveFromBudget = solventBrakeActive || p.bankPostBrake ? 0 : Math.min(reserveTransfer, Math.max(0, discretionaryAMCF));
+    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF)) - reserveFromBudget;
     debt = debt + deficit - debtReductionAMCF;
+    // OASDI trust funds: scheduled benefits stay in spending (CBO convention); the balance
+    // shows whether they are payable under law. The contribution above the cap is credited
+    // to the funds by statute.
+    const fy = 2025 + yr;
+    // Benefits follow wages, so the Accord's productivity effects raise cost along with payroll.
+    // Extra immigrants pay in now and claim later: their share of cost phases in over 45 years.
+    const ssCostGdp = potentialBase * priceLevel * growthLevel * (1 + (immLevel - 1) * Math.min(1, yr / SS_IMMIGRANT_COST_LAG));
+    const ssCost = interp(SS_COST_RATE, fy) * TAXABLE_PAYROLL_GDP * ssCostGdp;
+    if (ssTrustFund == null) ssTrustFund = SS_START_RATIO * ssCost;
+    const ssIncome = interp(SS_INCOME_RATE, fy) * TAXABLE_PAYROLL_GDP * nominalGdp + payrollFix + reserveTransfer;
+    ssTrustFund = ssTrustFund * (1 + effectiveRate) + ssIncome - ssCost;
+    if (ssDepletionYear == null && ssTrustFund < 0) ssDepletionYear = yr;
     const netSovPos = debt - tClaim;
 
     // ── Current-law path ──
@@ -500,7 +604,7 @@ function runFiscalSimulation(p, horizon = 35) {
       workerUnitAccrual: T(workerUnitAccrual), wefUnits: T(wefUnits), wefPriceReal: +(wefPrice / priceLevel).toFixed(4), workerOwnershipPct: +((totalEV > 0 ? workerEquity / totalEV : 0) * 100).toFixed(1),
       combinedYield: +(combinedYield * 100).toFixed(2),
       amcfCashFlow: T(amcfCashFlow), amcfDividends: T(amcfCashFlow), treasuryCash: T(cashT),
-      healthcareAMCF: T(healthcareAMCF), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
+      healthcareAMCF: T(healthcareAMCF), reserveTransfer: T(reserveTransfer), ssTrustFund: T(ssTrustFund), ssTrustFundRatio: +(ssTrustFund / ssCost * 100).toFixed(0), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
       unitSaleProceeds: T(unitSaleProceeds), citizenWithdrawals: T(withdrawals),
       citizenUnitPurchases: T(citizenBuysW + citizenBuysT), treasuryUnitPurchases: T(treasuryBuysW), expiryBuyback: T(expiryBuyback),
       privateUnitPct: +((tClaim + cClaim + pClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim) * 100 : 0).toFixed(1),
@@ -508,7 +612,7 @@ function runFiscalSimulation(p, horizon = 35) {
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
       ceocSpend: T(ceocSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
       vatGross: T(vatGross), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
-      payrollFix: T(payrollFix), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
+      payrollFix: T(payrollFix), realizationRev: T(realizationRev), gdpPerCapIdx: +gdpPcIdx.toFixed(4), laborLevel: +laborLevel.toFixed(4), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
       otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
       cycGap: +(cycGap * 100).toFixed(2), clCycGap: +(clCycGap * 100).toFixed(2),
       prebateSpend: T(prebateSpend), carbonDividendSpend: T(carbonDividendSpend), childcareSpend: T(childcareSpend),
@@ -524,14 +628,18 @@ function runFiscalSimulation(p, horizon = 35) {
   // Fiscal goal (decided 2026-10-16): net interest under 10% of revenue and debt/GDP falling,
   // held in every later year of a 75-year window. "Falling" compares each year with five years
   // earlier so a recession's temporary rise does not reset the goal; debt at or below zero passes.
-  const goalRows = horizon >= FISCAL_GOAL_WINDOW ? rows : runFiscalSimulation(p, FISCAL_GOAL_WINDOW).rows;
+  const longRun = horizon >= FISCAL_GOAL_WINDOW ? null : runFiscalSimulation(p, FISCAL_GOAL_WINDOW);
+  const goalRows = longRun?.rows ?? rows;
   const goalOk = goalRows.map((r, i) => r.intToRev < BRAKE_THRESHOLD_PCT
     && (r.grossDebt <= 0 || r.debtToGdp <= goalRows[Math.max(0, i - 5)].debtToGdp));
   let fiscalGoalYear = null;
   for (let i = goalOk.length - 1; i >= 0 && goalOk[i]; i--) fiscalGoalYear = goalRows[i].year;
 
+  const ssDepletion = longRun ? longRun.milestones.ssDepletionYear : ssDepletionYear;
+
   const m = {
     fiscalGoalYear,
+    ssDepletionYear: ssDepletion,
     fiscalCrossoverYear:   rows.find(r => r.deficit < 0)?.year ?? null,
     interestThresholdYear: rows.find(r => r.intToRev < BRAKE_THRESHOLD_PCT)?.year ?? null,
     debtPeakYear:          rows.reduce((b, r) => r.grossDebt > b.grossDebt ? r : b, rows[0]).year,
@@ -587,7 +695,7 @@ const NONRES_LAND_SHARE = (() => {
 export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
   const { rows } = runFiscalSimulation(params, horizon);
   const reval = params.revaluationOn ? 1 + params.revaluationPct : 1;
-  return [{ year: 0, grant: 0, fundOwn: 0, workerOwn: 0, reval: 1, nonResLvt: 0, stableTax: 0, payrollFix: 0, popScale: 1,
+  return [{ year: 0, grant: 0, fundOwn: 0, workerOwn: 0, reval: 1, nonResLvt: 0, stableTax: 0, payrollFix: 0, realization: 0, gdpPerCapIdx: 1, popScale: 1,
     wefAccrual: 0, profitShare: 0, wefPrice: 1, wefYield: 0, ceocOn: params.ceocOn, pseuMultiple: 0 },
     ...rows.map(r => ({
       year: r.year,
@@ -598,6 +706,8 @@ export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
       nonResLvt: r.lvtRev * 1e12 * NONRES_LAND_SHARE / r.priceLevel,
       stableTax: r.stableTaxRev * 1e12 / r.priceLevel,
       payrollFix: r.payrollFix * 1e12 / r.priceLevel,
+      realization: r.realizationRev * 1e12 / r.priceLevel,
+      gdpPerCapIdx: r.gdpPerCapIdx,
       popScale: r.population / params.startingPopulation,
       wefAccrual: r.workerUnitAccrual * 1e12 / r.priceLevel,
       profitShare: r.workerProfitShare * 1e12 / r.priceLevel,

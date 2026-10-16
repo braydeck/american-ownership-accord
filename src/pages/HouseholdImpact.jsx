@@ -766,7 +766,7 @@ const CF_BARS = [
   { key:'vat',      name:'VAT Burden',          fill:'#e3bda6', prov:'TAX'  },
   { key:'lvt',      name:'LVT Burden',          fill:'#fdba74', prov:'TAX'  },
   { key:'carb',     name:'Carbon Burden',       fill:'#fcd34d', prov:'TAX'  },
-  { key:'payFix',   name:'Payroll Fix',         fill:'#d97706', prov:'TAX'  },
+  { key:'payFix',   name:'SS Above Cap',         fill:'#d97706', prov:'TAX'  },
   { key:'assigned', name:'Business Land & Rent Taxes', fill:'#b45309', prov:'TAX' },
   { key:'progLost', name:'Programs Replaced',    fill:'#9a5530', prov:'PRE'  },
   { key:'pre',      name:'Prebate',             fill:'#307ca6', prov:'PRE'  },
@@ -884,7 +884,7 @@ function cfRows(k, y, P, fx = FISCAL_DEFAULTS) {
     rows.push({ name:'VAT Burden',      value: pt.vat,    fill:'#e3bda6' });
     rows.push({ name:'LVT Burden',      value: pt.lvt,    fill:'#fdba74' });
     rows.push({ name:'Carbon Burden',   value: pt.carb,   fill:'#fcd34d' });
-    rows.push({ name:'Payroll Fix',     value: pt.payFix, fill:'#d97706' });
+    rows.push({ name:'SS Above Cap',     value: pt.payFix, fill:'#d97706' });
     rows.push({ name:'Business Land & Rent Taxes', value: pt.assigned, fill:'#b45309' });
   }
   if (P.has('PRE')) {
@@ -1574,7 +1574,7 @@ export default function Dashboard() {
         <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
         <p>Citizen AMCF units follow the National Balance Sheet engine: {Math.round(fx.citizenScripShare * 100)}% of each year's Growth Tax scrip is issued to citizens as fund units, topped up to a ${fx.citizenFloor} floor from the Treasury tranche: ${Math.round(amcfG(1, fx)).toLocaleString()}/person in Year 1 and ${Math.round(amcfG(30, fx)).toLocaleString()} in Year 30. Units compound at 5% real. Withdrawals for home, education, business, retirement or hardship are tax-free; other withdrawals are ordinary income (half assumed qualifying).</p>
         <p>The Equity Excise builds a 21% stake in each company worth $10M or more over five years, held permanently in that company's worker trust and voted for its current workers. The trust's dividends go to current workers: {Math.round(fx.workerProfitShare * 100)}% as cash profit-sharing from their own company, the rest as Worker Equity Fund units issued to every worker by hours worked. Units are portable and are never redeemed when a worker changes jobs. They pay cash dividends, which are ordinary income, and count toward net worth. Companies under $10M pay $1,000 per worker a year into the Sectoral Wealth Fund instead.</p>
-        <p>Tax reform net change (TAX toggle) compares the Accord with current law at each year's income: the two-rate income tax ({(fx.incomeTaxLow * 100).toFixed(0)}%/{(fx.incomeTaxHigh * 100).toFixed(0)}%) against 2024 federal brackets with preferential capital gains, plus {(fx.vatRate * 100).toFixed(1)}% VAT, {(fx.lvtRate * 100).toFixed(0)}% LVT on the home (owners pay, renters gain rent relief), ${fx.carbonRate}/ton carbon, the payroll fix on wages above $400K, and the household share of business-land LVT and the smaller rent taxes, assigned by business and financial holdings.</p>
+        <p>Tax reform net change (TAX toggle) compares the Accord with current law at each year's income: the two-rate income tax ({(fx.incomeTaxLow * 100).toFixed(0)}%/{(fx.incomeTaxHigh * 100).toFixed(0)}%) against 2024 federal brackets with preferential capital gains, plus {(fx.vatRate * 100).toFixed(1)}% VAT, {(fx.lvtRate * 100).toFixed(0)}% LVT on the home (owners pay, renters gain rent relief), ${fx.carbonRate}/ton carbon, the 12.4% Social Security contribution on all income above the per-worker cap, and the household share of business-land LVT, the smaller rent taxes and the tax on gains realized at death and on gifts, assigned by business and financial holdings.</p>
         <p>Existing equity holdings are diluted as the AMCF and the worker pool each build to 21% of companies, offset by the one-time revaluation from repealing the corporate tax when that switch is on. Small private businesses below the $10M threshold are not diluted. Capital gains taxed as ordinary income lower the after-tax return on financial portfolios.</p>
         <p>Charts 8 &amp; 10 (diverging bar): positive values stack above zero (income, benefits, wealth gains), negative values stack below zero (taxes, burdens). Net line shows total. &quot;% / 100%&quot; toggle normalizes to % of gross income (Ch.8) or base CL net worth (Ch.10). &quot;All Demos&quot; view shows all selected demographics at snapshot year.</p>
         <p>Gini: computed from full 13-point distribution (B10-Elon) for both income and wealth Gini. Population weights: deciles at 10% each, T10 9%, T1 0.94%, Billionaires 6e-6, Elon 7.5e-9. Anchor-calibrated to match official US statistics at Year 0. Lorenz trapezoid method.</p>

@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_REDIRECTED } from '@/lib/land';
-import { bracketIncomeTax } from '@/lib/income-tax';
+import { bracketIncomeTax, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
 import { useUrlValue } from '@/lib/url-state';
 import {
   TIER_DIST, PARTTIME_FTE,
@@ -242,7 +242,7 @@ export default function IncomeTaxSimulation() {
   const [tab, setTab] = useUrlValue('tab', 'optimizer');
 
   const stdJ = stdS * 2;
-  const etiM = 0.20;
+  const etiM = INCOME_TAX_DEFAULTS.etiMid;
   const etiT = etiScenario === 'low' ? 0.15 : 0.30;
 
   // AMCF cash flow computed dynamically: equity × combined payout yield

@@ -144,7 +144,7 @@ function getAugmentedWealth(k, y, P, params) {
     // discounted at the discount rate grossed up by the decline rate.
     const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
     const carbonRate = (1 + discountRate) / (1 - CARBON_DECARB_RATE) - 1;
-    const pvPrebateFull = pvStream(prebatePC(P, fx) * d.hhSz - PROG_LOST[k], currentAge, discountRate, surv)
+    const pvPrebateFull = pvStream(prebatePC(P, fx, y) * d.hhSz - PROG_LOST[k], currentAge, discountRate, surv)
       + pvStream(carbonDiv, currentAge, carbonRate, surv);
     const prebateSavedInNW = getNW(k, y, P, params.fx ?? FISCAL_DEFAULTS).pre;
     pvPrebateConsumed = Math.max(0, pvPrebateFull - prebateSavedInNW);

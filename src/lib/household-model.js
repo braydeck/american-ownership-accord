@@ -7,6 +7,7 @@
 import { BRACKETS, CARBON_TONS } from '@/lib/brackets';
 import { lvtNetIncidenceArray, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 import { DEMOS, DEMO_KEYS, POP, PROG_LOST, AMCF_LIQ_BASE, CL_ETR } from '@/lib/demographics';
+import { CL_SCHED, accordSchedule, accordScheduleTax, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE } from '@/lib/income-tax';
 import { BASE_PARAMS, carbonDividendPerCapita, carbonDecayFactor, realGrantSeries, householdFiscalSeries } from '@/lib/fiscal-engine';
 import { psuDividendPerFiler, wefBalancePerFiler, sectoralBalancePerFiler, extraGrantsPerFiler } from '@/lib/worker-equity';
 
@@ -36,21 +37,17 @@ export function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
 // Prebate per person. The slider sets the no-exemption (redirected) level; turning the
 // $500k homeowner exemption on gives back the redirected portion, as in the engine.
 export const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
-export const prebatePC = (P, fx = FISCAL_DEFAULTS) =>
-  P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita;
+// With prebateIndex > 0 it also follows that share of real GDP-per-person growth.
+export const prebatePC = (P, fx = FISCAL_DEFAULTS, y = 0) =>
+  (P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita)
+  * Math.pow(hhAt(fx, y).gdpPerCapIdx ?? 1, fx.prebateIndex ?? 0);
 
 // ─── TAX SCHEDULES ───────────────────────────────────────────────────────────
 // Current law: 2024 federal brackets and standard deduction, held fixed in real terms.
 // Long-term gains and qualified dividends (prefShare) are taxed at 0/15/20% stacked on top of
 // ordinary income, plus the 3.8% NIIT. Above $500K, itemized deductions are taken as 8% of
 // income when that beats the standard deduction. Refundable EITC/CTC are not here: they are
-// counted in PROG_LOST as programs the prebate replaces.
-const CL_SCHED = {
-  single: { sd: 14600, br: [[11600,.10],[47150,.12],[100525,.22],[191950,.24],[243725,.32],[609350,.35],[Infinity,.37]],
-            cg: [47025, 518900], niit: 200000 },
-  joint:  { sd: 29200, br: [[23200,.10],[94300,.12],[201050,.22],[383900,.24],[487450,.32],[731200,.35],[Infinity,.37]],
-            cg: [94050, 583750], niit: 250000 },
-};
+// counted in PROG_LOST as programs the prebate replaces. The schedule (CL_SCHED) is in income-tax.js.
 // Preferential share of income: capital gains share by bracket plus qualified dividends, which
 // rise with income (IRS SOI pattern). Assumption.
 const PREF_EXTRA = [0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.01,0.04,0.08,0.15,0.20,0.25,0.30];
@@ -72,13 +69,13 @@ export function clIncomeTax(income, hhSz, pref = 0) {
   return j * clTaxOne(income, pref, CL_SCHED.joint) + (1 - j) * clTaxOne(income, pref, CL_SCHED.single);
 }
 
-// Accord two-rate income tax. All income types are ordinary income.
+// Accord income tax on the engine's schedule. All income types are ordinary income.
 export function accordIncomeTax(income, hhSz, fx) {
   const jFrac = Math.min(1, Math.max(0, hhSz - 1));
   const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
-  const mid   = Math.max(0, Math.min(income, fx.incomeTaxThreshold) - ded);
-  const top   = Math.max(0, income - fx.incomeTaxThreshold);
-  return fx.incomeTaxLow * mid + fx.incomeTaxHigh * top;
+  const sched = accordSchedule({ brackets: fx.incomeTaxBrackets ?? undefined,
+    lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold });
+  return accordScheduleTax(income, ded, sched);
 }
 
 // Payroll and other taxes as a rate on income: the persona's all-in current-law rate less its
@@ -88,17 +85,22 @@ export const PAYROLL_RATE = Object.fromEntries(DEMO_KEYS.map(k => {
   return [k, Math.max(0, CL_ETR[k] - clIncomeTax(d.income, d.hhSz, prefShare(k)) / d.income)];
 }));
 
-// Wage share of income for the payroll fix (12.4% on wages above $400K). Assumption.
-const WAGE_SHARE = { T10: 0.85, T1: 0.55, BILL: 0.10, ELON: 0.02 };
 
 export const incomeAt = (k, y) => DEMOS[k].income * Math.pow(1 + DEMOS[k].incG, y);
 export const clTaxAt = (k, y) => clIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, prefShare(k));
 // Income tax reform delta at year y: Accord minus current law on the same income.
 export const taxAt = (k, y, fx = FISCAL_DEFAULTS) =>
   accordIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, fx) - clTaxAt(k, y);
-export function payrollFix(k, y) {
-  const ws = WAGE_SHARE[k] ?? 0;
-  return 0.124 * Math.max(0, incomeAt(k, y) * ws - 400000);
+// Social Security contribution above the cap: 12.4% on all income above the per-worker cap,
+// with no benefit credit. The cap follows average wages, which grow 1.1% a year faster than
+// prices (Trustees intermediate real-wage differential).
+const SS_REAL_WAGE_GROWTH = 0.011;
+export function payrollFix(k, y, fx = FISCAL_DEFAULTS) {
+  if (fx.ssUncapOn === false) return 0;
+  const jFrac = BRACKETS[DEMO_BRACKET[k]].jFrac;
+  const e = earnersPerFiler(jFrac);
+  const cap = SS_CAP_SNAPSHOT * Math.pow(1 + SS_REAL_WAGE_GROWTH, y);
+  return SS_RATE * Math.max(0, incomeAt(k, y) / e - cap) * e;
 }
 
 // ─── ACCORD NW GROWTH ────────────────────────────────────────────────────────
@@ -144,12 +146,18 @@ const clBaseNW = (k, y) => {
   const d = DEMOS[k];
   return d.nw >= 0 ? d.nw * Math.pow(1 + d.nwG, y) : 0;
 };
+// Taxes on gains realized at death and on gifts fall on estates above the $5M exclusion, so
+// they are assigned to the top 1% personas by the same holdings weights.
+const REALIZATION_PAYERS = ['T1', 'BILL', 'ELON'];
 export function assignedRentTax(k, y, fx = FISCAL_DEFAULTS) {
   const h = hhAt(fx, y);
-  const total = (h.nonResLvt + h.stableTax) * US_HOUSEHOLD_SHARE;
   const wt = j => clBaseNW(j, y) * dilutableShare(j);
-  const denom = DEMO_KEYS.reduce((s, j) => s + wt(j) * POP[j] * HOUSEHOLDS_Y0 * (h.popScale ?? 1), 0);
-  return denom > 0 ? total * wt(k) / denom : 0;
+  const hh = j => POP[j] * HOUSEHOLDS_Y0 * (h.popScale ?? 1);
+  const denom = DEMO_KEYS.reduce((s, j) => s + wt(j) * hh(j), 0);
+  const rent = denom > 0 ? (h.nonResLvt + h.stableTax) * US_HOUSEHOLD_SHARE * wt(k) / denom : 0;
+  const denomTop = REALIZATION_PAYERS.reduce((s, j) => s + wt(j) * hh(j), 0);
+  const realization = REALIZATION_PAYERS.includes(k) && denomTop > 0 ? (h.realization ?? 0) * wt(k) / denomTop : 0;
+  return rent + realization;
 }
 
 export function lerp(anc, x) {
@@ -221,7 +229,7 @@ function reformCosts(k, y, P, fx) {
     vat: fx.vatRate * BRACKETS[bi].cRat * inc,
     lvt: lvtNetBr(k, y, P, fx),
     carbon: carbonCostAt(bi, y, fx),
-    payrollFix: payrollFix(k, y),
+    payrollFix: payrollFix(k, y, fx),
     assigned: assignedRentTax(k, y, fx),
   };
 }
@@ -237,7 +245,7 @@ export function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const base = incomeAt(k, y);
   const tax = P.has('TAX') ? -sumCosts(reformCosts(k, y, P, fx)) : 0;
   const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
-  const pre = P.has('PRE') ? (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
+  const pre = P.has('PRE') ? (prebatePC(P, fx, y) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF and PSU layers are after the income tax on their taxable part.
   const net = extraNetShare(k, y, P, fx);
   const withdrawal = P.has('AMCF') ? amcfWithdrawalAt(k, y, fx) : 0;
@@ -270,7 +278,7 @@ export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   if (P.has('PRE')) {
     let c = 0;
     for (let t = 1; t <= y; t++) {
-      const ann = prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate, t) * d.hhSz - PROG_LOST[k];
+      const ann = prebatePC(P, fx, t) * d.hhSz + carbonDivPC(fx.carbonRate, t) * d.hhSz - PROG_LOST[k];
       c = c * (1 + r) + ann * d.save;
     }
     pre = c;
@@ -310,8 +318,8 @@ export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
 // ─── BILLIONAIRE ECONOMIC-INCOME ETR ─────────────────────────────────────────
 // For Billionaires and Musk, reported income understates economic income, so the rate is taken
 // on reported income plus unrealized appreciation. Current law taxes reported income; the
-// Accord adds the two-rate reform, mark-to-market at death (phased Years 5–15), LVT, the
-// payroll fix and assigned rent taxes.
+// Accord adds the income tax reform, LVT, the Social Security contribution above the cap, and
+// assigned rent taxes, which include the tax on gains realized at death and on gifts.
 export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const d    = DEMOS[k];
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
@@ -322,12 +330,10 @@ export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const econInc   = incY + unrealBiz + unrealFin;
   let taxes = clTaxAt(k, y) + incY * PAYROLL_RATE[k];
   if (P.has('TAX')) {
-    const c = reformCosts(k, y, P, fx);
-    const mtmRate = Math.max(0, Math.min(1, (y - 5) / 10));
-    taxes += sumCosts(c) + mtmRate * 0.50 * (unrealBiz + unrealFin);
+    taxes += sumCosts(reformCosts(k, y, P, fx));
   }
   if (P.has('PRE')) {
-    taxes -= (prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k]);
+    taxes -= (prebatePC(P, fx, y) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k]);
   }
   return econInc > 0 ? taxes / econInc * 100 : 0;
 }
@@ -339,7 +345,7 @@ export function getETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const g = incomeAt(k, y);
   let taxes = clTaxAt(k, y) + g * PAYROLL_RATE[k], bens = 0;
   if (P.has('TAX')) taxes += sumCosts(reformCosts(k, y, P, fx));
-  if (P.has('PRE')) bens += prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k];
+  if (P.has('PRE')) bens += prebatePC(P, fx, y) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k];
   return g > 0 ? (taxes - bens) / g * 100 : 0;
 }
 
@@ -372,7 +378,7 @@ export function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
   const payFix = c ? -c.payrollFix : 0;
   const assigned = c ? -c.assigned : 0;
   const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;
-  const pre  = P.has('PRE') ? prebatePC(P, fx) * d.hhSz : 0;
+  const pre  = P.has('PRE') ? prebatePC(P, fx, y) * d.hhSz : 0;
   const cdiv = P.has('PRE') ? carbonDivPC(fx.carbonRate, y) * d.hhSz : 0;
   const ag   = P.has('AMCF')  ? amcfWithdrawalAt(k, y, fx) : 0;
   const pd   = P.has('PSU_D') ? psuDAt(k, y, fx) : 0;
