@@ -62,10 +62,6 @@ const AMCF_RET   = 0.05; // AMCF fund real return
 const PSU_DIV    = 0.035;
 const PSU_RAMP   = 5;    // years to reach PSU equilibrium
 
-// AMCF per-person annual grant schedule
-// Calibrated to Sim 6 validated outputs (base scenario).
-// Grants grow uncapped after AMCF self-funds (Yr 9): $1,066 at Yr 10, $2,678 at Yr 15,
-// $5,597 at Yr 20, $8,958 at Yr 25, $14,784 at Yr 30, $25,111 at Yr 35.
 // AMCF grant per person in 2024 real dollars, interpolated from the shared fiscal engine
 // (src/lib/fiscal-engine.js via demographics). Previously a frozen copy of an older engine's
 // NOMINAL series, which overstated Year-30 grants roughly twofold on a real-dollar page.
@@ -586,7 +582,7 @@ export default function RetirementSecurity() {
         Annual real equity returns drawn from N(5%, 16%) using seeded LCG + Box-Muller.
         Current system: 401(k) contributions at quintile-specific participation rate (9% combined employee+employer),
         plus minimal personal savings (2.5% for non-participants). Social Security unchanged under both systems.
-        Accord additions: per-person AMCF grants ($500-$800 floor Yrs 1-9, then growing uncapped: $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 per Sim 6) compounding at 5% real
+        Accord additions: per-person AMCF grants (from the National Balance Sheet engine in 2024 real dollars: ${amcfGrant(10).toLocaleString()} at Yr 10, ${amcfGrant(20).toLocaleString()} at Yr 20, ${amcfGrant(35).toLocaleString()} at Yr 35) compounding at 5% real
         from childhood account; worker PSU equity building to $30K-$95K equilibrium over 5 years paying 3.5% dividends
         (psuEquil values represent employment-weighted average across Tier 1 sectoral fund, Tier 2 phantom equity, and Tier 3 PSU per quintile distribution);
         net prebate-minus-VAT (3% New Accord rate) fiscal benefit saved at income-appropriate rates.

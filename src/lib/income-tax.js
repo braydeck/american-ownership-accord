@@ -80,10 +80,15 @@ export function bracketIncomeTax(b, {
 export function incomeTaxRevenue(structure = {}) {
   const byBracket = BRACKETS.map(b => {
     const { sd, eff, bFactor, perFiler } = bracketIncomeTax(b, structure);
-    return { label: b.label, sd, eff, bFactor, perFiler, revenue: perFiler * b.filers };
+    return { label: b.label, sd, eff, bFactor, perFiler, revenue: perFiler * b.filers,
+             capGainsRevenue: perFiler * b.filers * b.cgShare };
   });
   const total = byBracket.reduce((s, x) => s + x.revenue, 0);
-  return { total, byBracket, fracOfGdp: total / INCOME_REF_GDP };
+  // Capital gains are ordinary income under the two-rate system, so they are already inside
+  // `total`. capGains is the part of that revenue levied on gains (each bracket's revenue times
+  // its gains share of AGI), split out only so the engine can apply realization cyclicality.
+  const capGains = byBracket.reduce((s, x) => s + x.capGainsRevenue, 0);
+  return { total, capGains, byBracket, fracOfGdp: total / INCOME_REF_GDP };
 }
 
 // ─── FISCAL-ENGINE DROP-IN ───────────────────────────────────────────────────
@@ -91,4 +96,11 @@ export function incomeTaxRevenue(structure = {}) {
 // tax grows with the economy.
 export function incomeTaxRevForFiscal({ nominalGdp, ...structure }) {
   return incomeTaxRevenue(structure).total * (nominalGdp / INCOME_REF_GDP);
+}
+
+// Same revenue split into the tax on capital gains and the tax on all other income.
+export function incomeTaxSplitForFiscal({ nominalGdp, ...structure }) {
+  const { total, capGains } = incomeTaxRevenue(structure);
+  const scale = nominalGdp / INCOME_REF_GDP;
+  return { ordinary: (total - capGains) * scale, capGains: capGains * scale };
 }

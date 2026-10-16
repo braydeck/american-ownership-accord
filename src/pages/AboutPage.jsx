@@ -2,11 +2,23 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { BASE_PARAMS, runFiscalSimulation } from '@/lib/fiscal-engine';
+import { DEMO_KEYS, POP } from '@/lib/demographics';
+import { getInc, getNW, BASE_ONLY } from '@/lib/household-model';
+
+// Headline figures are computed from the same models the pages run, at default parameters.
+const ALL_PROVS = new Set(['BASE', 'TAX', 'PRE', 'AMCF', 'PSU_D', 'PSU_C']);
+const CROSSOVER_YEAR = runFiscalSimulation(BASE_PARAMS).milestones.fiscalCrossoverYear;
+const CROSSOVER_LABEL = CROSSOVER_YEAR ? `Year ${CROSSOVER_YEAR}` : 'Beyond Year 35';
+const MEDIAN_NW_30 = getNW('P50', 30, ALL_PROVS).total;
+const BETTER_OFF_5 = DEMO_KEYS
+  .filter(k => getInc(k, 5, ALL_PROVS).total > getInc(k, 5, BASE_ONLY).total)
+  .reduce((s, k) => s + POP[k], 0);
 
 const METRICS = [
-  { value: 'Year 16', label: 'Fiscal Crossover', sub: 'Revenue exceeds spending' },
-  { value: '$1.7M', label: 'Median Net Worth', sub: 'By Year 30' },
-  { value: '99%+', label: 'Households Better Off', sub: 'By Year 5' },
+  { value: CROSSOVER_LABEL, label: 'Fiscal Crossover', sub: 'Revenue exceeds spending' },
+  { value: `$${(MEDIAN_NW_30 / 1e6).toFixed(2)}M`, label: 'Median Net Worth', sub: 'By Year 30' },
+  { value: `${(BETTER_OFF_5 * 100).toFixed(1)}%`, label: 'Households Better Off', sub: 'Income, by Year 5' },
   { value: '0.0%', label: 'Retirement Inadequacy', sub: 'All quintiles' },
 ];
 
@@ -90,7 +102,7 @@ export default function AboutPage({ onNavigate }) {
           </div>
 
           <div className="mt-14 pt-8 border-t border-primary-foreground/10">
-            <p className="text-4xl font-extrabold tracking-tight text-accent">Year 16</p>
+            <p className="text-4xl font-extrabold tracking-tight text-accent">{CROSSOVER_LABEL}</p>
             <p className="text-sm text-primary-foreground/40 mt-2">
               Fiscal Crossover — the year total revenue structurally exceeds total spending
             </p>

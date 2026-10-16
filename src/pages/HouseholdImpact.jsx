@@ -20,252 +20,14 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS, CHART_TOOLTIP_STYLE } from '@/lib/chart-config';
 import { cn } from '@/lib/utils';
-import {
-  lvtNetIncidenceArray,
-  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
-} from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
-import { AMCF_ANC } from '@/lib/demographics';
-import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
-import { useFiscalParams, FISCAL_KEYS } from '@/lib/use-fiscal-params';
+import { DEMOS, DEMO_KEYS, POP } from '@/lib/demographics';
+import { CARBON_DECARB_RATE } from '@/lib/fiscal-engine';
+import { useFiscalParams } from '@/lib/use-fiscal-params';
+import {
+  BASE_ONLY, FISCAL_DEFAULTS, getInc, getNW, getETR, cashFlowPt, computeGini, amcfG,
+} from '@/lib/household-model';
 import { FiscalControls } from '@/components/controls/FiscalControls';
-
-// ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)         ║
-// ╚═══════════════════════════════════════════════════════════════════════════╝
-
-// taxChg: income tax reform delta from Sim-8 two-rate formula (mR=25%/tR=50%, ETI-adjusted, stdDed $30K/$60K)
-//   positive = net tax BURDEN (reduces income), negative = net tax RELIEF
-//   B10-P50: relief (std ded shelters low incomes; 25% < current effective rates up to ~$80K)
-//   P60+: burden (25% on income above std ded exceeds current marginal rates)
-// accordNWG: NW growth rate under Accord (Growth Tax + cap-gains rate reduces compounding)
-// accordIncG: after-tax income growth rate under Accord (capital-income demos only)
-// Income: CBO Distribution of Household Income 2022, 2024-adjusted
-// Wealth: Federal Reserve SCF 2022 mean by percentile band
-const DEMOS = {
-  B10:  { label:'P0–P10',   short:'B10',  color:'#0B3D91',
-    income:14500,   nw:-2000,   incG:0.005, nwG:0.005,  accordNWG:0.005,
-    hhSz:1.8,  save:0.05, ret:0.04, consume:0.98,
-    taxChg:-145,   lvt:0,      homePct:0,    k401Pct:0.05, finPct:0,    bizPct:0    }, // std ded > income → 0 new tax; CL rate ≈0
-  P10:  { label:'P10–P20',  short:'P10',  color:'#2563C9',
-    income:28000,   nw:7000,    incG:0.008, nwG:0.040,  accordNWG:0.040,
-    hhSz:2.1,  save:0.05, ret:0.04, consume:0.95,
-    taxChg:-1540,  lvt:200,    homePct:0.20, k401Pct:0.15, finPct:0.05, bizPct:0    }, // std ded ($39.6K) > income → 0 new tax; full CL relief
-  P20:  { label:'P20–P30',  short:'P20',  color:'#4A90D9',
-    income:40000,   nw:26000,   incG:0.010, nwG:0.020,  accordNWG:0.020,
-    hhSz:2.2,  save:0.10, ret:0.04, consume:0.90,
-    taxChg:-3400,  lvt:500,    homePct:0.35, k401Pct:0.20, finPct:0.08, bizPct:0.03 }, // std ded ($41.4K) > income → 0 new tax; full CL relief
-  P30:  { label:'P30–P40',  short:'P30',  color:'#7FBCEA',
-    income:52000,   nw:58000,   incG:0.013, nwG:0.028,  accordNWG:0.028,
-    hhSz:2.3,  save:0.12, ret:0.05, consume:0.87,
-    taxChg:-1751,  lvt:1000,   homePct:0.45, k401Pct:0.25, finPct:0.12, bizPct:0.06 }, // 25% on $10.6K taxable < CL 8.5% effective
-  P40:  { label:'P40–P50',  short:'P40',  color:'#0E7C5A',
-    income:64000,   nw:95000,   incG:0.013, nwG:0.030,  accordNWG:0.030,
-    hhSz:2.4,  save:0.15, ret:0.05, consume:0.85,
-    taxChg:-1659,  lvt:1000,   homePct:0.50, k401Pct:0.28, finPct:0.10, bizPct:0.05 }, // 25% on $21.4K taxable < CL 11% effective
-  P50:  { label:'P50–P60',  short:'P50',  color:'#2FA873',
-    income:79000,   nw:148000,  incG:0.015, nwG:0.038,  accordNWG:0.038,
-    hhSz:2.5,  save:0.17, ret:0.05, consume:0.82,
-    taxChg:-1048,  lvt:1800,   homePct:0.52, k401Pct:0.32, finPct:0.12, bizPct:0.06 }, // 25% on $35.2K taxable < CL 12.5% effective
-  P60:  { label:'P60–P70',  short:'P60',  color:'#69C79B',
-    income:97000,   nw:228000,  incG:0.018, nwG:0.040,  accordNWG:0.040,
-    hhSz:2.5,  save:0.20, ret:0.06, consume:0.80,
-    taxChg:1138,   lvt:2500,   homePct:0.50, k401Pct:0.30, finPct:0.13, bizPct:0.08 }, // 25% on $53.2K taxable slightly > CL 12.5% effective
-  P70:  { label:'P70–P80',  short:'P70',  color:'#B5841E',
-    income:124000,  nw:380000,  incG:0.022, nwG:0.050,  accordNWG:0.050,
-    hhSz:2.5,  save:0.22, ret:0.06, consume:0.77,
-    taxChg:2180,   lvt:4000,   homePct:0.47, k401Pct:0.30, finPct:0.17, bizPct:0.12 },
-  P80:  { label:'P80–P90',  short:'P80',  color:'#E0A92E',
-    income:186000,  nw:750000,  incG:0.028, nwG:0.058,  accordNWG:0.058,
-    hhSz:2.5,  save:0.25, ret:0.06, consume:0.60,
-    taxChg:6307,   lvt:7000,   homePct:0.35, k401Pct:0.25, finPct:0.25, bizPct:0.15 },
-  T10:  { label:'P90–P99',  short:'T10',  color:'#E8722A',
-    income:320000,  nw:2700000, incG:0.035, nwG:0.065,  accordNWG:0.063,
-    // ETR now model-derived from Sim-2 distributional engine (VAT+LVT+carbon+income reform)
-    hhSz:2.3,  save:0.40, ret:0.07, consume:0.45,
-    taxChg:14665,  lvt:12000,  homePct:0.25, k401Pct:0.20, finPct:0.35, bizPct:0.20 },
-  T1:   { label:'P99–P99.9',short:'T1',   color:'#D33B22',
-    income:1500000, nw:16700000,incG:0.045, nwG:0.075,  accordNWG:0.072, accordIncG:0.022,
-    // ETR now model-derived from Sim-2 distributional engine (VAT+LVT+carbon+income reform)
-    hhSz:2.1,  save:0.70, ret:0.08, consume:0.25,
-    taxChg:202913, lvt:50000,  homePct:0.15, k401Pct:0.15, finPct:0.40, bizPct:0.30 },
-  BILL: { label:'Billionaires',short:'Bill',color:'#AC1D1D',
-    income:3e8,     nw:4.7e9,   incG:0.080, nwG:0.120,  accordIncG:0.050,
-    // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
-    // Three Accord channels: income tax reform + PSU equity excise + mark-to-market phase-in
-    hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,
-    taxChg:83691871, lvt:5e5,  homePct:0.05, k401Pct:0.05, finPct:0.30, bizPct:0.60 },
-  ELON: { label:'Elon Musk', short:'Elon', color:'#6E0E14',
-    income:1e10,    nw:2.5e11,  incG:0.150, nwG:0.150,  accordIncG:0.124,
-    // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
-    hhSz:1.0,  save:0.95, ret:0.12, consume:0.001,
-    taxChg:2796462204, lvt:5e6, homePct:0.02, k401Pct:0.01, finPct:0.15, bizPct:0.82 },
-};
-// Order = bottom-to-top percentile (important for stacked chart rendering)
-const DEMO_KEYS = ['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON'];
-
-// Population share per bracket (each true decile = 0.10; T10/T1 exclude carved-out brackets)
-const POP = { B10:0.10, P10:0.10, P20:0.10, P30:0.10, P40:0.10, P50:0.10, P60:0.10, P70:0.10, P80:0.10, T10:0.09, T1:0.0094, BILL:6e-6, ELON:7.5e-9 };
-
-// Programs replaced by the Accord prebate (per HH, 2024 dollars).
-// CBO income already includes these transfers — PRE toggle nets them out.
-// SNAP ~$110B, EITC ~$70B, CTC ~$120B, TANF ~$16B, WIC ~$6B → ~$322B total
-// Aggregate check: Σ(PROG_LOST[k] × POP[k]) × 133M HH ≈ $319B ✓
-const PROG_LOST = {
-  B10: 5500,  // SNAP $2500 + EITC $1000 + CTC $800 + TANF $1000 + WIC $200
-  P10: 5500,  // SNAP $600  + EITC $2500 + CTC $2200 + TANF $100  + WIC $100
-  P20: 3200,  // EITC $800  + CTC $2200  + SNAP $200
-  P30: 2200,  // EITC $100  + CTC $2100
-  P40: 1800,  // CTC $1800
-  P50: 1800,  // CTC $1800
-  P60: 1400,  // CTC $1400
-  P70: 1300,  // CTC $1300
-  P80:  900,  // CTC $900 (partial phase-out for higher earners)
-  T10:  400,  // CTC partial (phase-out ~$200K+ single / $400K+ MFJ)
-  T1:     0,
-  BILL:   0,
-  ELON:   0,
-};
-
-// PSU dividends and cashouts are now model-derived from the three-tier equity engine (see below).
-// Carbon dividend is now formula-derived: carbonDivPC(fx.carbonRate) × hhSz (see below).
-
-// AMCF unit liquidation rates: fraction of annual grant liquidated for cash in a given year.
-// Citizens receive AMCF units (equity, not cash) — liquidation is optional. Default = accumulate.
-// base_rate reflects structural consumption pressure; high for low-income, near-zero for wealthy.
-// Decays over time as wealth builds (pressure_decay): Year 0=1.0, Year 10=0.76, Year 30=0.57.
-const AMCF_LIQ_BASE = {
-  B10:0.95, P10:0.90, P20:0.80, P30:0.70, P40:0.55, P50:0.40,
-  P60:0.25, P70:0.15, P80:0.08, T10:0.03, T1:0.01, BILL:0.00, ELON:0.00,
-};
-// Current-law all-in effective tax rate (income + payroll − credits)
-const CL_ETR   = { B10:0.05,P10:0.12,P20:0.14,P30:0.17,P40:0.18,P50:0.21,P60:0.22,P70:0.24,P80:0.26,T10:0.30,T1:0.37,BILL:0.22,ELON:0.15 };
-
-// AMCF_ANC now lives in src/lib/demographics.js so the three pages cannot drift apart.
-
-// ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  DISTRIBUTIONAL ENGINE  (ported from Sim-2; calibrated to IRS SOI + BLS)   ║
-// ║  Used to derive model-based ETR, VAT/LVT/carbon burdens, and PSU values     ║
-// ╚══════════════════════════════════════════════════════════════════════════════╝
-
-// 15-bracket consumption ratios and LVT/carbon parameters (IRS SOI + EPA + Census 2024)
-// cRat: avg consumption / AGI per bracket (>1.0 = deficit spending by bottom deciles)
-const DIST_BRACKETS = [
-  { cRat:1.20 }, // $0–10K
-  { cRat:1.00 }, // $10–15K
-  { cRat:0.97 }, // $15–25K
-  { cRat:0.95 }, // $25–40K
-  { cRat:0.90 }, // $40–55K
-  { cRat:0.84 }, // $55–75K
-  { cRat:0.78 }, // $75–100K
-  { cRat:0.72 }, // $100–150K
-  { cRat:0.64 }, // $150–200K
-  { cRat:0.54 }, // $200–500K
-  { cRat:0.34 }, // $500K–1M
-  { cRat:0.24 }, // $1–2M
-  { cRat:0.16 }, // $2–5M
-  { cRat:0.12 }, // $5–15M
-  { cRat:0.10 }, // $15M+
-];
-
-// Carbon tons emitted per household by bracket (EPA household survey)
-const CARBON_TONS_BR = [4, 5, 6, 7, 8.5, 10, 11, 12, 13.5, 16, 18, 22, 26, 30, 35];
-
-
-// Three-tier worker equity: [Tier1 frac, Tier2 frac, Tier3 frac] per bracket (from Sim-2 / BLS)
-const TIER_DIST = [
-  [0.12,0.20,0.40],[0.15,0.22,0.48],[0.18,0.25,0.52],[0.20,0.27,0.50],[0.22,0.28,0.45],
-  [0.24,0.28,0.40],[0.26,0.26,0.36],[0.25,0.24,0.32],[0.22,0.20,0.30],[0.16,0.18,0.25],
-  [0.09,0.12,0.20],[0.04,0.08,0.15],[0.02,0.05,0.10],[0.01,0.03,0.07],[0.00,0.01,0.04],
-];
-// Tier 2: phantom equity per worker (20% of employer EV ÷ headcount); calibrated to BLS firm-size data
-const TIER2_PEQ = [25000,30000,38000,48000,60000,70000,80000,90000,100000,100000,100000,100000,100000,100000,100000];
-// Tier 3: PSU equity per worker at 20% ownership equilibrium (Year 5+), appreciated at EV_GROWTH/yr
-const TIER3_PSU = [40000,55000,75000,100000,135000,165000,200000,260000,325000,400000,500000,650000,800000,950000,1100000];
-const PSU_YIELD  = 0.035;   // 3.5% payout yield on all tiers
-const EV_GROWTH  = 0.075;   // 7.5% nominal company EV growth for PSU appreciation
-const AVG_TENURE = 4.1;     // BLS median job tenure for cashout annualization
-const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00];
-
-// Carbon dividend: 80% of $348B revenue distributed equally per capita (equal per person, not per HH)
-
-// Demo → bracket index mapping (0–14, matching DIST_BRACKETS)
-// Based on matching DEMO stated income to bracket income midpoint
-const DEMO_BRACKET = {
-  B10:1, P10:3, P20:4, P30:4, P40:5, P50:6, P60:6, P70:7, P80:8, T10:9, T1:11, BILL:14, ELON:14,
-};
-
-// ─── LVT INCIDENCE (residential owner/renter split only) ────────────────────
-// Per-filer net LVT = homeowner LVT − renter rent-relief on the household's PRIMARY
-// residence. Non-residential ("investment") land LVT is deliberately NOT attributed
-// per-persona: only ~7–10% of households own rental/investment property (IRS: ~9M
-// landlords) and direct commercial ownership tops out at ~16% even among top earners —
-// it's a minority trait that cuts across brackets, plus REITs/pensions/foreign/corporate
-// owners, which a single median-household-per-bracket model cannot represent. That ~$529B
-// of non-residential land LVT is real and lives in the fiscal/revenue aggregate
-// (NationalBalanceSheet / Rent Tax Optimizer, which tax the full land base) — it is just
-// not pinned onto the median household of each bracket here.
-function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
-  const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y })[DEMO_BRACKET[k]];
-}
-
-// Prebate per person: redirected $6,250 by default; reverts to base $5,000 when the
-// $500k homeowner exemption is toggled on (deficit-neutral coupling).
-// Prebate per person. The slider sets the no-exemption (redirected) level; turning the
-// $500k homeowner exemption on gives back the redirected portion, as in the engine.
-const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
-const prebatePC = (P, fx = FISCAL_DEFAULTS) =>
-  P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita;
-
-// Sectoral fund balance at Year y with fixed annual contribution C at 6% gross growth
-function sectoralFundBalance(C, y) {
-  return y <= 0 ? 0 : C * (Math.pow(1.06, y) - 1) / 0.06;
-}
-
-// Annual PSU dividend income per filer at bracket bi, Year y — from Sim-2 three-tier model
-function psuDividendPerFiler(bi, y) {
-  const [t1, t2, t3] = TIER_DIST[bi];
-  const t1Inc = sectoralFundBalance(1000, y) * PSU_YIELD;
-  const t2Inc = sectoralFundBalance(TIER2_PEQ[bi] * PSU_YIELD, y) * PSU_YIELD;
-  const t3Ramp   = Math.min(1, y / 5);
-  const t3Apprec = y > 5 ? Math.pow(1 + EV_GROWTH, y - 5) : 1;
-  const t3Inc = TIER3_PSU[bi] * t3Ramp * t3Apprec * PSU_YIELD;
-  return (t1 * t1Inc + t2 * t2Inc + t3 * t3Inc) * PARTTIME_FTE[bi];
-}
-
-// Annualized PSU cashout per filer at bracket bi, Year y — from Sim-2 three-tier model
-function psuCashoutPerFiler(bi, y) {
-  const [, t2, t3] = TIER_DIST[bi];
-  const tG = Math.pow(1 + EV_GROWTH, AVG_TENURE);
-  const t2C = TIER2_PEQ[bi] * tG / AVG_TENURE;
-  const t3C = TIER3_PSU[bi] * Math.min(1, y / 5) * tG / AVG_TENURE;
-  return (t2 * t2C + t3 * t3C) * PARTTIME_FTE[bi];
-}
-
-// ─── ACCORD NW GROWTH RATE MODEL ──────────────────────────────────────────────
-// Capital gains rates by demo — current law and under Accord (from Sim-8 two-rate system)
-// Accord: unchanged for income <$200K; 25% on $200K–$1M; 50% on $1M+ (unified rate)
-const CL_CG_RATE  = { B10:0,   P10:0,   P20:0,   P30:0.15, P40:0.15, P50:0.15,
-                       P60:0.15,P70:0.15,P80:0.15,T10:0.238,T1:0.238, BILL:0.238,ELON:0.238 };
-const ACC_CG_RATE = { B10:0,   P10:0,   P20:0,   P30:0.15, P40:0.15, P50:0.15,
-                       P60:0.15,P70:0.15,P80:0.15,T10:0.25, T1:0.50,  BILL:0.50, ELON:0.50  };
-const CG_FRAC = 0.75;  // fraction of portfolio return that's capital gain (vs dividends/interest)
-
-// Computes after-Accord NW growth rate from model components rather than hand-calibrated values.
-// Components:
-//   finDrag      — cap gains reform reduces after-tax return on financial portfolio
-//   psuExciseDrag — 4%/yr PSU equity excise on large-company business equity (BILL/ELON)
-//   lvtDrag      — annual LVT net burden as a fraction of NW
-function computeAccordNWG(k) {
-  const d  = DEMOS[k];
-  const finDrag       = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
-  const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  // No LVT growth-rate drag: an LVT reprices land ONCE (see the one-time capitalization haircut
-  // in getNW), it does not perpetually erode the growth rate — post-repricing the owner earns
-  // the normal market return on the smaller base.
-  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag);
-}
 
 const YEARS      = Array.from({ length:31 }, (_, i) => i);
 const SNAP_YEARS = [0, 1, 5, 10, 20, 30];
@@ -282,8 +44,8 @@ const PROVS_CONFIG = [
   { key:'TAX',   label:'Tax Reform',            color:'#f97316', fixed:false },
   { key:'PRE',   label:'Prebate + Carbon Div',  color:'#307ca6', fixed:false },
   { key:'AMCF',  label:'AMCF Citizen Grants',   color:'#3b82f6', fixed:false },
-  { key:'PSU_D', label:'PSU Dividends',          color:'#a855f7', fixed:false },
-  { key:'PSU_C', label:'PSU Cashouts (Wealth)',  color:'#f59e0b', fixed:false },
+  { key:'PSU_D', label:'Worker Dividends & Profit-Sharing', color:'#a855f7', fixed:false },
+  { key:'PSU_C', label:'Worker & Sectoral Funds (Wealth)', color:'#f59e0b', fixed:false },
   { key:'LVT_EX',  label:'$500k Homeowner Exemption', color:'#14b8a6', fixed:false,
     tip:'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,250 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];
@@ -317,250 +79,6 @@ const fD = n => {
   if (a >= 1e3)  return `${s}$${(a/1e3).toFixed(0)}K`;
   return `${s}$${a.toFixed(0)}`;
 };
-
-function lerp(anc, x) {
-  if (x <= anc[0][0]) return anc[0][1];
-  if (x >= anc[anc.length-1][0]) return anc[anc.length-1][1];
-  for (let i = 0; i < anc.length - 1; i++) {
-    if (x >= anc[i][0] && x <= anc[i+1][0]) {
-      const t = (x - anc[i][0]) / (anc[i+1][0] - anc[i][0]);
-      return anc[i][1] + t * (anc[i+1][1] - anc[i][1]);
-    }
-  }
-  return anc[anc.length-1][1];
-}
-
-// fx = fiscal context shared with the National Balance Sheet: the AMCF grant series in
-// 2024 real dollars plus the tax rates households actually pay. Defaults to the engine's
-// own defaults; the Dashboard passes live values when the sidebar assumptions are changed.
-const FISCAL_DEFAULTS = { ...Object.fromEntries(FISCAL_KEYS.map(k => [k, BASE_PARAMS[k]])), grants: AMCF_ANC };
-const amcfG      = (y, fx = FISCAL_DEFAULTS) => lerp(fx.grants, y);
-// Carbon dividend: 80% of receipts returned per capita, so it scales with the rate.
-// Shared with the engine so the dividend matches the revenue actually collected.
-const carbonDivPC = carbonDividendPerCapita;
-// AMCF liquidation rate: structural pressure × time-decay.
-// pressure_decay: 1.0 at Year 0, decays toward 0.5 asymptote as household wealth builds.
-const pressureDecay = y => 0.5 + 0.5 * Math.exp(-y / 15);
-const liqRate       = (k, y) => AMCF_LIQ_BASE[k] * pressureDecay(y);
-// PSU values derived from Sim-2 three-tier equity model (replaces hand-crafted PSU_DIV/PSU_CASH)
-const psuDAt  = (k, y) => psuDividendPerFiler(DEMO_BRACKET[k], y);
-const psuCAt  = (k, y) => psuCashoutPerFiler(DEMO_BRACKET[k], y);
-// taxAt: income tax reform delta vs current law, constant in real 2024 dollars.
-// (VAT, LVT, carbon are handled separately via DIST_BRACKETS model)
-// Income tax under the Accord's two-bracket structure, for one demographic's income.
-// Deduction blends single and joint by household size: a 1-person household gets the single
-// deduction, 2+ gets the joint one, and fractional average sizes interpolate.
-function accordIncomeTax(income, hhSz, fx) {
-  const jFrac = Math.min(1, Math.max(0, hhSz - 1));
-  const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
-  const mid   = Math.max(0, Math.min(income, fx.incomeTaxThreshold) - ded);
-  const top   = Math.max(0, income - fx.incomeTaxThreshold);
-  return fx.incomeTaxLow * mid + fx.incomeTaxHigh * top;
-}
-
-// DEMOS[k].taxChg is a calibrated delta (Accord income tax minus current law) at the engine's
-// default rates. Backing current law out of it once lets the delta respond to rate changes
-// while reproducing the original calibration exactly when the sliders are at their defaults.
-const CL_INCOME_TAX = Object.fromEntries(DEMO_KEYS.map(k =>
-  [k, accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, FISCAL_DEFAULTS) - DEMOS[k].taxChg]));
-
-const taxAt = (k, y, fx = FISCAL_DEFAULTS) =>
-  accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, fx) - CL_INCOME_TAX[k];
-
-// ╔═══════════════════════════════════════╗
-// ║  COMPUTATION ENGINE                   ║
-// ╚═══════════════════════════════════════╝
-
-// Returns layered income components for (demographic, year, active provisions)
-// tax: negative = net cost to household; positive = net relief (stacks downward in charts)
-function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
-  const d  = DEMOS[k];
-  const bi = DEMO_BRACKET[k];
-  const base = d.income * Math.pow(1 + d.incG, y);
-  let tax = 0;
-  if (P.has('TAX')) {
-    if (d.accordIncG != null) {
-      // High-wealth demos (T1/BILL/ELON): income compression from capital reform, plus the
-      // LVT they bear (residential + investment-land) — the latter is large for these personas.
-      tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P, fx);
-    } else {
-      // Model-derived: income tax reform + VAT (3%, scales with income) + LVT + carbon cost
-      const vatCost    = fx.vatRate * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost    = lvtNetBr(k, y, P, fx);
-      const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
-      tax = -taxAt(k, y, fx) - vatCost - lvtCost - carbonCost;
-    }
-  }
-  // PRE: universal prebate + carbon dividend (equal per capita) − programs replaced
-  const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
-  const pre  = P.has('PRE')   ? (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
-  // AMCF: only the liquidated fraction is cash income. Retained units go to wealth (getNW).
-  const adults = Math.min(d.hhSz, 2); // children's AMCF is custodial
-  const ag   = P.has('AMCF')  ? amcfG(y, fx) * adults * liqRate(k, y) : 0;
-  const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
-  const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
-  return { base, tax, pre, amcf:ag, psuD:pd, psuC:pc, total: base+tax+pre+ag+pd+pc };
-}
-
-// Returns layered NW components — compounded cumulative effects
-function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
-  const d = DEMOS[k], r = d.ret;
-  // Accord NW growth rate (cap gains reform + PSU excise). LVT has no per-persona wealth
-  // effect: owner-occupied land capitalization is ~offset by lower lifetime housing costs,
-  // and investment-land capitalization falls on the landlord minority / institutions, not
-  // the median household (see lvtNetBr note).
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  const base = d.nw >= 0
-    ? d.nw * Math.pow(1 + nwGr, y)
-    : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
-
-  let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
-
-  if (P.has('TAX')) {
-    // accordNWG (already applied to base) captures the Accord's drag on capital appreciation.
-    // taxAt handles the explicit tax burden on top; no separate accordIncG channel here
-    // because income compression for capital earners is already baked into accordNWG.
-    // VAT and the carbon tax are cash costs like income tax, so their saved share comes out
-    // of wealth too. The carbon dividend is already counted in `pre`; this is its other side. The
-    // capital-income demos (accordIncG) are excluded here as they are in getInc.
-    const bi = DEMO_BRACKET[k];
-    const consTaxAt = t => d.accordIncG == null
-      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t)
-        + CARBON_TONS_BR[bi] * fx.carbonRate
-      : 0;
-    let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, t, fx) + consTaxAt(t)) * d.save);
-    tax = c;
-  }
-  if (P.has('PRE')) {
-    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
-    const ann = (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
-    pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
-  }
-  if (P.has('AMCF')) {
-    // Custodial component: each year, one cohort turns 18 and enters the workforce
-    // with AMCF wealth accumulated during childhood. Year 1: a 17-year-old gets 1 year
-    // of grants then turns 18. Year 18: first cohort with full 18 years of grants.
-    // Average across working-age span (47 years, ages 18–65).
-    const WORK_SPAN = 47;
-    let cust = 0;
-    for (let c = 1; c <= y; c++) {
-      // Cohort turning 18 in Accord Year c had min(c, 18) years of childhood grants
-      const grantYears = Math.min(c, 18);
-      let acct = 0;
-      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t, fx);
-      acct *= Math.pow(1.05, y - c); // compound growth since turning 18
-      cust += acct;
-    }
-    cust /= WORK_SPAN;
-    // Annual adult grants split: retained units compound at AMCF NAV (5% real);
-    // liquidated portion is cash income, savings fraction reinvested at household ret rate.
-    let retainedAcc = 0;
-    let liqSavings  = 0;
-    const adults = Math.min(d.hhSz, 2);
-    for (let t = 1; t <= y; t++) {
-      const grant = amcfG(t, fx) * adults;
-      const lr = liqRate(k, t);
-      retainedAcc = retainedAcc * 1.05 + grant * (1 - lr);
-      liqSavings  = liqSavings  * (1 + r) + grant * lr * d.save;
-    }
-    ag = cust + retainedAcc + liqSavings;
-  }
-  if (P.has('PSU_D')) {
-    let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + psuDAt(k, t) * d.save;
-    pd = c;
-  }
-  if (P.has('PSU_C')) {
-    // PSU cashouts: saved fraction reinvested at household return rate (same treatment as PSU_D)
-    let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) + psuCAt(k, t) * d.save;
-    pc = c;
-  }
-
-  return { base, tax, pre, amcf:ag, psuD:pd, psuC:pc, total: base+tax+pre+ag+pd+pc };
-}
-
-// ─── BILLIONAIRE ECONOMIC INCOME ETR MODEL ────────────────────────────────────
-// Buy-borrow-die means BILL/ELON's real economic income far exceeds reported income.
-// Under current law: only reported income (~$300M) is taxed; unrealized appreciation
-// on $4.7B of business equity (~$340M/yr) escapes entirely → economic ETR ≈ 9%.
-//
-// Three Accord channels that close this gap:
-//   (1) Income tax reform (taxAt): higher rates on reported income (immediate)
-//   (2) PSU equity excise: 4%/yr on business equity value → direct wealth levy (immediate)
-//   (3) Mark-to-market enforcement: unrealized appreciation taxed as income (Years 5–15 ramp)
-//
-// Denominator uses ECONOMIC income (reported + unrealized biz + unrealized fin) so that
-// current-law 9% and Accord 30–55%+ are directly comparable on the same basis.
-function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
-  const d    = DEMOS[k];
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  const nwY  = d.nw * Math.pow(1 + nwGr, y);
-  const incY = d.income * Math.pow(1 + d.incG, y);
-
-  // Unrealized appreciation: the component of economic income invisible to current tax system
-  const unrealBiz = nwY * d.bizPct * d.nwG;         // business equity appreciation
-  const unrealFin = nwY * d.finPct * d.ret * 0.80;  // 80% of financial return is unrealized gain
-  const econInc   = incY + unrealBiz + unrealFin;
-
-  // Current law: taxes only on reported income; unrealized appreciation entirely untaxed
-  let taxes = incY * CL_ETR[k];
-
-  if (P.has('TAX')) {
-    taxes += taxAt(k, y, fx);                              // (1) income tax reform on reported income
-    taxes += 0.04 * d.bizPct * nwY;                   // (2) PSU equity excise on business equity
-    const mtmRate = Math.max(0, Math.min(1, (y - 5) / 10));  // ramp 0→1 from Year 5 to Year 15
-    taxes += mtmRate * 0.50 * (unrealBiz + unrealFin); // (3) MTM at 50% rate (Accord >$1M rate)
-    taxes += lvtNetBr(k, y, P, fx);                        // (4) LVT (residential + investment land)
-  }
-  if (P.has('PRE')) {
-    taxes -= (prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate) * d.hhSz - PROG_LOST[k]);
-  }
-  return econInc > 0 ? taxes / econInc * 100 : 0;
-}
-
-// Effective tax rate: net taxes paid (minus transfers) / income × 100
-// BILL/ELON → billionaireETR() on economic income (buy-borrow-die requires this treatment)
-// All others → model-derived from Sim-2 distributional engine on reported income:
-//   CL income tax + income tax reform (taxAt) + VAT (3%) + LVT net burden + carbon cost
-function getETR(k, y, P, fx = FISCAL_DEFAULTS) {
-  if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P, fx);
-
-  const d  = DEMOS[k];
-  const bi = DEMO_BRACKET[k];
-  const g  = d.income * Math.pow(1 + d.incG, y);
-  let taxes = g * CL_ETR[k], bens = 0;
-
-  if (P.has('TAX')) {
-    const vatCost    = fx.vatRate * DIST_BRACKETS[bi].cRat * g;
-    const lvtCost    = lvtNetBr(k, y, P, fx);
-    const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
-    taxes += taxAt(k, y, fx) + vatCost + lvtCost + carbonCost;
-  }
-  // PRE: universal prebate + carbon dividend − programs replaced.
-  // AMCF and PSU are equity returns, not tax offsets — excluded from ETR.
-  if (P.has('PRE')) {
-    bens += prebatePC(P, fx) * d.hhSz + carbonDivPC(fx.carbonRate) * d.hhSz - PROG_LOST[k];
-  }
-  return g > 0 ? (taxes - bens) / g * 100 : 0;
-}
-
-// Gini from weighted distribution points (Lorenz trapezoid method)
-function computeGini(pts) {
-  const s = [...pts].filter(p => p.w > 0 && p.v >= 0).sort((a, b) => a.v - b.v);
-  const tW = s.reduce((a, p) => a + p.w, 0);
-  const tV = s.reduce((a, p) => a + p.v * p.w, 0);
-  if (!tV || !tW) return 0;
-  let area = 0, cP = 0, cI = 0, pP = 0, pI = 0;
-  for (const p of s) {
-    cP += p.w / tW;
-    cI += p.v * p.w / tV;
-    area += (cP - pP) * (pI + cI) / 2;
-    pP = cP; pI = cI;
-  }
-  return Math.max(0, Math.min(1, 1 - 2 * area));
-}
 
 // ╔══════════════════════════════════════════════════════╗
 // ║  SHARED CHART COMPONENTS                             ║
@@ -778,12 +296,12 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
     const r = { year: y };
     demos.forEach(k => { r[k] = getInc(k, y, Q, fx).total; });
     return r;
-  }), [demos.join(','), [...P].sort().join(',')]);
+  }), [demos.join(','), [...P].sort().join(','), fx]);
 
   const bData = useMemo(() => demos.map(k => {
     const l = getInc(k, snYear, P, fx);
     return { demo:DEMOS[k].short, key:k, base:l.base, tax:l.tax, pre:l.pre, amcf:l.amcf, psuD:l.psuD, psuC:l.psuC };
-  }), [demos.join(','), [...P].sort().join(','), snYear]);
+  }), [demos.join(','), [...P].sort().join(','), snYear, fx]);
 
   if (!demos.length) return noData;
   const yAx = logScale ? { scale:'log', domain:[1,'auto'] } : {};
@@ -807,8 +325,8 @@ function Chart1({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
           </Bar>}
           {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate+Carbon" fill="#307ca6"/>}
           {P.has('AMCF')  && <Bar dataKey="amcf" stackId="s" name="AMCF Grant"     fill="#3b82f6"/>}
-          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="PSU Dividend"   fill="#a855f7"/>}
-          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="PSU Cashout"    fill="#f59e0b"/>}
+          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="Worker Dividends"   fill="#a855f7"/>}
+          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="Worker & Sectoral Funds"    fill="#f59e0b"/>}
         </BarChart>
       </ResponsiveContainer>
     );
@@ -838,7 +356,7 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
     const r = { year: y };
     demos.forEach(k => { const t = getNW(k, y, Q, fx).total; r[k] = logScale ? Math.max(t, 1) : t; });
     return r;
-  }), [demos.join(','), [...P].sort().join(','), logScale]);
+  }), [demos.join(','), [...P].sort().join(','), logScale, fx]);
 
   const bData = useMemo(() => demos.map(k => {
     const l = getNW(k, snYear, P, fx);
@@ -851,7 +369,7 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
       psuD: Math.max(l.psuD, 0),
       psuC: Math.max(l.psuC, 0),
     };
-  }), [demos.join(','), [...P].sort().join(','), snYear]);
+  }), [demos.join(','), [...P].sort().join(','), snYear, fx]);
 
   if (!demos.length) return noData;
   const yAx = logScale ? { scale:'log', domain:[1,'auto'] } : {};
@@ -875,8 +393,8 @@ function Chart2({ demos, P, mode, snYear, logScale, normalizedBar, fx }) {
           </Bar>}
           {P.has('PRE')   && <Bar dataKey="pre"  stackId="s" name="Prebate Savings"  fill="#307ca6"/>}
           {P.has('AMCF')  && <Bar dataKey="amcf" stackId="s" name="AMCF Custodial"   fill="#3b82f6"/>}
-          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="PSU Div Savings"  fill="#a855f7"/>}
-          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="PSU Cashouts"     fill="#f59e0b"/>}
+          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="Worker Dividend Savings"  fill="#a855f7"/>}
+          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="Worker & Sectoral Funds"     fill="#f59e0b"/>}
         </BarChart>
       </ResponsiveContainer>
     );
@@ -922,7 +440,7 @@ function Chart3({ demos, P, stacked, fx }) {
     const r = { year: y };
     demos.forEach(k => { r[k] = total > 0 ? vals[k] / total * 100 : 0; });
     return r;
-  }), [demos.join(','), [...P].sort().join(',')]);
+  }), [demos.join(','), [...P].sort().join(','), fx]);
 
   const stackData = useMemo(() =>
     buildShareData(demos, (k, y) => getNW(k, y, y === 0 ? BASE_ONLY : P, fx).total),
@@ -985,7 +503,7 @@ function Chart4({ demos, P, stacked, fx }) {
     const r = { year: y };
     demos.forEach(k => { r[k] = total > 0 ? vals[k] / total * 100 : 0; });
     return r;
-  }), [demos.join(','), [...P].sort().join(',')]);
+  }), [demos.join(','), [...P].sort().join(','), fx]);
 
   const stackData = useMemo(() =>
     buildShareData(demos, (k, y) => getInc(k, y, y === 0 ? BASE_ONLY : P, fx).total),
@@ -1046,7 +564,7 @@ function Chart5({ demos, P, fx }) {
     const r = { year: y };
     demos.forEach(k => { r[k] = parseFloat(getETR(k, y, Q, fx).toFixed(2)); });
     return r;
-  }), [demos.join(','), [...P].sort().join(',')]);
+  }), [demos.join(','), [...P].sort().join(','), fx]);
 
   if (!demos.length) return noData;
   return (
@@ -1055,7 +573,7 @@ function Chart5({ demos, P, fx }) {
         ETR = taxes paid minus universal prebate/carbon offset / gross income. Negative = prebate exceeds taxes.
         T10/T1/BILL/ELON use explicit ETR anchors calibrated from Accord statutory rates (Day 1 reform applies
         immediately) growing as avoidance channels close. Lower brackets use the net income-tax reform delta.
-        AMCF grants and PSU equity income are excluded — those are ownership returns shown in Chart 1.
+        AMCF grants and worker-equity income are excluded — those are ownership returns shown in Chart 1.
       </p>
       <ResponsiveContainer width="100%" height={360}>
         <LineChart data={data} margin={{ top:10, right:20, bottom:20, left:60 }}>
@@ -1080,7 +598,6 @@ function Chart5({ demos, P, fx }) {
 // real year-0 starting levels so chart shows correct baseline + policy deviations.
 const US_GINI_INC = 0.490;
 const US_GINI_NW  = 0.850;
-const BASE_ONLY   = new Set(['BASE']);
 const _gAnchor = (() => {
   const ip = GINI_INC_DEMOS.map((k, i) => ({ v: Math.max(getInc(k, 0, BASE_ONLY).total, 0), w: GINI_INC_WGTS[i] }));
   const np = GINI_NW_DEMOS.map((k,  i) => ({ v: Math.max(getNW(k,  0, BASE_ONLY).total, 0), w: GINI_NW_WGTS[i]  }));
@@ -1122,7 +639,7 @@ function Chart6({ P, fx }) {
       incomeGini: parseFloat(Math.max(0, Math.min(0.99, computeGini(incPts) + _gAnchor.inc)).toFixed(3)),
       wealthGini: parseFloat(Math.max(0, Math.min(0.99, computeGini(nwPts)  + _gAnchor.nw )).toFixed(3)),
     };
-  }), [[...P].sort().join(',')]);
+  }), [[...P].sort().join(','), fx]);
 
   const refLines = (type) => GINI_COMPARISONS[type]
     .filter(c => showCountries[c.key])
@@ -1198,7 +715,7 @@ function Chart7({ demos, P, snYear, normalizedBar, fx }) {
       psuD:  P.has('PSU_D') ? Math.max(l.psuD, 0) : 0,
       psuC:  P.has('PSU_C') ? Math.max(l.psuC, 0) : 0,
     };
-  }), [demos.join(','), [...P].sort().join(','), snYear]);
+  }), [demos.join(','), [...P].sort().join(','), snYear, fx]);
 
   if (!demos.length) return noData;
 
@@ -1213,9 +730,9 @@ function Chart7({ demos, P, snYear, normalizedBar, fx }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground mb-2">
-        Components of household wealth at Year {snYear}. AMCF, PSU Dividends, and PSU Cashouts appear
+        Components of household wealth at Year {snYear}. AMCF, worker dividends, and Worker Fund units appear
         only when those provisions are active. Lower brackets shift from financial assets toward
-        AMCF + PSU over time.{normalizedBar ? ' Normalized to 100% of total NW.' : ''}
+        AMCF and worker fund units over time.{normalizedBar ? ' Normalized to 100% of total NW.' : ''}
       </p>
       <ResponsiveContainer width="100%" height={360}>
         <BarChart data={normData} margin={{ top:10, right:20, bottom:10, left:90 }}>
@@ -1230,8 +747,8 @@ function Chart7({ demos, P, snYear, normalizedBar, fx }) {
           <Bar dataKey="business"   stackId="s" name="Business Equity" fill="#8b5cf6"/>
           <Bar dataKey="other"      stackId="s" name="Other"          fill="#94a3b8"/>
           {P.has('AMCF')  && <Bar dataKey="amcf" stackId="s" name="AMCF Custodial"  fill="#3b82f6" fillOpacity={0.6}/>}
-          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="PSU Div Savings" fill="#a855f7"/>}
-          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="PSU Cashouts"    fill="#f59e0b"/>}
+          {P.has('PSU_D') && <Bar dataKey="psuD" stackId="s" name="Worker Dividend Savings" fill="#a855f7"/>}
+          {P.has('PSU_C') && <Bar dataKey="psuC" stackId="s" name="Worker & Sectoral Funds"    fill="#f59e0b"/>}
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -1242,44 +759,6 @@ function Chart7({ demos, P, snYear, normalizedBar, fx }) {
 // ║  CHART 8: CASH FLOW DIVERGING BAR                    ║
 // ╚══════════════════════════════════════════════════════╝
 
-function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
-  const d = DEMOS[k];
-  const gross = d.income * Math.pow(1 + d.incG, y);
-  // For accordIncG demos with TAX active, actual earned income is compressed.
-  // Apply taxes/VAT on actual Accord income, not the CL hypothetical.
-  const actualInc = (d.accordIncG != null && P.has('TAX'))
-    ? d.income * Math.pow(1 + d.accordIncG, y)
-    : gross;
-  // For accordIncG demos with TAX active, reform taxes are embedded in accordIncome
-  // (the growth rate already reflects avoidance channel closure + higher statutory rates).
-  // Applying CL_ETR on top would double-count taxes already baked into the compression.
-  const clTax = (d.accordIncG != null && P.has('TAX'))
-    ? 0
-    : -(actualInc * CL_ETR[k]);
-  const taxRef = P.has('TAX')
-    ? (d.accordIncG != null ? actualInc - gross : -taxAt(k, y, fx))
-    : 0;
-  const vat  = P.has('TAX') ? -(fx.vatRate * d.consume * actualInc) : 0;
-  const lvt  = P.has('TAX') ? -lvtNetBr(k, y, P, fx) : 0;
-  // Carbon burden: linear with income up to ~$500K ($15K cap), then hard caps for ultra-HNW.
-  // Carbon taxes fall on consumption of carbon-intensive goods, not on income directly.
-  // Even a billionaire household can only physically consume so much fossil fuel.
-  const carbCap = (k === 'BILL' || k === 'ELON') ? 150000 : 15000;
-  const carb = P.has('TAX') ? -Math.min(d.income / 68000 * 1800, carbCap) : 0;
-  const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;  // programs replaced (negative = lost benefit)
-  const pre  = P.has('PRE') ? (prebatePC(P, fx) * d.hhSz) : 0;
-  const cdiv = P.has('PRE') ? carbonDivPC(fx.carbonRate) * d.hhSz : 0;
-  // AMCF: only liquidated fraction is cash income in cash flow chart
-  const ag   = P.has('AMCF')  ? amcfG(y, fx) * Math.min(d.hhSz, 2) * liqRate(k, y) : 0;
-  const pd   = P.has('PSU_D') ? psuDAt(k, y) : 0;
-  const pc   = P.has('PSU_C') ? psuCAt(k, y) : 0;
-  const net  = gross + clTax + taxRef + vat + lvt + carb + progLost + pre + cdiv + ag + pd + pc;
-  const div  = norm ? Math.max(Math.abs(gross), 1) / 100 : 1;
-  return { grossInc:gross/div, clTax:clTax/div, taxRef:taxRef/div, vat:vat/div, lvt:lvt/div,
-    carb:carb/div, progLost:progLost/div, pre:pre/div, cdiv:cdiv/div,
-    ag:ag/div, pd:pd/div, pc:pc/div, net:net/div };
-}
-
 const CF_BARS = [
   { key:'grossInc', name:'Gross Income',       fill:'#94a3b8', prov:null   },
   { key:'clTax',    name:'Income+Payroll Tax',  fill:'#c27040', prov:null   },
@@ -1287,19 +766,23 @@ const CF_BARS = [
   { key:'vat',      name:'VAT Burden',          fill:'#e3bda6', prov:'TAX'  },
   { key:'lvt',      name:'LVT Burden',          fill:'#fdba74', prov:'TAX'  },
   { key:'carb',     name:'Carbon Burden',       fill:'#fcd34d', prov:'TAX'  },
+  { key:'payFix',   name:'Payroll Fix',         fill:'#d97706', prov:'TAX'  },
+  { key:'assigned', name:'Business Land & Rent Taxes', fill:'#b45309', prov:'TAX' },
   { key:'progLost', name:'Programs Replaced',    fill:'#9a5530', prov:'PRE'  },
   { key:'pre',      name:'Prebate',             fill:'#307ca6', prov:'PRE'  },
   { key:'cdiv',     name:'Carbon Dividend',     fill:'#a9cde0', prov:'PRE'  },
   { key:'ag',       name:'AMCF Liquidation',    fill:'#60a5fa', prov:'AMCF' },
-  { key:'pd',       name:'PSU Dividends',       fill:'#c084fc', prov:'PSU_D'},
-  { key:'pc',       name:'PSU Cashouts',        fill:'#fbbf24', prov:'PSU_C'},
+  { key:'pd',       name:'Worker Dividends',       fill:'#c084fc', prov:'PSU_D'},
+  { key:'pc',       name:'Worker & Sectoral Funds',        fill:'#fbbf24', prov:'PSU_C'},
+  { key:'psuTax',   name:'Tax on Worker & AMCF Income', fill:'#7c2d12', prov:['PSU_D','PSU_C','AMCF']},
 ];
+const provActive = (b, P) => !b.prov || [].concat(b.prov).some(x => P.has(x));
 
 function Chart8({ demos, P, snYear, view, normalizedBar, fx }) {
   const timeData = useMemo(() => {
     const k = demos[0]; if (!k) return [];
     return YEARS.map(y => ({ year:y, ...cashFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar, fx) }));
-  }, [demos[0], [...P].sort().join(','), normalizedBar]);
+  }, [demos[0], [...P].sort().join(','), normalizedBar, fx]);
 
   const demosData = useMemo(() =>
     demos.map(k => ({ demo:DEMOS[k].short, ...cashFlowPt(k, snYear, P, normalizedBar, fx) })),
@@ -1309,7 +792,7 @@ function Chart8({ demos, P, snYear, view, normalizedBar, fx }) {
   const data = view === 'time' ? timeData : demosData;
   const xKey = view === 'time' ? 'year' : 'demo';
   const fmt  = normalizedBar ? (v => `${v.toFixed(1)}%`) : fD;
-  const activeBars = CF_BARS.filter(b => !b.prov || P.has(b.prov));
+  const activeBars = CF_BARS.filter(b => provActive(b, P));
   const demoLabel = demos[0] ? DEMOS[demos[0]].label : '—';
 
   return (
@@ -1364,8 +847,8 @@ const WF_BARS = [
   { key:'tax',  name:'Tax Impact',       fill:'#f97316', prov:'TAX'   },
   { key:'pre',  name:'Prebate Savings',  fill:'#307ca6', prov:'PRE'   },
   { key:'amcf', name:'AMCF Custodial',   fill:'#60a5fa', prov:'AMCF'  },
-  { key:'psuD', name:'PSU Div Savings',  fill:'#c084fc', prov:'PSU_D' },
-  { key:'psuC', name:'PSU Cashouts',     fill:'#fbbf24', prov:'PSU_C' },
+  { key:'psuD', name:'Worker Dividend Savings',  fill:'#c084fc', prov:'PSU_D' },
+  { key:'psuC', name:'Worker & Sectoral Funds',     fill:'#fbbf24', prov:'PSU_C' },
 ];
 
 // ── Row builders for CompositionTable ────────────────────────────────────────
@@ -1384,8 +867,8 @@ function wealthMixRows(k, y, P, fx = FISCAL_DEFAULTS) {
     { name:'Other',       value: Math.max(0, b*(1-d.homePct-d.k401Pct-d.finPct-d.bizPct)), fill:'#94a3b8' },
   ];
   if (P.has('AMCF'))  rows.push({ name:'AMCF Units',    value: Math.max(l.amcf, 0), fill:'#60a5fa' });
-  if (P.has('PSU_D')) rows.push({ name:'PSU Dividends', value: Math.max(l.psuD, 0), fill:'#a855f7' });
-  if (P.has('PSU_C')) rows.push({ name:'PSU Cashouts',  value: Math.max(l.psuC, 0), fill:'#f59e0b' });
+  if (P.has('PSU_D')) rows.push({ name:'Worker Dividends', value: Math.max(l.psuD, 0), fill:'#a855f7' });
+  if (P.has('PSU_C')) rows.push({ name:'Worker & Sectoral Funds',  value: Math.max(l.psuC, 0), fill:'#f59e0b' });
   rows.push({ name:'── TOTAL NET WORTH ──', value: l.total, fill:'', isTotal:true });
   return rows;
 }
@@ -1401,6 +884,8 @@ function cfRows(k, y, P, fx = FISCAL_DEFAULTS) {
     rows.push({ name:'VAT Burden',      value: pt.vat,    fill:'#e3bda6' });
     rows.push({ name:'LVT Burden',      value: pt.lvt,    fill:'#fdba74' });
     rows.push({ name:'Carbon Burden',   value: pt.carb,   fill:'#fcd34d' });
+    rows.push({ name:'Payroll Fix',     value: pt.payFix, fill:'#d97706' });
+    rows.push({ name:'Business Land & Rent Taxes', value: pt.assigned, fill:'#b45309' });
   }
   if (P.has('PRE')) {
     rows.push({ name:'Programs Replaced', value: pt.progLost, fill:'#9a5530' });
@@ -1408,8 +893,9 @@ function cfRows(k, y, P, fx = FISCAL_DEFAULTS) {
     rows.push({ name:'Carbon Dividend',   value: pt.cdiv,     fill:'#a9cde0' });
   }
   if (P.has('AMCF'))  rows.push({ name:'AMCF Liquidation', value: pt.ag, fill:'#60a5fa' });
-  if (P.has('PSU_D')) rows.push({ name:'PSU Dividends',    value: pt.pd, fill:'#c084fc' });
-  if (P.has('PSU_C')) rows.push({ name:'PSU Cashouts',     value: pt.pc, fill:'#fbbf24' });
+  if (P.has('PSU_D')) rows.push({ name:'Worker Dividends',    value: pt.pd, fill:'#c084fc' });
+  if (P.has('PSU_C')) rows.push({ name:'Worker & Sectoral Funds',     value: pt.pc, fill:'#fbbf24' });
+  if (P.has('PSU_D') || P.has('PSU_C') || P.has('AMCF')) rows.push({ name:'Tax on Worker & AMCF Income', value: pt.psuTax, fill:'#7c2d12' });
   rows.push({ name:'── NET DISPOSABLE ──', value: pt.net, fill:'', isTotal:true });
   return rows;
 }
@@ -1423,8 +909,8 @@ function wfRows(k, y, P, fx = FISCAL_DEFAULTS) {
   if (P.has('TAX'))   rows.push({ name:'Tax Impact',       value: l.tax,  fill:'#f97316' });
   if (P.has('PRE'))   rows.push({ name:'Prebate Savings',  value: l.pre,  fill:'#307ca6' });
   if (P.has('AMCF'))  rows.push({ name:'AMCF Custodial',  value: l.amcf, fill:'#60a5fa' });
-  if (P.has('PSU_D')) rows.push({ name:'PSU Div Savings',  value: l.psuD, fill:'#c084fc' });
-  if (P.has('PSU_C')) rows.push({ name:'PSU Cashouts',     value: l.psuC, fill:'#fbbf24' });
+  if (P.has('PSU_D')) rows.push({ name:'Worker Dividend Savings',  value: l.psuD, fill:'#c084fc' });
+  if (P.has('PSU_C')) rows.push({ name:'Worker & Sectoral Funds',     value: l.psuC, fill:'#fbbf24' });
   rows.push({ name:'── TOTAL NET WORTH ──', value: l.total, fill:'', isTotal:true });
   return rows;
 }
@@ -1433,7 +919,7 @@ function Chart10({ demos, P, snYear, view, normalizedBar, logScale, fx }) {
   const timeData = useMemo(() => {
     const k = demos[0]; if (!k) return [];
     return YEARS.map(y => ({ year:y, ...wealthFlowPt(k, y, y === 0 ? BASE_ONLY : P, normalizedBar, fx) }));
-  }, [demos[0], [...P].sort().join(','), normalizedBar]);
+  }, [demos[0], [...P].sort().join(','), normalizedBar, fx]);
 
   const demosData = useMemo(() =>
     demos.map(k => ({ demo:DEMOS[k].short, ...wealthFlowPt(k, snYear, P, normalizedBar, fx) })),
@@ -1492,7 +978,7 @@ function Chart9({ demos, P, logScale, fx }) {
       r[`${k}_acc`] = logScale ? Math.max(acc, 1) : acc;
     });
     return r;
-  }), [demos.join(','), [...P].sort().join(','), logScale]);
+  }), [demos.join(','), [...P].sort().join(','), logScale, fx]);
 
   // Find crossover years (start search from y=1 since y=0 is forced equal)
   const crossovers = useMemo(() => {
@@ -1505,7 +991,7 @@ function Chart9({ demos, P, logScale, fx }) {
       }
     });
     return out;
-  }, [demos.join(','), [...P].sort().join(',')]);
+  }, [demos.join(','), [...P].sort().join(','), fx]);
 
   if (!demos.length) return noData;
   const yAx = logScale ? { scale:'log', domain:[1,'auto'] } : {};
@@ -1548,14 +1034,14 @@ function Chart9({ demos, P, logScale, fx }) {
 const CHART_TITLES = {
   1:  { title:'Average Annual Income', desc:'Household income under current law + each Accord provision. Tax layer is green (relief) or red (burden) per demographic.' },
   2:  { title:'Average Net Worth', desc:'Cumulative household wealth compounded over 30 years. Includes reinvested provision benefits. Log scale recommended for comparing across brackets.' },
-  3:  { title:'Share of National Wealth', desc:'Each demographic\'s fraction of total US household wealth. AMCF + PSU provisions visibly expand lower-bracket shares over time.' },
+  3:  { title:'Share of National Wealth', desc:'Each demographic\'s fraction of total US household wealth. AMCF and worker-equity provisions visibly expand lower-bracket shares over time.' },
   4:  { title:'Share of National Income', desc:'Each demographic\'s fraction of total US household income. Progressive provisions shift shares from top to bottom over 30 years.' },
   5:  { title:'Effective Tax Rate', desc:'(All taxes paid - all benefits received) / gross income. Negative rates mean households receive more than they contribute. Toggle provisions to isolate each one\'s contribution.' },
   6:  { title:'Gini Coefficient', desc:'Income and wealth inequality side by side. Toggle country comparisons to see where the Accord places the US relative to peer nations.' },
-  7:  { title:'Wealth Composition Breakdown', desc:'What household wealth is made of at the selected snapshot year. Lower brackets shift from thin financial holdings toward AMCF custodial + PSU equity.' },
+  7:  { title:'Wealth Composition Breakdown', desc:'What household wealth is made of at the selected snapshot year. Lower brackets shift from thin financial holdings toward AMCF custodial accounts and worker fund units.' },
   8:  { title:'Cash Flow Diverging Bar', desc:'Income sources (above 0) vs. tax burdens (below 0). Two views: one demographic over time, or all demographics at a snapshot year. Net line shows disposable income.' },
   9:  { title:'Crossover Moment', desc:'When does the Accord make each demographic permanently wealthier than the status quo? Year 0 = shared current law baseline. Accord provisions kick in at Year 1. Solid = Accord; dashed = current law.' },
-  10: { title:'Wealth Flow Diverging Bar', desc:'Wealth accumulation components over time. Positive = gains (base NW, prebate savings, AMCF, PSU). Negative = tax drag. Net line = total Accord net worth. Year 0 = current law baseline for all.' },
+  10: { title:'Wealth Flow Diverging Bar', desc:'Wealth accumulation components over time. Positive = gains (base NW, prebate savings, AMCF, worker equity). Negative = tax drag. Net line = total Accord net worth. Year 0 = current law baseline for all.' },
 };
 
 const CHART_HAS_BAR       = new Set([1, 2, 7]);
@@ -1568,7 +1054,6 @@ export default function Dashboard() {
   const [snYear, setSnYear]             = useUrlValue('yr', 10);
   const [logScale, setLogScale]         = useState(false);
   const [activeDemos, setActiveDemos]   = useUrlValue('demos', DEFAULT_DEMOS);
-  // PSU_C (cashouts) defaults OFF — wealth event, not recurring income. Toggle on to include.
   const [activeProvs, setActiveProvs]   = useUrlValue('provs', DEFAULT_PROVS);
   const [stackedShare, setStackedShare] = useState(false);
   const [normalizedBar, setNormalizedBar] = useState(false);
@@ -2021,7 +1506,7 @@ export default function Dashboard() {
           <Card className="mb-4">
             <CardContent>
               <SnapshotTable title="Effective Tax Rate Trajectory"
-                note="ETR = taxes minus prebate offset / gross income. AMCF/PSU excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
+                note="ETR = taxes minus prebate offset / gross income. AMCF and worker equity excluded (equity income). Negative = prebate {'>'} taxes. vs CL = change in ETR (pp)."
                 demos={demos}
                 getValue={(k, y) => getETR(k, y, P, fx)}
                 getCL={(k, y) => getETR(k, y, BASE_ONLY, fx)}
@@ -2077,7 +1562,7 @@ export default function Dashboard() {
               title="Wealth Flow Breakdown — Component x Year"
               demos={demos}
               getRows={(k, y) => wfRows(k, y, y === 0 ? BASE_ONLY : P, fx)}
-              note="Tax Impact is negative for most demographics (Growth Tax drag on capital appreciation). AMCF and PSU rows show cumulative wealth added vs current law baseline."
+              note="Tax Impact is negative for most demographics (Growth Tax drag on capital appreciation). AMCF and worker-equity rows show cumulative wealth added vs current law baseline."
             />
           </CardContent>
         </Card>
@@ -2087,10 +1572,10 @@ export default function Dashboard() {
       <InfoBox className="columns-2 gap-6">
         <div className="text-xs font-bold text-muted-foreground mb-1.5">Model Notes &amp; Assumptions</div>
         <p className="mt-0">All values in 2024 real (inflation-adjusted) dollars. <strong>Year 0 = current law baseline</strong> for all line charts — Accord provisions activate at Year 1, making the Year 0-1 jump visible. Bar charts and snapshot cards use the selected snapshot year with all active provisions.</p>
-        <p>AMCF grants follow the National Balance Sheet engine: $488/person (Yr 1) - $7,401/person (Yr 30), in 2024 real dollars. Custodial account: 18 years of childhood grants compounding at 5% real, $28,690 at age 18 for a child born in Year 0.</p>
-        <p>PSU provisions ramp from 0-100% over 4.1 years (avg tenure), then grow at 7.5%/yr as equity base appreciates. Billionaires and Elon Musk receive no PSU (capital owners, not employees).</p>
-        <p>Tax reform net change (TAX toggle) is the annual household-level delta vs current law: accounts for new two-rate income tax (25%/50%), 3% VAT burden, 10% LVT, $100/ton carbon pass-through, vs income tax cuts. Positive = net burden; negative = net relief.</p>
-        <p>Accord NW growth rate for high-wealth demographics is reduced vs current law to capture the 20% Growth Tax excise compounding effect on equity appreciation (Elon: 15%-12%/yr; Billionaires: 12%-9.5%/yr).</p>
+        <p>Citizen AMCF units follow the National Balance Sheet engine: {Math.round(fx.citizenScripShare * 100)}% of each year's Growth Tax scrip is issued to citizens as fund units, topped up to a ${fx.citizenFloor} floor from the Treasury tranche: ${Math.round(amcfG(1, fx)).toLocaleString()}/person in Year 1 and ${Math.round(amcfG(30, fx)).toLocaleString()} in Year 30. Units compound at 5% real. Withdrawals for home, education, business, retirement or hardship are tax-free; other withdrawals are ordinary income (half assumed qualifying).</p>
+        <p>The Equity Excise builds a 21% stake in each company worth $10M or more over five years, held permanently in that company's worker trust and voted for its current workers. The trust's dividends go to current workers: {Math.round(fx.workerProfitShare * 100)}% as cash profit-sharing from their own company, the rest as Worker Equity Fund units issued to every worker by hours worked. Units are portable and are never redeemed when a worker changes jobs. They pay cash dividends, which are ordinary income, and count toward net worth. Companies under $10M pay $1,000 per worker a year into the Sectoral Wealth Fund instead.</p>
+        <p>Tax reform net change (TAX toggle) compares the Accord with current law at each year's income: the two-rate income tax ({(fx.incomeTaxLow * 100).toFixed(0)}%/{(fx.incomeTaxHigh * 100).toFixed(0)}%) against 2024 federal brackets with preferential capital gains, plus {(fx.vatRate * 100).toFixed(1)}% VAT, {(fx.lvtRate * 100).toFixed(0)}% LVT on the home (owners pay, renters gain rent relief), ${fx.carbonRate}/ton carbon, the payroll fix on wages above $400K, and the household share of business-land LVT and the smaller rent taxes, assigned by business and financial holdings.</p>
+        <p>Existing equity holdings are diluted as the AMCF and the worker pool each build to 21% of companies, offset by the one-time revaluation from repealing the corporate tax when that switch is on. Small private businesses below the $10M threshold are not diluted. Capital gains taxed as ordinary income lower the after-tax return on financial portfolios.</p>
         <p>Charts 8 &amp; 10 (diverging bar): positive values stack above zero (income, benefits, wealth gains), negative values stack below zero (taxes, burdens). Net line shows total. &quot;% / 100%&quot; toggle normalizes to % of gross income (Ch.8) or base CL net worth (Ch.10). &quot;All Demos&quot; view shows all selected demographics at snapshot year.</p>
         <p>Gini: computed from full 13-point distribution (B10-Elon) for both income and wealth Gini. Population weights: deciles at 10% each, T10 9%, T1 0.94%, Billionaires 6e-6, Elon 7.5e-9. Anchor-calibrated to match official US statistics at Year 0. Lorenz trapezoid method.</p>
       </InfoBox>

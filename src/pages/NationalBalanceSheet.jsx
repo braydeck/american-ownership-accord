@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { useUrlValue, useUrlState } from '@/lib/url-state';
 import {
-  BASE_PARAMS, RECESSION_SCENARIOS, runFiscalSimulation,
+  BASE_PARAMS, SCENARIO_PRESETS, RECESSION_SCENARIOS, runFiscalSimulation,
 } from '@/lib/fiscal-engine';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,8 +32,8 @@ import {
 
 const PRESET_OVERRIDES = {
   base:                {},
-  conservative:        { startingEV: 40e12, amcfReturn: 0.05, baseRealGdpGrowth: 0.015, codetermBonus: 0.001, baselineSpendingFrac: 0.175 },
-  optimistic:          { startingEV: 60e12, amcfReturn: 0.09, baseRealGdpGrowth: 0.035, codetermBonus: 0.006, baselineSpendingFrac: 0.155 },
+  conservative:        SCENARIO_PRESETS.conservative,
+  optimistic:          SCENARIO_PRESETS.optimistic,
   slowCodetermination: { equityExciseRate: 0.01, creditCapFrac: 0.10 },
   fastCodetermination: { equityExciseRate: 0.08, creditCapFrac: 0.50 },
 };
@@ -57,35 +57,56 @@ const CHART_TABS = [
 ];
 
 const SENS_PARAMS = [
-  { key: "growthTaxRate",        label: "Growth Tax Rate" },
-  { key: "equityExciseRate",     label: "Equity Excise Rate" },
-  { key: "creditCapFrac",        label: "Credit Cap Fraction" },
-  { key: "vatRate",              label: "VAT Rate" },
-  { key: "lvtRate",              label: "LVT Rate" },
-  { key: "carbonRate",           label: "Carbon Tax Rate" },
-  { key: "prebatePerCapita",     label: "Prebate / Capita" },
-  { key: "startingEV",           label: "Starting EV" },
-  { key: "amcfReturn",           label: "AMCF Return" },
-  { key: "dividendYield",        label: "Dividend Yield" },
-  { key: "baseRealGdpGrowth",    label: "Real GDP Growth" },
-  { key: "baseInterestRate",     label: "Base Interest Rate" },
-  { key: "baselineSpendingFrac", label: "Baseline Spending" },
+  { key: "growthTaxRate",      label: "Growth Tax Rate" },
+  { key: "vatRate",            label: "VAT Rate" },
+  { key: "lvtRate",            label: "LVT Rate" },
+  { key: "carbonRate",         label: "Carbon Tax Rate" },
+  { key: "prebatePerCapita",   label: "Prebate / Capita" },
+  { key: "startingEvRatio",    label: "Starting EV / GDP" },
+  { key: "payoutGdpMature",    label: "Mature Payouts / GDP" },
+  { key: "citizenScripShare",  label: "Scrip to Citizens" },
+  { key: "unitSaleRate",       label: "Treasury Unit Sales" },
+  { key: "assetRateCreditBp",  label: "Asset Rate Credit" },
+  { key: "baseRealGdpGrowth",  label: "Real GDP Growth" },
+  { key: "baseInterestRate",   label: "Base Interest Rate" },
+  { key: "spendingAdjustment", label: "Baseline Spending Adj." },
 ];
 
+const P1 = v => `${(v*100).toFixed(1)}%`;
+const P0 = v => `${(v*100).toFixed(0)}%`;
+const P2 = v => `${(v*100).toFixed(2)}%`;
 const PARAM_SECTIONS = [
   {
     title: "Core Policy",
     open: true,
     params: [
-      { key: "growthTaxRate",        label: "EV Growth Tax",          min: 0.05,   max: 0.35,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "equityExciseRate",     label: "Equity Excise Rate",     min: 0.005,  max: 0.08,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "creditCapFrac",        label: "Credit Cap (% of GT)",   min: 0,      max: 1.0,   step: 0.05,    fmt: v => `${(v*100).toFixed(0)}%` },
-      { key: "vatRate",              label: "VAT Rate",               min: 0,      max: 0.20,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "lvtRate",              label: "LVT Rate",               min: 0,      max: 0.25,  step: 0.005,   fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "carbonRate",           label: "Carbon Tax ($/ton)",     min: 0,      max: 250,   step: 5,       fmt: v => `$${v}/ton` },
-      { key: "stableTaxFrac",        label: "Stable Taxes (% GDP)",   min: 0,      max: 0.02,  step: 0.001,   fmt: v => `${(v*100).toFixed(2)}%` },
-      { key: "prebatePerCapita",     label: "Prebate / Capita / Yr",  min: 1000,   max: 10000, step: 250,     fmt: v => `$${v.toLocaleString()}` },
-      { key: "grantPhaseMultiplier", label: "Grant Phase Multiplier", min: 0.5,    max: 2.0,   step: 0.1,     fmt: v => `${v.toFixed(1)}x` },
+      { key: "growthTaxRate",    label: "EV Growth Tax",          min: 0.05, max: 0.35, step: 0.005, fmt: P1 },
+      { key: "equityExciseRate", label: "Equity Excise Rate",     min: 0.005, max: 0.08, step: 0.005, fmt: P1 },
+      { key: "creditCapFrac",    label: "Credit Cap (% of GT)",   min: 0, max: 1.0, step: 0.05, fmt: P0 },
+      { key: "vatRate",          label: "VAT Rate",               min: 0, max: 0.15, step: 0.005, fmt: P1 },
+      { key: "lvtRate",          label: "LVT Rate",               min: 0, max: 0.25, step: 0.005, fmt: P1 },
+      { key: "carbonRate",       label: "Carbon Tax ($/ton)",     min: 0, max: 250, step: 5, fmt: v => `$${v}/ton` },
+      { key: "stableTaxFrac",    label: "Stable Taxes (% GDP)",   min: 0, max: 0.02, step: 0.001, fmt: P2 },
+      { key: "prebatePerCapita", label: "Prebate / Capita / Yr",  min: 1000, max: 10000, step: 250, fmt: v => `$${v.toLocaleString()}` },
+    ],
+  },
+  {
+    title: "AMCF and Corporate Base",
+    open: true,
+    note: "Citizens receive a share of each year's Growth Tax scrip as fund units, topped up to the floor from the Treasury tranche. Treasury-tranche dividends retire debt while interest exceeds 10% of revenue. Payouts are dividends plus net buybacks as a share of GDP.",
+    params: [
+      { key: "startingEvRatio",   label: "Starting EV / GDP",        min: 1.5, max: 3.5, step: 0.1, fmt: v => `${v.toFixed(1)}×` },
+      { key: "revaluationPct",    label: "Corporate-Tax Revaluation", min: 0, max: 0.30, step: 0.01, fmt: P0 },
+      { key: "entrantShare",      label: "New Firms / Issuance (% EV)", min: 0, max: 0.03, step: 0.0025, fmt: P2 },
+      { key: "payoutGdpStart",    label: "Payouts / GDP, Yr 1",      min: 0.03, max: 0.10, step: 0.002, fmt: P1 },
+      { key: "payoutGdpMature",   label: "Payouts / GDP, Yr 20",     min: 0.03, max: 0.12, step: 0.002, fmt: P1 },
+      { key: "citizenScripShare", label: "Scrip to Citizen Units",   min: 0, max: 1, step: 0.05, fmt: P0 },
+      { key: "citizenFloor",      label: "Citizen Floor ($/person)", min: 0, max: 2000, step: 50, fmt: v => `$${v}` },
+      { key: "unitSaleRate",      label: "Treasury Unit Sales / Yr", min: 0, max: 0.10, step: 0.005, fmt: P1 },
+      { key: "unitSaleDiscount",  label: "Unit Sale Discount",       min: 0, max: 0.20, step: 0.01, fmt: P0 },
+      { key: "privateUnitCap",    label: "Private Unit Cap (% of fund)", min: 0, max: 1, step: 0.05, fmt: P0 },
+      { key: "privateUnitTerm",   label: "Private Unit Term (years, 0 = permanent)", min: 0, max: 30, step: 1, fmt: v => `${v}` },
+      { key: "assetRateCreditBp", label: "Rate Credit (bp per pt of GDP held)", min: 0, max: 3, step: 0.5, fmt: v => `${v} bp` },
     ],
   },
   {
@@ -93,45 +114,60 @@ const PARAM_SECTIONS = [
     open: false,
     note: "Lower rate up to the threshold, upper rate above it. Standard deduction is blended per bracket by joint-filer share (jFrac). The ETI damps the top base as effective rates rise: 0.15 ≈ Accord (loopholes closed), 0.30 ≈ conventional.",
     params: [
-      { key: "incomeTaxLow",          label: "Lower Marginal Rate",   min: 0.10, max: 0.40, step: 0.01,    fmt: v => `${(v*100).toFixed(0)}%` },
-      { key: "incomeTaxHigh",         label: "Upper Marginal Rate",   min: 0.30, max: 0.70, step: 0.01,    fmt: v => `${(v*100).toFixed(0)}%` },
+      { key: "incomeTaxLow",          label: "Lower Marginal Rate",   min: 0.10, max: 0.40, step: 0.01, fmt: P0 },
+      { key: "incomeTaxHigh",         label: "Upper Marginal Rate",   min: 0.30, max: 0.70, step: 0.01, fmt: P0 },
       { key: "incomeTaxThreshold",    label: "Upper-Rate Threshold",  min: 0.25e6, max: 5e6, step: 0.25e6, fmt: v => `$${(v/1e6).toFixed(2)}M` },
-      { key: "incomeTaxExemptSingle", label: "Deduction (single)",    min: 0,    max: 100000, step: 5000,   fmt: v => `$${(v/1000).toFixed(0)}K` },
-      { key: "incomeTaxExemptJoint",  label: "Deduction (joint)",     min: 0,    max: 200000, step: 5000,   fmt: v => `$${(v/1000).toFixed(0)}K` },
-      { key: "incomeTaxEtiTop",       label: "Top-Bracket ETI",       min: 0,    max: 0.50,   step: 0.05,   fmt: v => v.toFixed(2) },
+      { key: "incomeTaxExemptSingle", label: "Deduction (single)",    min: 0, max: 100000, step: 5000, fmt: v => `$${(v/1000).toFixed(0)}K` },
+      { key: "incomeTaxExemptJoint",  label: "Deduction (joint)",     min: 0, max: 200000, step: 5000, fmt: v => `$${(v/1000).toFixed(0)}K` },
+      { key: "incomeTaxEtiTop",       label: "Top-Bracket ETI",       min: 0, max: 0.50, step: 0.05, fmt: v => v.toFixed(2) },
     ],
   },
   {
-    title: "Revenue & Market",
+    title: "Spending",
     open: false,
+    note: "Baseline is CBO's noninterest spending by year, minus the dissolved programs and the cited offsets below. Extra GDP the Accord creates raises baseline spending by the elasticity shown.",
     params: [
-      { key: "startingEV",    label: "Starting Enterprise Value",  min: 30e12, max: 80e12, step: 1e12,  fmt: v => `$${(v/1e12).toFixed(0)}T` },
-      { key: "amcfReturn",    label: "AMCF Portfolio Return",      min: 0.03,  max: 0.12,  step: 0.005, fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "dividendYield", label: "AMCF Dividend Yield",        min: 0.01,  max: 0.06,  step: 0.005, fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "codetermBonus", label: "Codet. GDP Bonus / Yr",      min: 0,     max: 0.01,  step: 0.001, fmt: v => `${(v*100).toFixed(1)}%` },
+      { key: "spendingAdjustment",  label: "Baseline Adjustment (pts GDP)", min: -0.03, max: 0.03, step: 0.0025, fmt: P2 },
+      { key: "spendingElasticity",  label: "Spending Follows Extra GDP",    min: 0, max: 1, step: 0.05, fmt: P0 },
+      { key: "rateSettingSavings",  label: "Rate-Setting Savings (% GDP)",  min: 0, max: 0.005, step: 0.0005, fmt: P2 },
+      { key: "drugSavings",         label: "Drug Savings (% GDP)",          min: 0, max: 0.005, step: 0.0005, fmt: P2 },
+      { key: "patentBuyoutNet",     label: "Patent Buyouts, Net (% GDP)",   min: -0.004, max: 0.004, step: 0.0005, fmt: P2 },
+      { key: "publicOptionRevenue", label: "Public Option Revenue (% GDP)", min: 0, max: 0.004, step: 0.0002, fmt: P2 },
     ],
   },
   {
     title: "Fiscal & Macro",
     open: false,
     params: [
-      { key: "startingDebt",           label: "Starting Gross Debt",       min: 25e12, max: 50e12, step: 0.5e12, fmt: v => `$${(v/1e12).toFixed(1)}T` },
-      { key: "startingGdp",            label: "Starting Real GDP",         min: 24e12, max: 34e12, step: 0.5e12, fmt: v => `$${(v/1e12).toFixed(1)}T` },
-      { key: "baseRealGdpGrowth",      label: "Base Real GDP Growth",      min: 0.005, max: 0.05,  step: 0.005,  fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "inflationRate",          label: "Inflation Rate",            min: 0.01,  max: 0.06,  step: 0.005,  fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "baseInterestRate",       label: "Base Interest Rate",        min: 0.01,  max: 0.08,  step: 0.005,  fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "interestReflexivity",    label: "Interest Reflexivity (bp/pp)", min: 0, max: 20,    step: 1,      fmt: v => `${v} bp/pp` },
-      { key: "baselineSpendingFrac",   label: "Baseline Spending (% GDP)", min: 0.15,  max: 0.28,  step: 0.005,  fmt: v => `${(v*100).toFixed(1)}%` },
-      { key: "spendingEfficiencyGain", label: "Spending Efficiency Gain",  min: 0,     max: 0.002, step: 0.0001, fmt: v => `${(v*10000).toFixed(0)} bp/yr` },
+      { key: "startingDebt",         label: "Debt Held by Public, FY2025", min: 25e12, max: 40e12, step: 0.5e12, fmt: v => `$${(v/1e12).toFixed(1)}T` },
+      { key: "startingGdp",          label: "GDP, FY2025",                 min: 25e12, max: 35e12, step: 0.5e12, fmt: v => `$${(v/1e12).toFixed(1)}T` },
+      { key: "baseRealGdpGrowth",    label: "Base Real GDP Growth",        min: 0.005, max: 0.05, step: 0.005, fmt: P1 },
+      { key: "inflationRate",        label: "Inflation Rate",              min: 0.01, max: 0.06, step: 0.005, fmt: P1 },
+      { key: "baseInterestRate",     label: "Base Interest Rate",          min: 0.01, max: 0.08, step: 0.005, fmt: P1 },
+      { key: "interestReflexivity",  label: "Interest Reflexivity (bp/pt)", min: 0, max: 20, step: 1, fmt: v => `${v} bp/pt` },
+      { key: "reflexivityThreshold", label: "Reflexivity Threshold (debt/GDP)", min: 0.6, max: 1.5, step: 0.05, fmt: P0 },
     ],
   },
   {
-    title: "Population",
+    title: "Population & Immigration",
     open: false,
     params: [
-      { key: "populationGrowthRate", label: "Population Growth / Yr", min: 0, max: 0.015, step: 0.001, fmt: v => `${(v*100).toFixed(1)}%` },
+      { key: "populationGrowthRate", label: "Baseline Population Growth / Yr", min: 0, max: 0.015, step: 0.001, fmt: P1 },
+      { key: "abundanceTarget",      label: "Workers per Beneficiary Target", min: 2.3, max: 3.4, step: 0.1, fmt: v => v.toFixed(1) },
+      { key: "abundanceRampYears",   label: "Admissions Ramp (years)",       min: 1, max: 10, step: 1, fmt: v => `${v}` },
     ],
   },
+];
+
+const TOGGLES = [
+  { key: "revaluationOn",    label: "Corporate-tax revaluation" },
+  { key: "unitSalesOn",      label: "Sell Treasury units" },
+  { key: "citizensBuyFirst", label: "Citizens buy units first" },
+  { key: "ceocOn",           label: "Care Economy Ownership Credit" },
+  { key: "pseuOn",           label: "Public-employee equity units" },
+  { key: "saleProceedsToDebt", label: "Unit-sale proceeds retire debt" },
+  { key: "bankPostBrake",    label: "Bank AMCF cash after the brake" },
+  { key: "abundanceFloorOn", label: "Abundance Floor immigration" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -216,7 +252,7 @@ function DeficitChart({ rows, compareRows }) {
   const data = rows.map(r => ({
     year: r.year,
     "Accord Deficit": r.deficit,
-    "Current Law (est.)": r.clDeficit,
+    "Current Law (CBO)": r.clDeficit,
     ...(compareRows ? { "Compare": compareRows[r.year - 1]?.deficit } : {}),
   }));
   return (
@@ -233,7 +269,7 @@ function DeficitChart({ rows, compareRows }) {
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Balance", fill: "#374151", fontSize: 11 }} />
         <Line dataKey="Accord Deficit" stroke={C.accord} strokeWidth={2.5} dot={false} />
-        <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        <Line dataKey="Current Law (CBO)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
         {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
       </ComposedChart>
     </ChartContainer>
@@ -243,16 +279,16 @@ function DeficitChart({ rows, compareRows }) {
 function DebtChart({ rows, compareRows }) {
   const data = rows.map(r => ({
     year: r.year,
-    "Gross Debt (Accord)": r.grossDebt,
-    "AMCF Equity": r.amcfEquity,
+    "Debt Held by Public (Accord)": r.grossDebt,
+    "AMCF Treasury Tranche": r.amcfEquity,
     "Net Sovereign Position": r.netSovPos,
-    "Gross Debt (CL)": r.clGrossDebt,
+    "Debt Held by Public (CL)": r.clGrossDebt,
     ...(compareRows ? { "Compare Debt": compareRows[r.year - 1]?.grossDebt } : {}),
   }));
   return (
     <ChartContainer
-      title="Gross debt vs. AMCF equity"
-      subtitle="Net sovereign position turns negative when AMCF exceeds national debt"
+      title="Debt held by the public vs. the AMCF Treasury tranche"
+      subtitle="Net sovereign position turns negative when the Treasury tranche exceeds debt held by the public"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
@@ -262,9 +298,9 @@ function DebtChart({ rows, compareRows }) {
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
-        <Line dataKey="Gross Debt (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
-        <Line dataKey="Gross Debt (CL)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-        <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Debt Held by Public (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Debt Held by Public (CL)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        <Line dataKey="AMCF Treasury Tranche" stroke={C.amcf} strokeWidth={2.5} dot={false} />
         <Line dataKey="Net Sovereign Position" stroke={C.netPos} strokeWidth={2} strokeDasharray="3 3" dot={false} />
         {compareRows && <Line dataKey="Compare Debt" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
       </ComposedChart>
@@ -276,7 +312,7 @@ function InterestChart({ rows, compareRows }) {
   const data = rows.map(r => ({
     year: r.year,
     "Accord": r.intToRev,
-    "Current Law (est.)": r.clRev > 0 ? +(r.clInterest / r.clRev * 100).toFixed(1) : 0,
+    "Current Law (CBO)": r.clRev > 0 ? +(r.clInterest / r.clRev * 100).toFixed(1) : 0,
     ...(compareRows ? { "Compare": compareRows[r.year - 1]?.intToRev } : {}),
   }));
   return (
@@ -293,7 +329,7 @@ function InterestChart({ rows, compareRows }) {
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={10} stroke={C.debt} strokeDasharray="5 3" label={{ value: "10% threshold", fill: C.debt, fontSize: 11 }} />
         <Line dataKey="Accord" stroke={C.accord} strokeWidth={2.5} dot={false} />
-        <Line dataKey="Current Law (est.)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        <Line dataKey="Current Law (CBO)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
         {compareRows && <Line dataKey="Compare" stroke={C.compare} strokeWidth={2} strokeDasharray="3 3" dot={false} />}
       </ComposedChart>
     </ChartContainer>
@@ -303,16 +339,17 @@ function InterestChart({ rows, compareRows }) {
 function AmcfChart({ rows, compareRows }) {
   const data = rows.map(r => ({
     year: r.year,
-    "AMCF Equity": r.amcfEquity,
-    "Dividends (AMCF)": r.amcfDividends,
-    "Grants Total": r.grantsTotal,
-    "SPV Surplus": r.spvSurplus,
-    ...(compareRows ? { "Compare Equity": compareRows[r.year - 1]?.amcfEquity } : {}),
+    "Treasury Tranche": r.treasuryEquity,
+    "Citizen Units": r.citizenEquity,
+    "Private Unit Holders": r.privateUnitEquity,
+    "Fund Cash Flow": r.amcfCashFlow,
+    "Citizen Deposits": r.grantsTotal,
+    ...(compareRows ? { "Compare Treasury": compareRows[r.year - 1]?.treasuryEquity } : {}),
   }));
   return (
     <ChartContainer
-      title="AMCF equity accumulation"
-      subtitle="Dividends surpass grants to create citizen wealth surplus"
+      title="AMCF: who holds the fund"
+      subtitle="Treasury tranche, citizen units and private unit holders, with yearly fund cash and citizen deposits"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
@@ -321,11 +358,12 @@ function AmcfChart({ rows, compareRows }) {
         <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Line dataKey="AMCF Equity" stroke={C.amcf} strokeWidth={3} dot={false} />
-        {compareRows && <Line dataKey="Compare Equity" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
-        <Bar dataKey="Dividends (AMCF)" fill={C.accordLight} stackId="flow" />
-        <Bar dataKey="Grants Total" fill={C.creditsLight} stackId="target" />
-        <Line dataKey="SPV Surplus" stroke={C.grants} strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
+        <Line dataKey="Treasury Tranche" stroke={C.amcf} strokeWidth={3} dot={false} />
+        <Line dataKey="Citizen Units" stroke={C.grants} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Private Unit Holders" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="4 2" dot={false} />
+        {compareRows && <Line dataKey="Compare Treasury" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
+        <Bar dataKey="Fund Cash Flow" fill={C.accordLight} stackId="flow" />
+        <Bar dataKey="Citizen Deposits" fill={C.creditsLight} stackId="target" />
       </ComposedChart>
     </ChartContainer>
   );
@@ -339,7 +377,9 @@ function RevenueChart({ rows, compareRows }) {
     "VAT (gross)": r.vatGross,
     "LVT": r.lvtRev,
     "Payroll Fix": r.payrollFix,
-    "Cap. Gains + Other": +(r.capGainsTax + r.otherTax).toFixed(2),
+    "Carbon": r.carbonRev,
+    "Other Rent Taxes": r.stableTaxRev,
+    "Cap. Gains + Other": +(r.capGainsTax + r.otherTax + r.publicOptionRev).toFixed(2),
     "Total Revenue": r.totalRev,
     "Total Outlays": r.totalOutlays,
     "Current Law Revenue": r.clRev,
@@ -348,7 +388,7 @@ function RevenueChart({ rows, compareRows }) {
   return (
     <ChartContainer
       title="Revenue components vs. total outlays"
-      subtitle="Prebate/childcare/family leave are spending items funded by AMCF cash flow and new taxes"
+      subtitle="Prebate, childcare, and family leave are spending items funded from general revenue"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
@@ -362,6 +402,8 @@ function RevenueChart({ rows, compareRows }) {
         <Bar dataKey="VAT (gross)" stackId="rev" fill={C.accordLight} />
         <Bar dataKey="LVT" stackId="rev" fill="#307ca6" />
         <Bar dataKey="Payroll Fix" stackId="rev" fill="#a9cde0" />
+        <Bar dataKey="Carbon" stackId="rev" fill="#fcd34d" />
+        <Bar dataKey="Other Rent Taxes" stackId="rev" fill="#c4b5fd" />
         <Bar dataKey="Cap. Gains + Other" stackId="rev" fill="#a3e635" />
         <Line dataKey="Total Revenue" stroke={C.accord} strokeWidth={2.5} dot={false} />
         <Line dataKey="Total Outlays" stroke={C.debt} strokeWidth={2.5} dot={false} />
@@ -514,6 +556,23 @@ function ParameterPanel({ params, setParam }) {
         </Collapsible>
       ))}
 
+      <div className="pt-2 space-y-1.5">
+        <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Toggles</label>
+        {TOGGLES.map(t => (
+          <label key={t.key} className="flex items-center gap-2 text-xs cursor-pointer">
+            <input type="checkbox" checked={!!params[t.key]} onChange={e => setParam(t.key, e.target.checked)} className="accent-[#307ca6]" />
+            {t.label}
+          </label>
+        ))}
+        <label className="block text-xs font-bold uppercase tracking-wide text-muted-foreground pt-2">Growth effects</label>
+        <select value={params.growthCase} onChange={e => setParam("growthCase", e.target.value)}
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm">
+          <option value="low">Low (literature)</option>
+          <option value="central">Central (literature)</option>
+          <option value="high">High (literature)</option>
+        </select>
+      </div>
+
       <div className="pt-2">
         <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           $500k Homeowner Exemption
@@ -624,12 +683,17 @@ export default function FiscalTrajectorySimulator() {
           35-year forward projection of federal fiscal trajectory under the Accord
         </p>
         <p className="text-sm text-muted-foreground mt-1 mb-6">
-          All values in 2024 dollars
+          All values in nominal dollars (2.5% inflation by default). Household pages report 2024 real dollars.
         </p>
       </div>
 
       {/* Milestone Dashboard */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+        <MilestoneCard
+          label="Fiscal Goal Met"
+          value={fmtYr(m.fiscalGoalYear)}
+          sub={cm ? `vs ${fmtYr(cm.fiscalGoalYear)}` : "Interest < 10% of revenue, debt/GDP falling, through Yr 75"}
+        />
         <MilestoneCard
           label="Fiscal Crossover"
           value={fmtYr(m.fiscalCrossoverYear)}
@@ -643,17 +707,12 @@ export default function FiscalTrajectorySimulator() {
         <MilestoneCard
           label="Net Creditor Year"
           value={fmtYr(m.netCreditorYear)}
-          sub={cm ? `vs ${fmtYr(cm.netCreditorYear)}` : "AMCF equity > national debt"}
+          sub={cm ? `vs ${fmtYr(cm.netCreditorYear)}` : "Treasury tranche > debt held by public"}
         />
         <MilestoneCard
-          label="AMCF Self-Funding"
-          value={fmtYr(m.amcfSelfFundingYear)}
-          sub={cm ? `vs ${fmtYr(cm.amcfSelfFundingYear)}` : "Dividends >= citizen grants"}
-        />
-        <MilestoneCard
-          label="Interest < 10%"
-          value={fmtYr(m.interestThresholdYear)}
-          sub={cm ? `vs ${fmtYr(cm.interestThresholdYear)}` : "of federal revenue"}
+          label="Debt-Free"
+          value={fmtYr(m.debtFreeYear)}
+          sub={cm ? `vs ${fmtYr(cm.debtFreeYear)}` : "Debt held by the public below zero"}
         />
       </div>
 
@@ -776,7 +835,7 @@ export default function FiscalTrajectorySimulator() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      {["Year", "Nom. GDP", "AMCF Equity", "Own %", "Gross Debt", "Debt/GDP", "Deficit", "AMCF Cash Flow", "Healthcare Reserve", "Discretionary", "Grants/Cap", "Brake"].map(h => (
+                      {["Year", "Nom. GDP", "Treasury Tranche", "Fund Own %", "Debt (Public)", "Debt/GDP", "Deficit", "AMCF Cash Flow", "Healthcare Reserve", "To Budget", "Citizen Deposit/Cap (nominal)", "Net Interest / Revenue", "Brake"].map(h => (
                         <TableHead key={h} className="text-right whitespace-nowrap">{h}</TableHead>
                       ))}
                     </TableRow>
@@ -804,6 +863,7 @@ export default function FiscalTrajectorySimulator() {
                             {r.solventBrakeActive ? "\u2014" : `$${r.discretionaryAMCF}T`}
                           </TableCell>
                           <TableCell className="text-right">${Number(r.grantsPerCapita).toLocaleString()}</TableCell>
+                          <TableCell className="text-right" style={{ color: r.solventBrakeActive ? C.debt : C.accord }}>{r.intToRev}%</TableCell>
                           <TableCell className="text-right text-[10px]" style={{ color: r.solventBrakeActive ? C.debt : C.accord }}>
                             {r.solventBrakeActive ? "ACTIVE" : "off"}
                           </TableCell>

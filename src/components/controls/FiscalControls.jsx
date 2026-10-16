@@ -18,16 +18,25 @@ const GROUPS = [
     { k: 'incomeTaxExemptJoint',  label: v => `Deduction, joint: ${usd(v)}`,     min: 0, max: 200000, step: 5000 },
   ]},
   { title: 'Consumption & land', items: [
-    { k: 'vatRate',          label: v => `VAT rate: ${pct(v)}`,        min: 0,    max: 0.20, step: 0.005 },
+    { k: 'vatRate',          label: v => `VAT rate: ${pct(v)}`,        min: 0,    max: 0.15, step: 0.005 },
     { k: 'lvtRate',          label: v => `LVT rate: ${pct(v)}`,        min: 0,    max: 0.25, step: 0.005 },
     { k: 'carbonRate',       label: v => `Carbon tax: $${v}/ton`,      min: 0,    max: 250,  step: 5 },
     { k: 'prebatePerCapita', label: v => `Prebate / person: ${usd(v)}`, min: 1000, max: 10000, step: 250 },
   ]},
   { title: 'Ownership & grants', items: [
-    { k: 'growthTaxRate',        label: v => `EV Growth Tax: ${pct(v)}`,        min: 0.05,  max: 0.35,  step: 0.005 },
-    { k: 'amcfReturn',           label: v => `AMCF return: ${pct(v)}`,          min: 0.03,  max: 0.12,  step: 0.005 },
-    { k: 'startingEV',           label: v => `Starting EV: $${(v / 1e12).toFixed(0)}T`, min: 30e12, max: 80e12, step: 1e12 },
-    { k: 'grantPhaseMultiplier', label: v => `Grant floor multiplier: ${v.toFixed(1)}x`, min: 0.5, max: 2.0, step: 0.1 },
+    { k: 'growthTaxRate',     label: v => `EV Growth Tax: ${pct(v)}`,               min: 0.05, max: 0.35, step: 0.005 },
+    { k: 'startingEvRatio',   label: v => `Starting EV: ${v.toFixed(1)}× GDP`,      min: 1.5,  max: 3.5,  step: 0.1 },
+    { k: 'citizenScripShare', label: v => `Scrip to citizen units: ${pct(v, 0)}`,   min: 0,    max: 1,    step: 0.05 },
+    { k: 'citizenFloor',      label: v => `Citizen floor: ${usd(v)} / person`,      min: 0,    max: 2000, step: 50 },
+    { k: 'unitSaleRate',      label: v => `Treasury unit sales: ${pct(v, 1)} / yr`, min: 0,    max: 0.10, step: 0.005 },
+    { k: 'assetRateCreditBp', label: v => `Rate credit: ${v} bp per pt of GDP held`, min: 0,   max: 3,    step: 0.5 },
+  ], toggles: [
+    { k: 'revaluationOn',    label: 'Corporate-tax revaluation (+18%)' },
+    { k: 'unitSalesOn',      label: 'Sell Treasury units' },
+    { k: 'ceocOn',           label: 'Care Economy Ownership Credit' },
+    { k: 'pseuOn',           label: 'Public-employee equity units' },
+    { k: 'bankPostBrake',    label: 'Bank AMCF cash after the brake' },
+    { k: 'abundanceFloorOn', label: 'Abundance Floor immigration' },
   ]},
 ];
 
@@ -49,8 +58,8 @@ export function FiscalControls({ values, set, isDefault, reset, grants, compact 
       </div>
       <p className="text-[10px] text-muted-foreground mb-3 leading-snug">
         {only
-          ? 'Parameters from the National Balance Sheet that change the grant path. Tax rates are omitted because they do not enter this calculation.'
-          : 'The same parameters the National Balance Sheet runs. Household figures stay in 2024 real dollars. The Growth Tax and AMCF return move grants only during the ramp; once the fund reaches its 21% cap the stake tracks enterprise value alone.'}
+          ? 'Parameters from the National Balance Sheet that change citizen unit deposits. Tax rates are omitted because they do not enter this calculation.'
+          : 'The same parameters the National Balance Sheet runs. Household figures are in today\'s dollars. Citizen units come from a share of Growth Tax scrip, topped up to the floor from the Treasury tranche.'}
       </p>
 
       <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4' : 'space-y-4'}>
@@ -68,6 +77,23 @@ export function FiscalControls({ values, set, isDefault, reset, grants, compact 
                 min={it.min} max={it.max} step={it.step}
               />
             ))}
+            {g.toggles?.map(t => (
+              <label key={t.k} className="flex items-center gap-2 text-[11px] font-medium text-foreground cursor-pointer">
+                <input type="checkbox" checked={!!values[t.k]} onChange={e => set[t.k](e.target.checked)} className="accent-[#307ca6]" />
+                {t.label}
+              </label>
+            ))}
+            {g.title === 'Ownership & grants' && (
+              <div>
+                <label className="text-[11px] font-medium text-foreground">Growth effects</label>
+                <select value={values.growthCase} onChange={e => set.growthCase(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs">
+                  <option value="low">Low (literature)</option>
+                  <option value="central">Central (literature)</option>
+                  <option value="high">High (literature)</option>
+                </select>
+              </div>
+            )}
             {g.title === 'Ownership & grants' && (
               <div>
                 <label className="text-[11px] font-medium text-foreground">Recession</label>
@@ -96,7 +122,7 @@ export function FiscalControls({ values, set, isDefault, reset, grants, compact 
 
       {grants && (
         <p className="text-[10px] text-muted-foreground mt-3 leading-snug">
-          AMCF grant at Year 30: {usd(grants[30]?.[1] ?? 0)} per person, 2024 real dollars.
+          Citizen unit deposit at Year 30: {usd(grants[30]?.[1] ?? 0)} per person, today's dollars.
         </p>
       )}
     </div>

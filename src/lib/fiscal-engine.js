@@ -1,76 +1,103 @@
-// Shared 35-year fiscal engine for the American Ownership Accord.
+// Shared fiscal engine for the American Ownership Accord. Every page runs this model.
+// Design decisions are recorded in docs/engine-spec-2026-10-07.md.
 //
-// Extracted from NationalBalanceSheet.jsx so every page runs the same model instead of
-// keeping its own copy or a frozen table of outputs.
-//
-// UNITS: everything this module returns is NOMINAL. Rows carry `priceLevel` so callers
-// that present 2024 real dollars (HouseholdImpact, Inequality) can deflate at the boundary:
-// realValue = nominalValue / row.priceLevel. See realGrantSeries below.
-import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY } from '@/lib/land';
-import { incomeTaxRevForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
+// UNITS: everything this module returns is NOMINAL. Year 0 is FY2025 and rows carry
+// `priceLevel`, so pages that present real dollars deflate at the boundary:
+// realValue = nominalValue / row.priceLevel. See realGrantSeries and householdFiscalSeries.
+import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/land';
+import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS } from '@/lib/income-tax';
 import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
+import { cboFiscalShares, CBO_REV_MIX_2026 } from '@/lib/cbo-baseline';
 
 const BASE_PARAMS = {
+  // ── Corporate base and the Growth Tax ──
   growthTaxRate:          0.21,   // canonical §1.1/§2.4: 21% on EV growth
   equityExciseRate:       0.042,  // canonical §6.2: 4.2%/yr → 21% worker equity in 5 yrs
-  creditCapFrac:          0.20,
-  vatRate:                0.04,
+  smallFirmEvShare:       0.08,   // share of corporate EV in Tier 1 firms (<$10M EV), outside the worker trust (assumption)
+  creditCapFrac:          0.20,   // codetermination credits offset up to 20% of Growth Tax
+  startingEvRatio:        2.4,    // EV/GDP at Year 0: 2015–25 average of nonfinancial equity + debt (Fed Z.1)
+  revaluationOn:          true,   // one-time rise in corporate value from repealing the corporate tax
+  revaluationPct:         0.18,   // central of +13% to +27% (1/(1−t), capital share of incidence)
+  entrantShare:           0.015,  // new firms + net issuance as a share of EV per year (Bernstein & Arnott)
+  payoutGdpStart:         0.062,  // dividends + net buybacks, % of GDP, Year 1
+  payoutGdpMature:        0.082,  // by Year 20; below the ~8–9% cash-flow ceiling with no corporate tax
+  // ── The AMCF ──
+  citizenScripShare:      0.35,   // share of each year's Growth Tax scrip issued to citizens as units
+  citizenFloor:           500,    // $/person/yr in units, CPI-indexed; topped up from the Treasury tranche
+  unitSalesOn:            true,   // statutory sale of Treasury-tranche units to private investors
+  unitSaleRate:           0.02,   // share of the Treasury tranche sold per year
+  unitSaleDiscount:       0.05,   // closed-end-fund discount to NAV on sales
+  citizensBuyFirst:       true,   // reinvested citizen dividends buy units offered for sale, at NAV, before private buyers
+  privateUnitCap:         0.10,   // max share of fund NAV held by private (domestic-only) buyers; 1 = no cap
+  privateUnitTerm:        15,     // years until a privately held unit is repurchased at NAV by the Treasury; 0 = permanent
+  bankPostBrake:          false,  // false: Treasury-tranche cash is spent once the brake is off
+  ceocOn:                 true,   // Care Economy Ownership Credit: Sectoral Fund deposits + enhanced AMCF grants (canonical §6.1C)
+  pseuOn:                 true,   // Public Service and Federal Equity Units for government employees (canonical §7)
+  pseuMultiple:           2,      // public employees' extra AMCF units, as a multiple of the citizen grant
+  workerProfitShare:      1/3,    // share of the worker trust's dividends paid as cash profit-sharing to each company's current workers
+  saleProceedsToDebt:     true,   // true: unit-sale proceeds (net of Treasury buybacks) always retire debt
+  assetRateCreditBp:      1,      // bp off the Treasury's rate per point of GDP held in the Treasury tranche
+  // ── Revenue ──
+  vatRate:                0.10,
   vatBaseFrac:            0.68,   // canonical §3.1 universal base: all personal consumption, ~68% of GDP (BEA)
   lvtRate:                0.10,
-  // Land Value Tax — bottom-up capitalized model (src/lib/land.js). Default scenario:
-  // NO homeowner exemption, with the recovered revenue redirected into the prebate.
   lvtModel:               'capitalized', // 'capitalized' | 'legacy'
   lvtExemption:           0,             // 0 = no homeowner exemption; 500000 to restore it
-  lvtGroundRentYield:     0.04,          // i — capitalization discount
-  lvtLandElasticity:      LAND_GROWTH_ELASTICITY, // land-base growth vs nominal GDP (0.7 = suppressed)
-  lvtAssessmentBasis:     'capitalized', // 'capitalized' | 'preTax'
-  // Individual income tax — two-bracket bottom-up model (src/lib/income-tax.js):
-  // a single/joint standard deduction, lowRate up to the threshold, highRate above it.
+  lvtGroundRentYield:     0.04,
+  lvtLandElasticity:      LAND_GROWTH_ELASTICITY,
+  lvtAssessmentBasis:     'capitalized',
   incomeTaxLow:           INCOME_TAX_DEFAULTS.lowRate,
   incomeTaxHigh:          INCOME_TAX_DEFAULTS.highRate,
   incomeTaxThreshold:     INCOME_TAX_DEFAULTS.threshold,
   incomeTaxExemptSingle:  INCOME_TAX_DEFAULTS.exemptSingle,
   incomeTaxExemptJoint:   INCOME_TAX_DEFAULTS.exemptJoint,
-  incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop, // 0.15 Accord / 0.30 conventional
-  carbonRate:             100,    // $/ton; Laffer peak ~$165/ton
-  stableTaxFrac:          STABLE_RENT_FRAC, // FTT, levy, royalties, spectrum, water, pollution, congestion at default rates
-  prebatePerCapita:       PREBATE_REDIRECTED, // $6,250 — base $5,000 + redirected exemption revenue
-  grantPhaseMultiplier:   1.0,
-  startingEV:             50e12,
-  amcfReturn:             0.07,
-  dividendYield:          0.035,
-  codetermBonus:          0.003,
-  startingDebt:           36e12,
-  startingGdp:            28e12,
+  incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop,
+  carbonRate:             100,
+  stableTaxFrac:          STABLE_RENT_FRAC,
+  publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
+  // ── Spending ──
+  prebatePerCapita:       PREBATE_REDIRECTED,
+  spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
+  rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled)
+  drugSavings:            0.001,  // % of GDP by Yr 5 (doc §12: $25–40B)
+  patentBuyoutNet:        0,      // % of GDP; central 0 (range −0.3 to +0.4)
+  spendingElasticity:     0.5,    // share of baseline spending that rises with Accord-created GDP
+  // ── Growth and immigration ──
+  growthCase:             'central', // 'low' | 'central' | 'high' one-time level effects by channel
+  abundanceFloorOn:       true,
+  abundanceTarget:        2.8,    // covered workers per Social Security beneficiary
+  abundanceRampYears:     4,      // admissions reach the requirement in equal steps
+  // ── Macro and debt ──
+  startingDebt:           30.17e12, // debt held by the public, end FY2025 (CBO)
+  startingGdp:            30.36e12, // FY2025 nominal GDP (CBO); Year-0 dollars
   baseRealGdpGrowth:      0.025,
   inflationRate:          0.025,
   baseInterestRate:       0.035,
-  interestReflexivity:    5,
-  baselineSpendingFrac:   0.165,
-  spendingEfficiencyGain: 0.0004,
-  startingPopulation:     335e6,
+  interestReflexivity:    3,      // bp per point of debt/GDP above the threshold (Dallas Fed, cited in doc)
+  reflexivityThreshold:   1.0,    // debt held by the public / GDP
+  startingPopulation:     341e6,
   populationGrowthRate:   0.004,
   recessionYear:          0,
   recessionSeverity:      'severe',
 };
 
-const EV_COHORTS = [
-  { growth: 0.010, share: 0.05 },
-  { growth: 0.035, share: 0.20 },
-  { growth: 0.065, share: 0.40 },
-  { growth: 0.100, share: 0.25 },
-  { growth: 0.150, share: 0.10 },
-];
+// Economic-assumption scenarios (canonical §11.0). Policy parameters are unchanged; only the
+// macro, market and growth assumptions move.
+const SCENARIO_PRESETS = {
+  conservative: { growthCase: 'low', startingEvRatio: 2.0, payoutGdpStart: 0.055, payoutGdpMature: 0.07,
+                  baseRealGdpGrowth: 0.018, spendingAdjustment: 0.005 },
+  optimistic:   { growthCase: 'high', startingEvRatio: 2.9, payoutGdpStart: 0.07, payoutGdpMature: 0.085,
+                  baseRealGdpGrowth: 0.03, spendingAdjustment: -0.005 },
+};
 
 // ─── Recession scenarios ───────────────────────────────────────────────────
 // profile: offsets from the trigger year → { ev: equity-value shock, gdp: pp off real growth }
 // scar:    permanent reduction in potential output (CBO revised US potential down ~5% post-2008)
-// recovery: share of the remaining cyclical gap closed each year once the shock window ends
+// recovery: share of the remaining cyclical gap (output and valuation) closed each year
 const RECESSION_SCENARIOS = {
   none:     { label: "None", profile: {}, scar: 0, recovery: 0 },
   mild: {
     label: "Mild (2001 dot-com)",
-    // S&P −13% (2001) / −23% (2002); real growth 1.0% then 1.7% against a ~2.5% trend
     profile: { 0: { ev: -0.12, gdp: -0.015 }, 1: { ev: -0.14, gdp: -0.008 } },
     scar: 0.01, recovery: 0.40,
   },
@@ -81,197 +108,295 @@ const RECESSION_SCENARIOS = {
   },
   severe: {
     label: "Severe (2008 GFC)",
-    // Equity trough in the crash year (S&P −37% in 2008, partial rebound in 2009);
-    // output trough one year later (real GDP +0.1% in 2008, −2.6% in 2009 vs 2.5% trend)
     profile: { 0: { ev: -0.40, gdp: -0.024 }, 1: { ev: 0.08, gdp: -0.051 }, 2: { gdp: -0.010 } },
     scar: 0.05, recovery: 0.35,
   },
-  // A 1929-33 profile is deliberately omitted. The model has no fiscal reaction function, so
-  // it runs 30 years of depression with no rate, tax, or spending response — the result says
-  // more about that omission than about the Accord.
 };
 
-// Revenue cyclicality, per line, as an elasticity to the cyclical output gap.
-// Anything unlisted is 1.0 (falls one-for-one with output).
-// Capital gains realizations fell ~70% in 2009; land is the epicentre asset in a
-// credit crisis but assessments lag, so LVT keys off the prior year's gap.
 const REV_ELASTICITY = { incomeTax: 1.8, capGains: 5.0, payroll: 1.0, vat: 0.7, lvt: 2.0 };
 
-// Current-law receipts mix (share of the 17.4%-of-GDP total) and its own cyclicality.
-// Corporate receipts fell 55% in FY2009 — current law's most volatile line, and one
-// the Accord does not have; its equity-side hit runs through the Growth Tax instead.
+const CL_REV_TOTAL_2026 = Object.values(CBO_REV_MIX_2026).reduce((a, b) => a + b, 0);
 const CL_REV_MIX = [
-  { share: 0.50, elasticity: 1.8 },  // individual income
-  { share: 0.36, elasticity: 1.0 },  // payroll
-  { share: 0.07, elasticity: 6.0 },  // corporate
-  { share: 0.07, elasticity: 1.0 },  // excise, customs, estate, other
+  { share: CBO_REV_MIX_2026.individual / CL_REV_TOTAL_2026, elasticity: 1.8 },
+  { share: CBO_REV_MIX_2026.payroll    / CL_REV_TOTAL_2026, elasticity: 1.0 },
+  { share: CBO_REV_MIX_2026.corporate  / CL_REV_TOTAL_2026, elasticity: 6.0 },
+  { share: CBO_REV_MIX_2026.other      / CL_REV_TOTAL_2026, elasticity: 1.0 },
 ];
-
-// Automatic stabilizers (UI, SNAP) surge under current law: FY2009 outlays hit 24.4% of
-// GDP vs 20.2% in FY2008 against a ~5% output gap. The Accord's equivalent is endogenous —
-// budgetGrantCost already rises as AMCF cash flow falls short of the grant floor.
 const CL_STABILIZER_ELASTICITY = 0.30;
 
-// Growth Tax loss-recovery window, in years (canonical §1.1: "rolling 3-year high-water mark").
-const GROWTH_TAX_HWM_YEARS = 3;
-
-// Ownership ceilings, canonical §5.2 and §"Meidner": the AMCF caps at 21% and worker equity
-// caps at 21%, so combined public ownership is 42% and private shareholders keep 58% forever.
-// The 21% Growth Tax rate equals the AMCF cap by design — §1.9 depends on private shareholders
-// capturing the same 79% of marginal growth whether via scrip issuance or via appreciation.
-const AMCF_OWNERSHIP_CAP = 0.21;
+const GROWTH_TAX_HWM_YEARS = 3;   // canonical §1.1: rolling 3-year high-water mark
+const MAX_INTEREST_RATE = 0.10;   // both paths
+const CARBON_DIVIDEND_SHARE = 0.80;
+const AMCF_OWNERSHIP_CAP = 0.21;  // per company
 const WORKER_EQUITY_CAP  = 0.21;
+const HEALTHCARE_RESERVE_SHARE = 0.10;
+// Care Economy Ownership Credit (canonical §6.1C fiscal table): $2,000 per FTE-equivalent a year
+// into the Sectoral Wealth Fund for 24.9M FTE-equivalents (child and elder caregivers, SSDI
+// recipients, full-time students, bridging unemployed). Caregivers and students get one extra
+// citizen grant in AMCF units and SSDI recipients two: 37.8M extra grants a year.
+const CEOC_DEPOSIT = 2000;
+const CEOC_FTE = 24.9e6;
+const CEOC_EXTRA_GRANTS = 37.8e6;
+// State, local and federal civilian employees (canonical §7: ~20M state and local, ~3M federal).
+const PUBLIC_EMPLOYEES = 23e6;
+const BRAKE_THRESHOLD_PCT = 10;   // net interest as % of revenue
+const FISCAL_GOAL_WINDOW = 75;    // years over which the fiscal goal must hold
+const ASSET_CREDIT_PHASE_YEARS = 6; // the rate credit reaches maturing debt over ~6 years
+const IMMIGRANT_REVENUE_FACTOR = 0.6; // CBO 2024: revenue per immigrant-GDP dollar vs average
 
-function grantFloor(yr, mult) {
-  // Minimum grant per capita by phase; $1,200 is the floor from Year 14 onward
-  const base = yr <= 3 ? 500 : yr <= 6 ? 550 : yr <= 13 ? 800 : 1200;
-  return base * mult;
+// Dissolved programs (SNAP, refundable EITC and CTC, TANF, WIC), % of GDP, CBO Feb 2026.
+function dissolvedProgramsFrac(yr) {
+  const fy = 2025 + yr;
+  const t = Math.min(1, Math.max(0, (fy - 2026) / 10));
+  return 0.0069 + (0.00495 - 0.0069) * t;
 }
 
-// horizon: how many years to project. 35 is the default the fiscal pages report on; the
-// lifetime calculator needs 60+ to follow a cohort from birth to retirement. Past the
-// AMCF's Year-19 cap the path is well defined — the stake simply tracks enterprise value.
+const ramp = (yr, start, end) => Math.min(1, Math.max(0, (yr - start + 1) / (end - start + 1)));
+
+// One-time level effects on real GDP by channel (docs/a5-a6-research-2026-10-07.md §5e).
+const GROWTH_CHANNELS = {
+  //                 low     central  high    phase-in years
+  taxMix:          [-0.010,  0.005,   0.025,  12],
+  codetermination: [ 0.000,  0.003,   0.015,   5],
+  housing:         [ 0.000,  0.001,   0.010,  15],
+  entrepreneurship:[ 0.000,  0.001,   0.005,  10],
+  laborSupply:     [-0.008, -0.002,   0.003,   5],
+};
+const GROWTH_CASE_INDEX = { low: 0, central: 1, high: 2 };
+
+function growthLevelFactor(yr, growthCase) {
+  const i = GROWTH_CASE_INDEX[growthCase] ?? 1;
+  let level = 1;
+  for (const ch of Object.values(GROWTH_CHANNELS)) level *= 1 + ch[i] * Math.min(1, yr / ch[3]);
+  if (growthCase === 'high' && yr >= 20) level *= Math.pow(1.001, yr - 19);
+  return level;
+}
+
+// Abundance Floor: extra immigrants (millions, cumulative) needed to hold `target` covered
+// workers per Social Security beneficiary. Baseline ratio from the 2026 Trustees Report;
+// 186M covered workers growing 0.3%/yr; 0.7 covered workers per immigrant. Admissions ramp to
+// the requirement in equal steps over `rampYears`.
+const SSA_RATIO_POINTS = [[2025, 2.6], [2035, 2.3], [2075, 1.9]];
+function baselineWorkerRatio(fy) {
+  const pts = SSA_RATIO_POINTS;
+  if (fy <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (fy <= pts[i][0]) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      return y0 + (y1 - y0) * (fy - x0) / (x1 - x0);
+    }
+  }
+  return pts[pts.length - 1][1];
+}
+function abundanceImmigrants(yr, p) {
+  if (!p.abundanceFloorOn) return 0;
+  const workers = 186e6 * Math.pow(1.003, yr);
+  const beneficiaries = workers / baselineWorkerRatio(2025 + yr);
+  const extraWorkers = Math.max(0, p.abundanceTarget * beneficiaries - workers);
+  const required = extraWorkers / 0.7 / 1e6;
+  return required * Math.min(1, yr / Math.max(1, p.abundanceRampYears));
+}
+const GDP_PER_MILLION_IMMIGRANTS = 0.0033; // CBO 2024 immigration-surge analysis, real GDP level
+
+function citizenFloorPerCap(p, priceLevel) {
+  return p.citizenFloor * priceLevel;
+}
+
+// horizon: years to project. 35 is the default for the fiscal pages; lifetime pages run 60–100.
 function runFiscalSimulation(p, horizon = 35) {
   const rows = [];
-  let amcfEquity = 0, creditBalance = 0, hasReachedCap = false;
-  let workerEquity = 0, workerHasReachedCap = false;
-  let grossDebt = p.startingDebt;
-  let realGdp = p.startingGdp;
-  let priceLevel = 1.0;
-  let pop = p.startingPopulation;
-  let cohortEVs = EV_COHORTS.map(c => c.share * p.startingEV);
-  let prevTotalEV = p.startingEV;
-  let evHistory = [p.startingEV];
-
-  // Recession bookkeeping — trend paths are the no-shock counterfactual; scarLevel is the
-  // permanent hit to potential output, so the cyclical gap driving revenue elasticity
-  // closes over the recovery even though the level never returns to the old trend.
   const rec = RECESSION_SCENARIOS[p.recessionSeverity] ?? RECESSION_SCENARIOS.severe;
-  let trendGdp = p.startingGdp;
-  let clTrendGdp = p.startingGdp;
-  let scarLevel = 0;
-  let prevCycGap = 0;
 
-  // Parallel current-law path
-  let clDebt = p.startingDebt;
-  let clRealGdp = p.startingGdp;
-  let clPriceLevel = 1.0;
+  // Macro state. realGdpBase is output without the Accord's level effects; trendBase is the
+  // no-shock counterfactual used to size rigid spending commitments.
+  let realGdpBase = p.startingGdp, trendBase = p.startingGdp;
+  let priceLevel = 1.0;
+  let scarLevel = 0, prevCycGap = 0;
+  let debt = p.startingDebt;
+  let creditBp = 0; // phased-in borrowing-cost credit, in rate units
+
+  // Corporate value. Fundamental values grow with nominal GDP; market value = fundamental ×
+  // valuation gap (recession shocks, recovering toward 1). Incumbents and entrants are pools.
+  const ev0 = p.startingEvRatio * p.startingGdp * (p.revaluationOn ? 1 + p.revaluationPct : 1);
+  let fundInc = ev0, fundEnt = 0;
+  let valGap = 1;
+  let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
+  let histInc = [ev0], histEnt = [0];
+  let fInc = 0, fEnt = 0;            // AMCF ownership fraction of each pool (per-company cap proxy)
+  let workerEquity = 0, workerAtCap = false;
+  let wefUnits = 0, wefPrice = 1; // Worker Equity Fund units outstanding (nominal) and unit price index
+  let creditBalance = 0;
+
+  // Claims on the AMCF: Treasury tranche, citizen units, private unit holders; plus a
+  // diversified pool bought with reinvested citizen dividends.
+  let tClaim = 0, cClaim = 0, pClaim = 0, diversified = 0;
+  const privateCohorts = []; // private purchases by year, for term repurchase
+  let selfFundingYear = null;
+
+  // Current-law path
+  let clDebt = p.startingDebt, clRealGdp = p.startingGdp, clTrend = p.startingGdp, clPriceLevel = 1.0;
 
   for (let yr = 1; yr <= horizon; yr++) {
     const shockOffset = p.recessionYear > 0 ? yr - p.recessionYear : -1;
     const shock = shockOffset >= 0 ? rec.profile[shockOffset] : undefined;
     const shockWindow = Object.keys(rec.profile).length;
     const inShockWindow = shockOffset >= 0 && shockOffset < shockWindow;
-    // Ownership fractions at start of year — one-way: once a cap is reached it stays reached.
-    // The AMCF and the worker Phantom Equity Fund cap independently at 21% each, so combined
-    // public ownership settles at 42% and private shareholders retain 58% permanently.
-    const prevOwnershipFrac = prevTotalEV > 0 ? amcfEquity / prevTotalEV : 0;
-    if (!hasReachedCap && prevOwnershipFrac >= AMCF_OWNERSHIP_CAP) hasReachedCap = true;
-    const atCap = hasReachedCap;
 
-    const prevWorkerFrac = prevTotalEV > 0 ? workerEquity / prevTotalEV : 0;
-    if (!workerHasReachedCap && prevWorkerFrac >= WORKER_EQUITY_CAP) workerHasReachedCap = true;
-    const workerAtCap = workerHasReachedCap;
-
-    // EV cohort evolution
-    cohortEVs = cohortEVs.map((ev, i) => ev * (1 + EV_COHORTS[i].growth));
-    if (shock?.ev) cohortEVs = cohortEVs.map(ev => ev * (1 + shock.ev));
-    const totalEV = cohortEVs.reduce((a, b) => a + b, 0);
-    // Rolling high-water mark: the Growth Tax applies only to enterprise value above the
-    // highest level of the last GROWTH_TAX_HWM_YEARS years, so a post-crash rebound that
-    // merely restores prior value is not taxed as new growth. Without it a 40% crash
-    // produces a windfall the year after, because growth is measured off the depressed base.
-    // The window is rolling rather than permanent so a single crash does not exempt a
-    // company forever once the loss is well behind it.
-    const hwm = Math.max(prevTotalEV, ...evHistory);
-    const evGrowth = Math.max(0, totalEV - hwm);
-    evHistory.push(totalEV);
-    if (evHistory.length > GROWTH_TAX_HWM_YEARS) evHistory.shift();
-    const evAppreciation = prevTotalEV > 0 ? totalEV / prevTotalEV : 1;
-    prevTotalEV = totalEV;
-
-    // Growth Tax — zero once the AMCF hits its cap; company obligation discharged
-    const growthTax = atCap ? 0 : evGrowth * p.growthTaxRate;
-
-    // Equity Excise — issues new PSUs worth equityExciseRate of EV each year until worker
-    // ownership reaches its cap, then stops. Existing PSUs appreciate with the market, so
-    // the worker ownership fraction rises by exactly equityExciseRate per year: 4.2% a year
-    // reaches the 21% cap in five years. The excise reactivates in the proposal when
-    // departing workers cash out and PSUs return to the pool; that churn is not modelled here.
-    const equityExcise = workerAtCap ? 0 : totalEV * p.equityExciseRate;
-    workerEquity = workerAtCap
-      ? totalEV * WORKER_EQUITY_CAP
-      : workerEquity * evAppreciation + equityExcise;
-    const workerOwnershipPct = totalEV > 0 ? workerEquity / totalEV : 0;
-    const creditGenerated = equityExcise;
-    const maxCreditUse = growthTax * p.creditCapFrac;
-    const available = creditBalance + creditGenerated;
-    const creditUsed = Math.min(available, maxCreditUse);
-    creditBalance = available - creditUsed;
-    const amcfNetScrip = growthTax - creditUsed;
-
-    // AMCF accumulation — Phase 1: scrip-driven; Phase 2: tracks its cap share of EV organically
-    if (atCap) {
-      amcfEquity = totalEV * AMCF_OWNERSHIP_CAP; // appreciates with the market; no new scrip
-    } else {
-      amcfEquity = amcfEquity * (1 + p.amcfReturn) + amcfNetScrip;
-    }
-    const amcfOwnershipPct = totalEV > 0 ? amcfEquity / totalEV : 0;
-
-    // AMCF Cash Flow: dividends + proportional buyback participation
-    // Combined yield ramps from 3.5% → 6% over 20 years
-    // (div 1.5%→4% + buyback ~2% = 3.5%→6%)
-    const combinedYield = 0.035 + (0.06 - 0.035) * Math.min(yr / 20, 1.0);
-    const amcfCashFlow = amcfEquity * combinedYield;
-
-    // Grant floor (phase schedule — minimum commitment, SPV-bridged if AMCF falls short)
-    const floorPerCap = grantFloor(yr, p.grantPhaseMultiplier) * priceLevel;
-    const grantAllocation = amcfCashFlow * 0.65; // 65% of cash flow to citizens
-    const grantFloorTotal = floorPerCap * pop;
-    const grantsTotal = Math.max(grantAllocation, grantFloorTotal);
-    const grantsPerCapita = grantsTotal / pop;
-    const budgetGrantCost = Math.max(0, grantFloorTotal - grantAllocation); // SPV bridge when floor > allocation
-
-    // GDP + Population
-    const prevNomGdp = realGdp * priceLevel;
-    const debtDragRatio = grossDebt / prevNomGdp;
-    const gdpDrag = 0.002 * Math.max(0, debtDragRatio - 1.0);
-    const codetermEffect = p.codetermBonus * Math.min(yr / 10, 1.0);
-    const trendGrowth = p.baseRealGdpGrowth + codetermEffect - gdpDrag;
-    const gdpGrowth = trendGrowth + (shock?.gdp ?? 0);
-
-    // Trend = no-shock counterfactual; potential = trend less the permanent scar.
-    // The scar phases in across the shock window, then output recovers toward potential.
-    trendGdp *= (1 + trendGrowth);
+    // ── Output ──
+    const prevDebtRatio = debt / prevNomGdp;
+    const gdpDrag = 0.002 * Math.max(0, prevDebtRatio - 1.0);
+    const trendGrowth = p.baseRealGdpGrowth - gdpDrag;
+    trendBase *= (1 + trendGrowth);
     if (inShockWindow) scarLevel += rec.scar / shockWindow;
-    const potentialGdp = trendGdp * (1 - scarLevel);
-    realGdp *= (1 + gdpGrowth);
-    if (!inShockWindow) realGdp += (potentialGdp - realGdp) * rec.recovery;
-    realGdp = Math.min(realGdp, potentialGdp);
+    const potentialBase = trendBase * (1 - scarLevel);
+    realGdpBase *= (1 + trendGrowth + (shock?.gdp ?? 0));
+    if (!inShockWindow) realGdpBase += (potentialBase - realGdpBase) * rec.recovery;
+    realGdpBase = Math.min(realGdpBase, potentialBase);
+    const cycGap = Math.max(0, 1 - realGdpBase / potentialBase);
 
-    const cycGap = Math.max(0, 1 - realGdp / potentialGdp);
-    // Revenue lines already fall 1-for-1 with output because they are GDP-scaled, so el()
-    // applies only the EXCESS elasticity above 1. VAT's 0.7 lifts it (consumption is
-    // smoother than output); LVT keys off the prior year's gap because assessments lag.
-    const el = line => Math.max(0, 1 - ((REV_ELASTICITY[line] ?? 1.0) - 1) * cycGap);
-    const elLvt = Math.max(0, 1 - (REV_ELASTICITY.lvt - 1) * prevCycGap);
-
+    const immigrants = abundanceImmigrants(yr, p); // millions, cumulative
+    const immLevel = 1 + GDP_PER_MILLION_IMMIGRANTS * immigrants;
+    const growthLevel = growthLevelFactor(yr, p.growthCase);
+    const accordLevel = growthLevel * immLevel;
+    const realGdp = realGdpBase * accordLevel;
     priceLevel *= (1 + p.inflationRate);
     const nominalGdp = realGdp * priceLevel;
-    // Spending commitments are rigid in dollars, so they are sized off the pre-shock trend
-    // rather than actual or scarred-potential output. Two artifacts this avoids: scaling by
-    // actual GDP hands the budget an automatic spending cut in a downturn (FY2009 outlays
-    // rose to 24.4% of GDP from 20.2% because dollar commitments did not shrink); scaling by
-    // scarred potential pays a permanent dividend for a permanent depression, because
-    // spending is a larger share of GDP than revenue. Entitlements do not shrink 5% because
-    // potential output fell 5%.
-    const trendNomGdp = trendGdp * priceLevel;
-    pop *= (1 + p.populationGrowthRate);
+    const trendNomGdpBase = trendBase * priceLevel; // rigid commitments are sized off the trend
+    const pop = p.startingPopulation * Math.pow(1 + p.populationGrowthRate, yr) + immigrants * 1e6;
+    const popScale = pop / p.startingPopulation;
+    const nomGrowth = nominalGdp / prevNomGdp - 1;
 
-    // Revenue — individual income (7.8% GDP, no corporate, bracket adj included),
-    // VAT on the universal consumption base (vatBaseFrac of GDP) with compliance ramp,
-    // LVT from the bottom-up capitalized land model, payroll donut-hole fix at 0.8% GDP.
-    // Prebate is a SPENDING item, not a revenue deduction.
+    // ── Corporate value: incumbents and entrants ──
+    const e = p.entrantShare;
+    const fundTotalPrev = fundInc + fundEnt;
+    const births = e * fundTotalPrev;
+    fundInc = fundInc * (1 + nomGrowth - e);
+    const entSurvivors = fundEnt * (1 + nomGrowth - e);
+    fundEnt = entSurvivors + births;
+    if (shock?.ev) valGap *= (1 + shock.ev);
+    else if (!inShockWindow) valGap += (1 - valGap) * rec.recovery;
+    const evInc = fundInc * valGap, evEnt = fundEnt * valGap, totalEV = evInc + evEnt;
+    // Births enter with no AMCF stake, diluting the entrant pool's fraction.
+    if (fundEnt > 0) fEnt = fEnt * entSurvivors / fundEnt;
+
+    // Growth Tax per pool: 21% of value above the rolling high-water mark, until the fund
+    // holds 21% of the pool. Entrants keep arriving, so the entrant pool keeps paying.
+    const hwmInc = Math.max(...histInc), hwmEnt = Math.max(...histEnt);
+    const taxInc = fInc < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, evInc - hwmInc) : 0;
+    const taxEnt = fEnt < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, evEnt - hwmEnt) : 0;
+    histInc.push(evInc); histEnt.push(evEnt);
+    if (histInc.length > GROWTH_TAX_HWM_YEARS) histInc.shift();
+    if (histEnt.length > GROWTH_TAX_HWM_YEARS) histEnt.shift();
+    const growthTax = taxInc + taxEnt;
+    const evGrowth = Math.max(0, totalEV - prevEvTotal);
+
+    // Equity Excise and codetermination credits
+    const prevWorkerFrac = prevEvTotal > 0 ? workerEquity / prevEvTotal : 0;
+    // Tier 2 and larger firms ($10M+ EV) fund a worker trust; Tier 1 firms pay into the Sectoral Fund instead.
+    const trustEV = totalEV * (1 - p.smallFirmEvShare);
+    if (!workerAtCap && prevWorkerFrac >= WORKER_EQUITY_CAP * (1 - p.smallFirmEvShare)) workerAtCap = true;
+    const equityExcise = workerAtCap ? 0 : trustEV * p.equityExciseRate;
+    workerEquity = workerAtCap ? trustEV * WORKER_EQUITY_CAP
+      : workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1) + equityExcise;
+    const creditGenerated = equityExcise;
+    const available = creditBalance + creditGenerated;
+    const creditUsed = Math.min(available, growthTax * p.creditCapFrac);
+    creditBalance = available - creditUsed;
+    const netShare = growthTax > 0 ? (growthTax - creditUsed) / growthTax : 0;
+    // Scrip raises the fund's fraction of each pool, never past the cap.
+    const scripInc = Math.min(taxInc * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - fInc) * evInc);
+    const scripEnt = Math.min(taxEnt * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - fEnt) * evEnt);
+    const amcfNetScrip = scripInc + scripEnt;
+
+    // ── AMCF claims ──
+    const domesticBefore = fInc * evInc + fEnt * evEnt;
+    diversified *= (1 + nomGrowth - e); // existing holdings are diluted by new issuance like the domestic stake
+    const navBefore = domesticBefore + diversified;
+    const claimsPrev = tClaim + cClaim + pClaim;
+    if (claimsPrev > 0) {
+      const k = navBefore / claimsPrev;
+      tClaim *= k; cClaim *= k; pClaim *= k;
+      for (const c of privateCohorts) c.value *= k;
+    }
+    fInc += evInc > 0 ? scripInc / evInc : 0;
+    fEnt += evEnt > 0 ? scripEnt / evEnt : 0;
+    const citizenScrip = amcfNetScrip * p.citizenScripShare;
+    tClaim += amcfNetScrip - citizenScrip;
+    cClaim += citizenScrip;
+    // Citizen floor in units, topped up from the Treasury tranche.
+    const floorTotal = citizenFloorPerCap(p, priceLevel) * pop;
+    const topUp = Math.min(Math.max(0, floorTotal - citizenScrip), tClaim);
+    tClaim -= topUp; cClaim += topUp;
+    // Enhanced grants (care credit, public-employee units) are issued from the Treasury tranche,
+    // like the floor top-up, at the same per-person grant as every citizen receives.
+    const grantPerCap = (citizenScrip + topUp) / pop;
+    const ceocGrants = p.ceocOn ? CEOC_EXTRA_GRANTS * popScale : 0;
+    const pseuGrants = p.pseuOn ? p.pseuMultiple * PUBLIC_EMPLOYEES * popScale : 0;
+    const extraUnits = Math.min(grantPerCap * (ceocGrants + pseuGrants), tClaim);
+    const ceocUnits = ceocGrants + pseuGrants > 0 ? extraUnits * ceocGrants / (ceocGrants + pseuGrants) : 0;
+    const pseuUnits = extraUnits - ceocUnits;
+    tClaim -= extraUnits; cClaim += extraUnits;
+    const citizenDeposit = citizenScrip + topUp + extraUnits;
+    if (selfFundingYear == null && citizenScrip >= floorTotal) selfFundingYear = yr;
+
+    // Cash: payouts are a share of GDP, paid as a yield on trend corporate value.
+    const payoutGdp = p.payoutGdpStart + (p.payoutGdpMature - p.payoutGdpStart) * Math.min(yr / 20, 1);
+    const combinedYield = payoutGdp / (p.startingEvRatio * (p.revaluationOn ? 1 + p.revaluationPct : 1));
+    const nav = tClaim + cClaim + pClaim;
+    const amcfCashFlow = nav * combinedYield;
+    const cashT = nav > 0 ? amcfCashFlow * tClaim / nav : 0;
+    const cashC = nav > 0 ? amcfCashFlow * cClaim / nav : 0;
+    // Worker trust: shares stay in trust permanently, so the 21% stake is a permanent endowment.
+    // Its dividends go to current workers: part as cash profit-sharing from their own company,
+    // the rest as new Worker Equity Fund units by hours worked. Units are portable property,
+    // pay cash dividends, and are diluted by new issuance like any existing holding.
+    const workerDividends = workerEquity * combinedYield;
+    const workerProfitShare = workerDividends * p.workerProfitShare;
+    const workerUnitAccrual = workerDividends - workerProfitShare;
+    wefPrice *= (1 + nomGrowth - e);
+    wefUnits = wefUnits * (1 + nomGrowth - e) + workerUnitAccrual;
+    // Units offered for sale (citizen withdrawals, then Treasury sales) go first to reinvested
+    // citizen dividends when citizensBuyFirst is on, then to private buyers up to the cap.
+    // Withdrawals the cap leaves unsold are bought by the Treasury tranche; Treasury sales stop.
+    // Dividend cash not spent on units buys diversified assets. No company shares are sold.
+    const liqRate = 0.375 * (0.5 + 0.5 * Math.exp(-yr / 15));
+    const withdrawals = Math.min(cClaim + cashC, citizenDeposit * liqRate);
+    let citizenCash = p.citizensBuyFirst ? cashC : 0;
+    const citizenBuysW = Math.min(withdrawals, citizenCash);
+    citizenCash -= citizenBuysW;
+    // Units reaching the end of their term return to the Treasury tranche at NAV.
+    let expiryBuyback = 0;
+    if (p.privateUnitTerm > 0) {
+      while (privateCohorts.length && yr - privateCohorts[0].year >= p.privateUnitTerm) {
+        expiryBuyback += privateCohorts.shift().value;
+      }
+      expiryBuyback = Math.min(expiryBuyback, pClaim);
+      pClaim -= expiryBuyback; tClaim += expiryBuyback;
+    }
+    const navNow = tClaim + cClaim + pClaim + cashC;
+    let privateRoom = Math.max(0, p.privateUnitCap * navNow - pClaim);
+    const privateBuysW = Math.min(withdrawals - citizenBuysW, privateRoom);
+    privateRoom -= privateBuysW;
+    const treasuryBuysW = withdrawals - citizenBuysW - privateBuysW;
+    const unitsOffered = p.unitSalesOn ? tClaim * p.unitSaleRate : 0;
+    const citizenBuysT = Math.min(unitsOffered, citizenCash);
+    citizenCash -= citizenBuysT;
+    const privateBuysT = Math.min(unitsOffered - citizenBuysT, privateRoom);
+    const unitsSold = citizenBuysT + privateBuysT;
+    const reinvested = cashC - citizenBuysW - citizenBuysT;
+    cClaim += reinvested + citizenBuysT - withdrawals + citizenBuysW;
+    diversified += reinvested;
+    pClaim += privateBuysW + privateBuysT;
+    tClaim += treasuryBuysW - unitsSold;
+    if (privateBuysW + privateBuysT > 0) privateCohorts.push({ year: yr, value: privateBuysW + privateBuysT });
+    const unitSaleProceeds = citizenBuysT + privateBuysT * (1 - p.unitSaleDiscount)
+      - treasuryBuysW - expiryBuyback;
+    const fundDomestic = fInc * evInc + fEnt * evEnt;
+    const amcfOwnershipPct = totalEV > 0 ? fundDomestic / totalEV : 0;
+
+    // ── Revenue ──
+    const el = line => Math.max(0, 1 - ((REV_ELASTICITY[line] ?? 1.0) - 1) * cycGap);
+    const elLvt = Math.max(0, 1 - (REV_ELASTICITY.lvt - 1) * prevCycGap);
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
     const vatGross = nominalGdp * p.vatBaseFrac * p.vatRate * vatCompliance * el('vat');
     const lvtRev = lvtRevForFiscal({
@@ -281,180 +406,204 @@ function runFiscalSimulation(p, horizon = 35) {
       groundRentYield: p.lvtGroundRentYield,
       landGrowthElasticity: p.lvtLandElasticity,
     }) * elLvt;
-    // Carbon: Laffer peak ~$165/ton; natural decarbonization 2.5%/yr
-    // Carbon is a tonnage base, not a GDP share, so it takes the full gap (US emissions
-    // fell ~7% in 2009) rather than the excess-only multiplier the GDP-scaled lines use.
-    // The $/ton rate indexes to CPI for the same reason the prebate does — a fixed nominal
-    // rate is a real carbon-price cut every year, and the Laffer peak scales with it.
     const carbonRev = carbonRevenueAtRate(p.carbonRate) * priceLevel
-      * Math.pow(0.975, yr - 1) * Math.max(0, 1 - cycGap);
-    // Stable rent taxes (src/lib/rent-taxes.js): FTT, levy, royalties, spectrum, water, pollution, congestion
+      * carbonDecayFactor(yr) * Math.max(0, 1 - cycGap);
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
     const payrollFix = nominalGdp * 0.008;
-    const capGainsTax = nominalGdp * 0.012 * el('capGains');
-    const incomeTax = incomeTaxRevForFiscal({
+    const incomeTaxSplit = incomeTaxSplitForFiscal({
       nominalGdp,
-      lowRate: p.incomeTaxLow,
-      highRate: p.incomeTaxHigh,
-      threshold: p.incomeTaxThreshold,
-      exemptSingle: p.incomeTaxExemptSingle,
-      exemptJoint: p.incomeTaxExemptJoint,
-      etiTop: p.incomeTaxEtiTop,
-    }) * el('incomeTax');
+      lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
+      exemptSingle: p.incomeTaxExemptSingle, exemptJoint: p.incomeTaxExemptJoint, etiTop: p.incomeTaxEtiTop,
+    });
+    const incomeTax = incomeTaxSplit.ordinary * el('incomeTax');
+    const capGainsTax = incomeTaxSplit.capGains * el('capGains');
     const payrollTax = nominalGdp * 0.054 * el('payroll');
     const otherTax = nominalGdp * 0.010;
-    const totalRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax + incomeTax + payrollTax + otherTax;
+    const publicOptionRev = nominalGdp * p.publicOptionRevenue * ramp(yr, 2, 6);
+    const grossRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax
+      + incomeTax + payrollTax + otherTax + publicOptionRev;
+    // Output added by immigrants is taxed at a lower average rate (CBO 2024).
+    const immGdpShare = 1 - 1 / immLevel;
+    const totalRev = grossRev * (1 - (1 - IMMIGRANT_REVENUE_FACTOR) * immGdpShare);
 
-    // Spending — baselineSpendingFrac = primary federal (ex-interest, ex-dissolved welfare,
-    // ex-new Accord programs). Prebate/childcare/family leave are explicit line items.
-    // Interest reflexivity fires only above 120% D/Y (current starting level) to avoid
-    // retroactively penalising existing debt at historically low coupon rates.
-    const debtToGdp = grossDebt / nominalGdp;
-    const effectiveRate = p.baseInterestRate + p.interestReflexivity * Math.max(0, debtToGdp - 1.20) / 100;
-    const interest = grossDebt * effectiveRate;
-    const spendFrac = Math.max(0.14, p.baselineSpendingFrac - p.spendingEfficiencyGain * yr);
-    const baseSpend = trendNomGdp * spendFrac;
-    // The prebate, childcare, and family leave are commitments in today's dollars, so they
-    // index to CPI. Leaving them fixed in nominal terms inside a model whose revenue scales
-    // with nominal GDP would quietly shrink them ~58% in real terms over 35 years.
-    const popScale = pop / p.startingPopulation;
+    // ── Spending ──
+    const cbo = cboFiscalShares(yr);
+    const baselineShare = cbo.noninterest - dissolvedProgramsFrac(yr) + p.spendingAdjustment
+      - p.rateSettingSavings * ramp(yr, 2, 6) - p.drugSavings * Math.min(1, yr / 5) - p.patentBuyoutNet;
+    const baseSpend = baselineShare * trendNomGdpBase * (1 + p.spendingElasticity * (accordLevel - 1));
     const prebateSpend = p.prebatePerCapita * pop * priceLevel;
     const childcareSpend = 100e9 * popScale * priceLevel;
     const familyLeaveSpend = 50e9 * popScale * priceLevel;
+    const ceocSpend = p.ceocOn ? CEOC_DEPOSIT * CEOC_FTE * popScale * priceLevel : 0;
+    const carbonDividendSpend = carbonRev * CARBON_DIVIDEND_SHARE;
+    const healthcareAMCF = cashT * HEALTHCARE_RESERVE_SHARE; // spent on new health commitments
+    const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend;
 
-    // AMCF Distribution Waterfall
-    // 10% Healthcare Reserve (spending offset) | 25% Debt Reduction OR Discretionary | 65% Citizen Grants
-    const healthcareAMCF = amcfCashFlow * 0.10;
-    // intToRev computed before waterfall; healthcare offset reduces effective spending first
-    const totalSpend = baseSpend + budgetGrantCost + prebateSpend + childcareSpend + familyLeaveSpend - healthcareAMCF;
+    // ── Interest ──
+    const debtToGdp = debt / nominalGdp;
+    const creditTarget = (p.assetRateCreditBp / 10000) * 100 * (tClaim / nominalGdp);
+    creditBp += (creditTarget - creditBp) / ASSET_CREDIT_PHASE_YEARS;
+    const effectiveRate = Math.min(MAX_INTEREST_RATE, Math.max(0.005,
+      p.baseInterestRate + p.interestReflexivity * Math.max(0, debtToGdp - p.reflexivityThreshold) / 100 - creditBp));
+    const interest = debt * effectiveRate;
     const totalOutlays = totalSpend + interest;
     const intToRev = totalRev > 0 ? (interest / totalRev) * 100 : 0;
-    const solventBrakeActive = intToRev > 10;
-    const debtReductionAMCF = solventBrakeActive ? amcfCashFlow * 0.25 : 0;
-    const discretionaryAMCF = solventBrakeActive ? 0 : amcfCashFlow * 0.25;
+    const solventBrakeActive = intToRev > BRAKE_THRESHOLD_PCT;
 
-    // Deficit + Debt — discretionary supplements the budget; debt reduction retires bonds directly
-    const deficit = totalOutlays - totalRev - discretionaryAMCF;
-    grossDebt = grossDebt + deficit - debtReductionAMCF;
-    const netSovPos = grossDebt - amcfEquity;
+    // Treasury-tranche cash (90%) and unit-sale proceeds retire debt while the brake is on;
+    // afterwards they go to the general budget, spent unless banked.
+    const treasuryFlow = cashT * (1 - HEALTHCARE_RESERVE_SHARE) + unitSaleProceeds;
+    const saleToDebt = p.saleProceedsToDebt ? unitSaleProceeds : 0;
+    const debtReductionAMCF = solventBrakeActive ? treasuryFlow : saleToDebt;
+    const discretionaryAMCF = solventBrakeActive ? 0 : treasuryFlow - saleToDebt;
+    // Net Treasury purchases of units (cap overflow, term repurchases) are a cost even when spent.
+    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
+    debt = debt + deficit - debtReductionAMCF;
+    const netSovPos = debt - tClaim;
 
-    // Current Law parallel path — takes the same macro shock, on its own (more cyclical)
-    // revenue mix, so the recession comparison is symmetric rather than Accord-only.
-    clTrendGdp *= (1 + p.baseRealGdpGrowth);
+    // ── Current-law path ──
+    clTrend *= (1 + p.baseRealGdpGrowth);
     clRealGdp *= (1 + p.baseRealGdpGrowth + (shock?.gdp ?? 0));
-    const clPotentialGdp = clTrendGdp * (1 - scarLevel);
-    if (!inShockWindow) clRealGdp += (clPotentialGdp - clRealGdp) * rec.recovery;
-    clRealGdp = Math.min(clRealGdp, clPotentialGdp);
-    const clCycGap = Math.max(0, 1 - clRealGdp / clPotentialGdp);
+    const clPotential = clTrend * (1 - scarLevel);
+    if (!inShockWindow) clRealGdp += (clPotential - clRealGdp) * rec.recovery;
+    clRealGdp = Math.min(clRealGdp, clPotential);
+    const clCycGap = Math.max(0, 1 - clRealGdp / clPotential);
     clPriceLevel *= (1 + p.inflationRate);
     const clNomGdp = clRealGdp * clPriceLevel;
-    const clRevDamping = CL_REV_MIX.reduce(
-      (a, m) => a + m.share * Math.max(0, 1 - (m.elasticity - 1) * clCycGap), 0);
-    const clRev = clNomGdp * 0.174 * clRevDamping;
+    const clRevDamping = CL_REV_MIX.reduce((a, m) => a + m.share * Math.max(0, 1 - (m.elasticity - 1) * clCycGap), 0);
+    const clRev = clNomGdp * cbo.revenue * clRevDamping;
     const clDtG = clDebt / clNomGdp;
-    // Cap at 10%: beyond this, a real sovereign would restructure/monetize before rates go higher
-    const clRate = Math.min(p.baseInterestRate + p.interestReflexivity * Math.max(0, clDtG - 1.20) / 100, 0.10);
+    const clRate = Math.min(MAX_INTEREST_RATE,
+      p.baseInterestRate + p.interestReflexivity * Math.max(0, clDtG - p.reflexivityThreshold) / 100);
     const clInterest = clDebt * clRate;
-    // CL primary spending ≈ 22% of GDP (includes welfare programs the Accord dissolves),
-    // plus the automatic-stabilizer surge the Accord's standing grant floor replaces.
-    const clTrendNomGdp = clTrendGdp * clPriceLevel;
-    const clStabilizer = clTrendNomGdp * CL_STABILIZER_ELASTICITY * clCycGap;
-    const clDeficit = clTrendNomGdp * 0.22 + clStabilizer + clInterest - clRev;
+    const clTrendNom = clTrend * clPriceLevel;
+    const clStabilizer = clTrendNom * CL_STABILIZER_ELASTICITY * clCycGap;
+    const clDeficit = clTrendNom * cbo.noninterest + clStabilizer + clInterest - clRev;
     clDebt += clDeficit;
-    prevCycGap = cycGap;
 
+    prevCycGap = cycGap;
+    prevNomGdp = nominalGdp;
+    prevEvTotal = totalEV;
+
+    const T = v => +(v / 1e12).toFixed(3);
     rows.push({
-      year:            yr,
-      nominalGdp:      +(nominalGdp / 1e12).toFixed(2),
-      priceLevel:      +priceLevel.toFixed(4),
-      totalEV:         +(totalEV / 1e12).toFixed(1),
-      evGrowth:        +(evGrowth / 1e12).toFixed(2),
-      growthTax:       +(growthTax / 1e12).toFixed(3),
-      equityExcise:    +(equityExcise / 1e12).toFixed(2),
-      creditGenerated: +(creditGenerated / 1e12).toFixed(2),
-      creditUsed:      +(creditUsed / 1e12).toFixed(3),
-      creditBalance:   +(creditBalance / 1e12).toFixed(2),
-      amcfNetScrip:       +(amcfNetScrip / 1e12).toFixed(3),
-      amcfEquity:         +(amcfEquity / 1e12).toFixed(2),
-      amcfOwnershipPct:   +(amcfOwnershipPct * 100).toFixed(1),
-      workerEquity:       +(workerEquity / 1e12).toFixed(2),
-      workerOwnershipPct: +(workerOwnershipPct * 100).toFixed(1),
-      combinedYield:      +(combinedYield * 100).toFixed(2),
-      amcfCashFlow:       +(amcfCashFlow / 1e12).toFixed(3),
-      amcfDividends:      +(amcfCashFlow / 1e12).toFixed(3), // alias for chart compatibility
-      healthcareAMCF:     +(healthcareAMCF / 1e12).toFixed(3),
-      debtReductionAMCF:  +(debtReductionAMCF / 1e12).toFixed(3),
-      discretionaryAMCF:  +(discretionaryAMCF / 1e12).toFixed(3),
-      solventBrakeActive: solventBrakeActive,
-      grantsTotal:        +(grantsTotal / 1e12).toFixed(3),
-      grantsPerCapita:    +grantsPerCapita.toFixed(0),
-      budgetGrantCost:    +(budgetGrantCost / 1e12).toFixed(3),
-      vatGross:        +(vatGross / 1e12).toFixed(2),
-      lvtRev:          +(lvtRev / 1e12).toFixed(2),
-      carbonRev:       +(carbonRev / 1e12).toFixed(2),
-      stableTaxRev:    +(stableTaxRev / 1e12).toFixed(2),
-      payrollFix:      +(payrollFix / 1e12).toFixed(2),
-      capGainsTax:     +(capGainsTax / 1e12).toFixed(2),
-      incomeTax:       +(incomeTax / 1e12).toFixed(2),
-      payrollTax:      +(payrollTax / 1e12).toFixed(2),
-      otherTax:        +(otherTax / 1e12).toFixed(2),
-      totalRev:        +(totalRev / 1e12).toFixed(2),
-      cycGap:          +(cycGap * 100).toFixed(2),
-      clCycGap:        +(clCycGap * 100).toFixed(2),
-      prebateSpend:    +(prebateSpend / 1e12).toFixed(2),
-      childcareSpend:  +(childcareSpend / 1e12).toFixed(2),
-      familyLeaveSpend:+(familyLeaveSpend / 1e12).toFixed(2),
-      baseSpend:       +(baseSpend / 1e12).toFixed(2),
-      interest:        +(interest / 1e12).toFixed(2),
-      totalOutlays:    +(totalOutlays / 1e12).toFixed(2),
-      deficit:         +(deficit / 1e12).toFixed(2),
-      grossDebt:       +(grossDebt / 1e12).toFixed(1),
-      debtToGdp:       +(debtToGdp * 100).toFixed(1),
-      netSovPos:       +(netSovPos / 1e12).toFixed(1),
-      intToRev:        +intToRev.toFixed(1),
-      clDeficit:       +(clDeficit / 1e12).toFixed(2),
-      clGrossDebt:     +(clDebt / 1e12).toFixed(1),
-      clDebtToGdp:     +(clDtG * 100).toFixed(1),
-      clRev:           +(clRev / 1e12).toFixed(2),
-      clInterest:      +(clInterest / 1e12).toFixed(2),
+      year: yr,
+      nominalGdp: T(nominalGdp), priceLevel: +priceLevel.toFixed(4), population: Math.round(pop),
+      extraImmigrantsM: +immigrants.toFixed(2), growthLevel: +growthLevel.toFixed(4), accordLevel: +accordLevel.toFixed(4),
+      totalEV: T(totalEV), evGrowth: T(evGrowth), growthTax: T(growthTax),
+      equityExcise: T(equityExcise), creditGenerated: T(creditGenerated), creditUsed: T(creditUsed), creditBalance: T(creditBalance),
+      amcfNetScrip: T(amcfNetScrip), citizenScrip: T(citizenScrip), citizenTopUp: T(topUp),
+      amcfEquity: T(tClaim), treasuryEquity: T(tClaim), citizenEquity: T(cClaim), privateUnitEquity: T(pClaim),
+      fundNav: T(tClaim + cClaim + pClaim), fundDomestic: T(fundDomestic),
+      amcfOwnershipPct: +(amcfOwnershipPct * 100).toFixed(1),
+      workerEquity: T(workerEquity), workerDividends: T(workerDividends), workerProfitShare: T(workerProfitShare),
+      workerUnitAccrual: T(workerUnitAccrual), wefUnits: T(wefUnits), wefPriceReal: +(wefPrice / priceLevel).toFixed(4), workerOwnershipPct: +((totalEV > 0 ? workerEquity / totalEV : 0) * 100).toFixed(1),
+      combinedYield: +(combinedYield * 100).toFixed(2),
+      amcfCashFlow: T(amcfCashFlow), amcfDividends: T(amcfCashFlow), treasuryCash: T(cashT),
+      healthcareAMCF: T(healthcareAMCF), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
+      unitSaleProceeds: T(unitSaleProceeds), citizenWithdrawals: T(withdrawals),
+      citizenUnitPurchases: T(citizenBuysW + citizenBuysT), treasuryUnitPurchases: T(treasuryBuysW), expiryBuyback: T(expiryBuyback),
+      privateUnitPct: +((tClaim + cClaim + pClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim) * 100 : 0).toFixed(1),
+      solventBrakeActive,
+      grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
+      ceocSpend: T(ceocSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
+      vatGross: T(vatGross), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
+      payrollFix: T(payrollFix), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
+      otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
+      cycGap: +(cycGap * 100).toFixed(2), clCycGap: +(clCycGap * 100).toFixed(2),
+      prebateSpend: T(prebateSpend), carbonDividendSpend: T(carbonDividendSpend), childcareSpend: T(childcareSpend),
+      familyLeaveSpend: T(familyLeaveSpend), baseSpend: T(baseSpend), interest: T(interest), effectiveRate: +(effectiveRate * 100).toFixed(2),
+      totalOutlays: T(totalOutlays), deficit: T(deficit),
+      grossDebt: +(debt / 1e12).toFixed(2), debtToGdp: +(debt / nominalGdp * 100).toFixed(1),
+      netSovPos: +(netSovPos / 1e12).toFixed(2), intToRev: +intToRev.toFixed(1),
+      clDeficit: T(clDeficit), clGrossDebt: +(clDebt / 1e12).toFixed(1), clDebtToGdp: +(clDtG * 100).toFixed(1),
+      clRev: T(clRev), clInterest: T(clInterest),
     });
   }
 
-  const m = {
-    fiscalCrossoverYear:      rows.find(r => r.deficit < 0)?.year ?? null,
-    interestThresholdYear:    rows.find(r => r.intToRev < 10)?.year ?? null,
-    debtPeakYear:             rows.reduce((b, r) => r.grossDebt > b.grossDebt ? r : b, rows[0]).year,
-    netCreditorYear:          rows.find(r => r.netSovPos < 0)?.year ?? null,
-    amcfSelfFundingYear:      rows.find(r => r.amcfCashFlow * 0.65 >= r.grantsTotal)?.year ?? null,
-    solvencyBrakeOffYear:     rows.find(r => !r.solventBrakeActive)?.year ?? null,
-  };
+  // Fiscal goal (decided 2026-10-16): net interest under 10% of revenue and debt/GDP falling,
+  // held in every later year of a 75-year window. "Falling" compares each year with five years
+  // earlier so a recession's temporary rise does not reset the goal; debt at or below zero passes.
+  const goalRows = horizon >= FISCAL_GOAL_WINDOW ? rows : runFiscalSimulation(p, FISCAL_GOAL_WINDOW).rows;
+  const goalOk = goalRows.map((r, i) => r.intToRev < BRAKE_THRESHOLD_PCT
+    && (r.grossDebt <= 0 || r.debtToGdp <= goalRows[Math.max(0, i - 5)].debtToGdp));
+  let fiscalGoalYear = null;
+  for (let i = goalOk.length - 1; i >= 0 && goalOk[i]; i--) fiscalGoalYear = goalRows[i].year;
 
+  const m = {
+    fiscalGoalYear,
+    fiscalCrossoverYear:   rows.find(r => r.deficit < 0)?.year ?? null,
+    interestThresholdYear: rows.find(r => r.intToRev < BRAKE_THRESHOLD_PCT)?.year ?? null,
+    debtPeakYear:          rows.reduce((b, r) => r.grossDebt > b.grossDebt ? r : b, rows[0]).year,
+    netCreditorYear:       rows.find(r => r.netSovPos < 0)?.year ?? null,
+    amcfSelfFundingYear:   selfFundingYear,
+    solvencyBrakeOffYear:  rows.find(r => !r.solventBrakeActive)?.year ?? null,
+    debtFreeYear:          rows.find(r => r.grossDebt < 0)?.year ?? null,
+  };
   return { rows, milestones: m };
 }
 
 export {
-  BASE_PARAMS, EV_COHORTS, RECESSION_SCENARIOS, REV_ELASTICITY, CL_REV_MIX,
+  BASE_PARAMS, SCENARIO_PRESETS, RECESSION_SCENARIOS, REV_ELASTICITY, CL_REV_MIX,
   CL_STABILIZER_ELASTICITY, GROWTH_TAX_HWM_YEARS, AMCF_OWNERSHIP_CAP, WORKER_EQUITY_CAP,
-  grantFloor, runFiscalSimulation,
+  GROWTH_CHANNELS, runFiscalSimulation, abundanceImmigrants, growthLevelFactor,
+  CEOC_DEPOSIT, CEOC_FTE, CEOC_EXTRA_GRANTS, PUBLIC_EMPLOYEES,
 };
 
 // Carbon receipts at a given $/ton, in year-1 real dollars. 5 Gt base with a Laffer
-// behavioral response that reaches zero emissions at $330/ton. The engine's carbonRev line
-// uses this, so the dividend the household pages pay out cannot drift from the revenue the
-// fiscal model collects. Omitting the (1 - rate/330) term overstates a $100/ton dividend by
-// about 44%.
+// behavioral response that reaches zero emissions at $330/ton.
 export function carbonRevenueAtRate(rate) {
   return rate * 5e9 * (1 - rate / 330);
 }
 
-// 80% of carbon receipts are returned as an equal per-capita dividend.
-export function carbonDividendPerCapita(rate, pop = BASE_PARAMS.startingPopulation) {
-  return carbonRevenueAtRate(rate) * 0.80 / pop;
+// Real carbon receipts fall 2.5%/yr as the economy decarbonizes (the $/ton rate itself is
+// CPI-indexed). Household pages apply the same factor to the dividend and to household
+// emissions, so the real-dollar dividend tracks the revenue the engine collects.
+export const CARBON_DECARB_RATE = 0.025;
+export function carbonDecayFactor(yr) {
+  return Math.pow(1 - CARBON_DECARB_RATE, Math.max(yr, 1) - 1);
 }
 
-// Household-received AMCF grant per person, deflated to year-0 (2024) real dollars.
-// Year 0 is the current-law baseline and carries no grant.
+// 80% of carbon receipts are returned as an equal per-capita dividend.
+export function carbonDividendPerCapita(rate, pop = BASE_PARAMS.startingPopulation) {
+  return carbonRevenueAtRate(rate) * CARBON_DIVIDEND_SHARE / pop;
+}
+
+// Citizen unit deposits per person, deflated to Year-0 dollars. Year 0 carries none.
 export function realGrantSeries(params = BASE_PARAMS, horizon = 35) {
   const { rows } = runFiscalSimulation(params, horizon);
   return [[0, 0], ...rows.map(r => [r.year, Math.round(r.grantsPerCapita / r.priceLevel)])];
+}
+
+// Share of LVT revenue from non-residential land (rental, commercial, agricultural, vacant).
+const NONRES_LAND_SHARE = (() => {
+  const total = LAND_SECTORS.reduce((s, x) => s + x.p0, 0);
+  return LAND_SECTORS.filter(s => !s.exempt).reduce((s, x) => s + x.p0, 0) / total;
+})();
+
+// Per-year series the household pages need, in Year-0 dollars: citizen deposits per person,
+// ownership paths for dilution, the revaluation factor, and the revenue lines that are
+// assigned to households by holdings or statute.
+export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
+  const { rows } = runFiscalSimulation(params, horizon);
+  const reval = params.revaluationOn ? 1 + params.revaluationPct : 1;
+  return [{ year: 0, grant: 0, fundOwn: 0, workerOwn: 0, reval: 1, nonResLvt: 0, stableTax: 0, payrollFix: 0, popScale: 1,
+    wefAccrual: 0, profitShare: 0, wefPrice: 1, wefYield: 0, ceocOn: params.ceocOn, pseuMultiple: 0 },
+    ...rows.map(r => ({
+      year: r.year,
+      grant: r.grantsPerCapita / r.priceLevel,
+      fundOwn: r.amcfOwnershipPct / 100,
+      workerOwn: r.workerOwnershipPct / 100,
+      reval,
+      nonResLvt: r.lvtRev * 1e12 * NONRES_LAND_SHARE / r.priceLevel,
+      stableTax: r.stableTaxRev * 1e12 / r.priceLevel,
+      payrollFix: r.payrollFix * 1e12 / r.priceLevel,
+      popScale: r.population / params.startingPopulation,
+      wefAccrual: r.workerUnitAccrual * 1e12 / r.priceLevel,
+      profitShare: r.workerProfitShare * 1e12 / r.priceLevel,
+      wefPrice: r.wefPriceReal,
+      wefYield: r.combinedYield / 100,
+      ceocOn: params.ceocOn,
+      pseuMultiple: params.pseuOn ? params.pseuMultiple : 0,
+    }))];
 }

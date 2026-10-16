@@ -45,8 +45,9 @@ function serialize(val, def) {
 // cleared on navigation. Keys must match the BASE_PARAMS property names in fiscal-engine.js,
 // which is what NationalBalanceSheet's useUrlState writes.
 export const SHARED_PARAM_KEYS = new Set([
-  'growthTaxRate', 'amcfReturn', 'startingEV', 'grantPhaseMultiplier',
-  'recessionYear', 'recessionSeverity',
+  'growthTaxRate', 'startingEvRatio', 'revaluationOn', 'citizenScripShare', 'citizenFloor',
+  'unitSalesOn', 'unitSaleRate', 'bankPostBrake', 'assetRateCreditBp', 'ceocOn', 'pseuOn',
+  'abundanceFloorOn', 'growthCase', 'recessionYear', 'recessionSeverity',
   'incomeTaxLow', 'incomeTaxHigh', 'incomeTaxThreshold',
   'incomeTaxExemptSingle', 'incomeTaxExemptJoint',
   'vatRate', 'lvtRate', 'carbonRate', 'prebatePerCapita',

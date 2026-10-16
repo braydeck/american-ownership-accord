@@ -23,77 +23,15 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
-import {
-  lvtNetIncidenceArray,
-  PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT,
-} from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
-import { AMCF_ANC } from '@/lib/demographics';
-import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
-import { useFiscalParams, FISCAL_KEYS } from '@/lib/use-fiscal-params';
+import { DEMOS, DEMO_KEYS, WGTS, PROG_LOST } from '@/lib/demographics';
+import { useFiscalParams } from '@/lib/use-fiscal-params';
+import { CARBON_DECARB_RATE } from '@/lib/fiscal-engine';
+import { wefAccrualPerFiler } from '@/lib/worker-equity';
+import {
+  BASE_ONLY, FISCAL_DEFAULTS, getInc, getNW, computeGini, carbonDivPC, prebatePC,
+} from '@/lib/household-model';
 import { FiscalControls } from '@/components/controls/FiscalControls';
-
-// ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║  DEMOGRAPHIC DATA  (CBO + Federal Reserve SCF, 2024 calibration)        ║
-// ║  Duplicated from Sim-10 (self-contained per project convention)          ║
-// ╚═══════════════════════════════════════════════════════════════════════════╝
-
-const DEMOS = {
-  B10:  { label:'P0–P10',   short:'B10',  color:'#0B3D91',
-    income:14500,   nw:-2000,   incG:0.005, nwG:0.005,  accordNWG:0.005,
-    hhSz:1.8,  save:0.05, ret:0.04, consume:0.98,
-    taxChg:-145,   lvt:0,      homePct:0,    k401Pct:0.05, finPct:0,    bizPct:0    },
-  P10:  { label:'P10–P20',  short:'P10',  color:'#2563C9',
-    income:28000,   nw:7000,    incG:0.008, nwG:0.040,  accordNWG:0.040,
-    hhSz:2.1,  save:0.05, ret:0.04, consume:0.95,
-    taxChg:-1540,  lvt:200,    homePct:0.20, k401Pct:0.15, finPct:0.05, bizPct:0    },
-  P20:  { label:'P20–P30',  short:'P20',  color:'#4A90D9',
-    income:40000,   nw:26000,   incG:0.010, nwG:0.020,  accordNWG:0.020,
-    hhSz:2.2,  save:0.10, ret:0.04, consume:0.90,
-    taxChg:-3400,  lvt:500,    homePct:0.35, k401Pct:0.20, finPct:0.08, bizPct:0.03 },
-  P30:  { label:'P30–P40',  short:'P30',  color:'#7FBCEA',
-    income:52000,   nw:58000,   incG:0.013, nwG:0.028,  accordNWG:0.028,
-    hhSz:2.3,  save:0.12, ret:0.05, consume:0.87,
-    taxChg:-1751,  lvt:1000,   homePct:0.45, k401Pct:0.25, finPct:0.12, bizPct:0.06 },
-  P40:  { label:'P40–P50',  short:'P40',  color:'#0E7C5A',
-    income:64000,   nw:95000,   incG:0.013, nwG:0.030,  accordNWG:0.030,
-    hhSz:2.4,  save:0.15, ret:0.05, consume:0.85,
-    taxChg:-1659,  lvt:1000,   homePct:0.50, k401Pct:0.28, finPct:0.10, bizPct:0.05 },
-  P50:  { label:'P50–P60',  short:'P50',  color:'#2FA873',
-    income:79000,   nw:148000,  incG:0.015, nwG:0.038,  accordNWG:0.038,
-    hhSz:2.5,  save:0.17, ret:0.05, consume:0.82,
-    taxChg:-1048,  lvt:1800,   homePct:0.52, k401Pct:0.32, finPct:0.12, bizPct:0.06 },
-  P60:  { label:'P60–P70',  short:'P60',  color:'#69C79B',
-    income:97000,   nw:228000,  incG:0.018, nwG:0.040,  accordNWG:0.040,
-    hhSz:2.5,  save:0.20, ret:0.06, consume:0.80,
-    taxChg:1138,   lvt:2500,   homePct:0.50, k401Pct:0.30, finPct:0.13, bizPct:0.08 },
-  P70:  { label:'P70–P80',  short:'P70',  color:'#B5841E',
-    income:124000,  nw:380000,  incG:0.022, nwG:0.050,  accordNWG:0.050,
-    hhSz:2.5,  save:0.22, ret:0.06, consume:0.77,
-    taxChg:2180,   lvt:4000,   homePct:0.47, k401Pct:0.30, finPct:0.17, bizPct:0.12 },
-  P80:  { label:'P80–P90',  short:'P80',  color:'#E0A92E',
-    income:186000,  nw:750000,  incG:0.028, nwG:0.058,  accordNWG:0.058,
-    hhSz:2.5,  save:0.25, ret:0.06, consume:0.60,
-    taxChg:6307,   lvt:7000,   homePct:0.35, k401Pct:0.25, finPct:0.25, bizPct:0.15 },
-  T10:  { label:'P90–P99',  short:'T10',  color:'#E8722A',
-    income:320000,  nw:2700000, incG:0.035, nwG:0.065,  accordNWG:0.063,
-    hhSz:2.3,  save:0.40, ret:0.07, consume:0.45,
-    taxChg:14665,  lvt:12000,  homePct:0.25, k401Pct:0.20, finPct:0.35, bizPct:0.20 },
-  T1:   { label:'P99–P99.9',short:'T1',   color:'#D33B22',
-    income:1500000, nw:16700000,incG:0.045, nwG:0.075,  accordNWG:0.072, accordIncG:0.022,
-    hhSz:2.1,  save:0.70, ret:0.08, consume:0.25,
-    taxChg:202913, lvt:50000,  homePct:0.15, k401Pct:0.15, finPct:0.40, bizPct:0.30 },
-  BILL: { label:'Billionaires',short:'Bill',color:'#AC1D1D',
-    income:3e8,     nw:4.7e9,   incG:0.080, nwG:0.120,  accordIncG:0.050,
-    hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,
-    taxChg:83691871, lvt:5e5,  homePct:0.05, k401Pct:0.05, finPct:0.30, bizPct:0.60 },
-  ELON: { label:'Elon Musk', short:'Elon', color:'#6E0E14',
-    income:1e10,    nw:2.5e11,  incG:0.150, nwG:0.150,  accordIncG:0.124,
-    hhSz:1.0,  save:0.95, ret:0.12, consume:0.001,
-    taxChg:2796462204, lvt:5e6, homePct:0.02, k401Pct:0.01, finPct:0.15, bizPct:0.82 },
-};
-const DEMO_KEYS = ['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1','BILL','ELON'];
-const WGTS = [0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.09, 0.0094, 6e-6, 7.5e-9];
 
 // Cross-sectional representative ages per bracket (SCF/CPS demographic data)
 // These are FIXED — they represent the real age distribution within each wealth/income band.
@@ -102,49 +40,6 @@ const BRACKET_AGE = {
   B10:48, P10:46, P20:44, P30:42, P40:42, P50:43, P60:45, P70:47,
   P80:50, T10:53, T1:56, BILL:65, ELON:53,
 };
-
-const PROG_LOST = { B10:5500,P10:5500,P20:3200,P30:2200,P40:1800,P50:1800,P60:1400,P70:1300,P80:900,T10:400,T1:0,BILL:0,ELON:0 };
-const AMCF_LIQ_BASE = { B10:0.95,P10:0.90,P20:0.80,P30:0.70,P40:0.55,P50:0.40,P60:0.25,P70:0.15,P80:0.08,T10:0.03,T1:0.01,BILL:0.00,ELON:0.00 };
-// AMCF_ANC now lives in src/lib/demographics.js so the three pages cannot drift apart.
-
-const DIST_BRACKETS = [
-  {cRat:1.20},{cRat:1.00},{cRat:0.97},{cRat:0.95},{cRat:0.90},{cRat:0.84},{cRat:0.78},
-  {cRat:0.72},{cRat:0.64},{cRat:0.54},{cRat:0.34},{cRat:0.24},{cRat:0.16},{cRat:0.12},{cRat:0.10},
-];
-const CARBON_TONS_BR = [4,5,6,7,8.5,10,11,12,13.5,16,18,22,26,30,35];
-const TIER_DIST = [
-  [0.12,0.20,0.40],[0.15,0.22,0.48],[0.18,0.25,0.52],[0.20,0.27,0.50],[0.22,0.28,0.45],
-  [0.24,0.28,0.40],[0.26,0.26,0.36],[0.25,0.24,0.32],[0.22,0.20,0.30],[0.16,0.18,0.25],
-  [0.09,0.12,0.20],[0.04,0.08,0.15],[0.02,0.05,0.10],[0.01,0.03,0.07],[0.00,0.01,0.04],
-];
-const TIER2_PEQ = [25000,30000,38000,48000,60000,70000,80000,90000,100000,100000,100000,100000,100000,100000,100000];
-const TIER3_PSU = [40000,55000,75000,100000,135000,165000,200000,260000,325000,400000,500000,650000,800000,950000,1100000];
-const PSU_YIELD = 0.035, EV_GROWTH = 0.075, AVG_TENURE = 4.1;
-const PARTTIME_FTE = [0.20,0.45,0.65,0.90,0.95,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00,1.00];
-// Fiscal context shared with the National Balance Sheet and Household Impact.
-const FISCAL_DEFAULTS = { ...Object.fromEntries(FISCAL_KEYS.map(k => [k, BASE_PARAMS[k]])), grants: AMCF_ANC };
-// Shared with the engine so the dividend matches the revenue actually collected.
-const carbonDivPC = carbonDividendPerCapita;
-const DEMO_BRACKET = { B10:1,P10:3,P20:4,P30:4,P40:5,P50:6,P60:6,P70:7,P80:8,T10:9,T1:11,BILL:14,ELON:14 };
-
-// ─── LVT INCIDENCE (residential owner/renter split only) ────────────────────
-// Per-filer net LVT = homeowner LVT − renter rent-relief on the PRIMARY residence.
-// Non-residential ("investment") land LVT is NOT attributed per-persona: it's borne by a
-// ~7–10% landlord minority that cuts across brackets plus REITs/pensions/foreign/corporate
-// owners — not the median household of any bracket. That ~$529B is real and lives in the
-// fiscal/revenue aggregate (which taxes the full land base), not in these per-persona charts.
-function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
-  const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y })[DEMO_BRACKET[k]];
-}
-// Prebate per person: redirected $6,250 by default; base $5,000 when the exemption is on.
-const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
-const prebatePC = (P, fx = FISCAL_DEFAULTS) =>
-  P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita;
-
-const CL_CG_RATE  = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.238,T1:0.238,BILL:0.238,ELON:0.238 };
-const ACC_CG_RATE = { B10:0,P10:0,P20:0,P30:0.15,P40:0.15,P50:0.15,P60:0.15,P70:0.15,P80:0.15,T10:0.25,T1:0.50,BILL:0.50,ELON:0.50 };
-const CG_FRAC = 0.75;
 
 // Annual Social Security benefit by demo (SSA PIA formula, 2024)
 const SS_BENEFIT = { B10:14400,P10:17000,P20:19200,P30:21300,P40:23400,P50:25800,P60:28800,P70:31200,P80:34200,T10:38400,T1:42000,BILL:45936,ELON:45936 };
@@ -165,167 +60,8 @@ const SURV_LOW  = SURV_BASE.map((_, i) => i + 3 <= 100 ? SURV_BASE[i + 3] : 0);
 const SURV_HIGH = SURV_BASE.map((_, i) => i >= 3 ? SURV_BASE[i - 3] : 1);
 
 const YEARS = Array.from({ length: 31 }, (_, i) => i);
-const BASE_ONLY = new Set(['BASE']);
 const ALL_PROVS = new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']);
 
-// ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║  PORTED COMPUTATION ENGINE (from Sim-10)                                 ║
-// ╚═══════════════════════════════════════════════════════════════════════════╝
-
-function lerp(anc, x) {
-  if (x <= anc[0][0]) return anc[0][1];
-  if (x >= anc[anc.length-1][0]) return anc[anc.length-1][1];
-  for (let i = 0; i < anc.length - 1; i++) {
-    if (x >= anc[i][0] && x <= anc[i+1][0]) {
-      const t = (x - anc[i][0]) / (anc[i+1][0] - anc[i][0]);
-      return anc[i][1] + t * (anc[i+1][1] - anc[i][1]);
-    }
-  }
-  return anc[anc.length-1][1];
-}
-
-const amcfG = (y, fx = FISCAL_DEFAULTS) => lerp(fx.grants, y);
-const pressureDecay = y => 0.5 + 0.5 * Math.exp(-y / 15);
-const liqRate = (k, y) => AMCF_LIQ_BASE[k] * pressureDecay(y);
-const psuDAt = (k, y) => psuDividendPerFiler(DEMO_BRACKET[k], y);
-const psuCAt = (k, y) => psuCashoutPerFiler(DEMO_BRACKET[k], y);
-// Accord income tax for one demographic under the two-bracket structure; deduction blends
-// single and joint by household size. DEMOS[k].taxChg is a delta calibrated at the engine's
-// default rates, so current law is backed out of it once and the delta then responds to the
-// sliders while reproducing the original calibration exactly at defaults.
-function accordIncomeTax(income, hhSz, fx) {
-  const jFrac = Math.min(1, Math.max(0, hhSz - 1));
-  const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
-  const mid   = Math.max(0, Math.min(income, fx.incomeTaxThreshold) - ded);
-  const top   = Math.max(0, income - fx.incomeTaxThreshold);
-  return fx.incomeTaxLow * mid + fx.incomeTaxHigh * top;
-}
-const CL_INCOME_TAX = Object.fromEntries(DEMO_KEYS.map(k =>
-  [k, accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, FISCAL_DEFAULTS) - DEMOS[k].taxChg]));
-const taxAt = (k, fx = FISCAL_DEFAULTS) =>
-  accordIncomeTax(DEMOS[k].income, DEMOS[k].hhSz, fx) - CL_INCOME_TAX[k];
-
-function sectoralFundBalance(C, y) {
-  return y <= 0 ? 0 : C * (Math.pow(1.06, y) - 1) / 0.06;
-}
-
-function psuDividendPerFiler(bi, y) {
-  const [t1, t2, t3] = TIER_DIST[bi];
-  const t1Inc = sectoralFundBalance(1000, y) * PSU_YIELD;
-  const t2Inc = sectoralFundBalance(TIER2_PEQ[bi] * PSU_YIELD, y) * PSU_YIELD;
-  const t3Ramp = Math.min(1, y / 5);
-  const t3Apprec = y > 5 ? Math.pow(1 + EV_GROWTH, y - 5) : 1;
-  const t3Inc = TIER3_PSU[bi] * t3Ramp * t3Apprec * PSU_YIELD;
-  return (t1 * t1Inc + t2 * t2Inc + t3 * t3Inc) * PARTTIME_FTE[bi];
-}
-
-function psuCashoutPerFiler(bi, y) {
-  if (y <= 0) return 0;
-  const [, t2, t3] = TIER_DIST[bi];
-  const tG = Math.pow(1 + EV_GROWTH, AVG_TENURE);
-  const t2C = TIER2_PEQ[bi] * tG / AVG_TENURE;
-  const t3C = TIER3_PSU[bi] * Math.min(1, y / 5) * tG / AVG_TENURE;
-  return (t2 * t2C + t3 * t3C) * PARTTIME_FTE[bi];
-}
-
-function computeAccordNWG(k) {
-  const d = DEMOS[k];
-  const finDrag = d.finPct * d.ret * CG_FRAC * (ACC_CG_RATE[k] - CL_CG_RATE[k]);
-  const psuExciseDrag = (k === 'BILL' || k === 'ELON') ? 0.04 * d.bizPct : 0;
-  // No LVT growth-rate drag: LVT reprices land ONCE (one-time capitalization haircut in getNW),
-  // it does not perpetually erode the growth rate.
-  return Math.max(d.nwG * 0.5, d.nwG - finDrag - psuExciseDrag);
-}
-
-function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
-  const d = DEMOS[k], bi = DEMO_BRACKET[k];
-  const base = d.income * Math.pow(1 + d.incG, y);
-  let tax = 0;
-  if (P.has('TAX')) {
-    if (d.accordIncG != null) { tax = (d.income * Math.pow(1 + d.accordIncG, y) - base) - lvtNetBr(k, y, P, fx); }
-    else {
-      // Rates come from the shared fiscal engine so this page cannot drift from it.
-      const vatCost = fx.vatRate * DIST_BRACKETS[bi].cRat * base;
-      const lvtCost = lvtNetBr(k, y, P, fx);
-      const carbonCost = CARBON_TONS_BR[bi] * fx.carbonRate;
-      tax = -taxAt(k, fx) - vatCost - lvtCost - carbonCost;
-    }
-  }
-  const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
-  const pre = P.has('PRE') ? (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
-  const adults = Math.min(d.hhSz, 2);
-  const ag = P.has('AMCF') ? amcfG(y, fx) * adults * liqRate(k, y) : 0;
-  const pd = P.has('PSU_D') ? psuDAt(k, y) : 0;
-  const pc = P.has('PSU_C') ? psuCAt(k, y) : 0;
-  return { base, tax, pre, amcf: ag, psuD: pd, psuC: pc, total: base + tax + pre + ag + pd + pc };
-}
-
-function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
-  const d = DEMOS[k], r = d.ret;
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  // LVT has no per-persona wealth effect (owner-occ capitalization ~offset by lower housing
-  // costs; investment-land capitalization falls on the landlord minority / institutions).
-  const base = d.nw >= 0 ? d.nw * Math.pow(1 + nwGr, y) : Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
-  let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
-  if (P.has('TAX')) {
-    // VAT and the carbon tax are cash costs like income tax, so their saved share comes out
-    // of wealth too. The carbon dividend is already counted in `pre`; this is its other side.
-    const bi = DEMO_BRACKET[k];
-    const consTaxAt = t => d.accordIncG == null
-      ? fx.vatRate * DIST_BRACKETS[bi].cRat * d.income * Math.pow(1 + d.incG, t)
-        + CARBON_TONS_BR[bi] * fx.carbonRate
-      : 0;
-    let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + (-(taxAt(k, fx) + consTaxAt(t)) * d.save); tax = c;
-  }
-  if (P.has('PRE')) {
-    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
-    const ann = (prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k]) * d.save;
-    pre = y > 0 ? ann * (Math.pow(1 + r, y) - 1) / r : 0;
-  }
-  if (P.has('AMCF')) {
-    const WORK_SPAN = 47;
-    let cust = 0;
-    for (let c = 1; c <= y; c++) {
-      const grantYears = Math.min(c, 18); let acct = 0;
-      for (let t = c - grantYears + 1; t <= c; t++) acct = acct * 1.05 + amcfG(t, fx);
-      acct *= Math.pow(1.05, y - c); cust += acct;
-    }
-    cust /= WORK_SPAN;
-    let retainedAcc = 0, liqSavings = 0;
-    const adults = Math.min(d.hhSz, 2);
-    for (let t = 1; t <= y; t++) {
-      const grant = amcfG(t, fx) * adults;
-      const lr = liqRate(k, t);
-      retainedAcc = retainedAcc * 1.05 + grant * (1 - lr);
-      liqSavings = liqSavings * (1 + r) + grant * lr * d.save;
-    }
-    ag = cust + retainedAcc + liqSavings;
-  }
-  if (P.has('PSU_D')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + psuDAt(k, t) * d.save; pd = c; }
-  if (P.has('PSU_C')) { let c = 0; for (let t = 1; t <= y; t++) c = c * (1 + r) + psuCAt(k, t) * d.save; pc = c; }
-  return { base, tax, pre, amcf: ag, psuD: pd, psuC: pc, total: base + tax + pre + ag + pd + pc };
-}
-
-// ╔═══════════════════════════════════════════════════════════════════════════╗
-// ║  GINI + DISTRIBUTION SUPPLEMENT ENGINE                                   ║
-// ╚═══════════════════════════════════════════════════════════════════════════╝
-
-function computeGini(pts) {
-  const s = [...pts].filter(p => p.w > 0 && p.v >= 0).sort((a, b) => a.v - b.v);
-  const tW = s.reduce((a, p) => a + p.w, 0);
-  const tV = s.reduce((a, p) => a + p.v * p.w, 0);
-  if (!tV || !tW) return 0;
-  let area = 0, cP = 0, cI = 0, pP = 0, pI = 0;
-  for (const p of s) {
-    cP += p.w / tW; cI += p.v * p.w / tV;
-    area += (cP - pP) * (pI + cI) / 2;
-    pP = cP; pI = cI;
-  }
-  return Math.max(0, Math.min(1, 1 - 2 * area));
-}
-
-// Anchor shifts to match empirical US baselines at Year 0
-// Empirical US baselines for anchoring (BLS/Fed SCF 2022, Wolff-Haveman 2004)
 const US_GINI_INC = 0.490;
 const US_GINI_NW = 0.850;
 const US_GINI_CC = 0.420;  // consumption-capacity (income + annuitized wealth, estimated)
@@ -401,11 +137,15 @@ function getAugmentedWealth(k, y, P, params) {
 
   // PV of prebate stream — only the CONSUMED portion (saved portion already in NW via getNW().pre)
   let pvPrebateConsumed = 0;
+  const fx = params.fx ?? FISCAL_DEFAULTS;
   if (P.has('PRE')) {
     const d = DEMOS[k];
-    const carbonDiv = carbonDivPC(fx.carbonRate) * d.hhSz;
-    const annualPrebate = prebatePC(P, fx) * d.hhSz + carbonDiv - PROG_LOST[k];
-    const pvPrebateFull = pvStream(annualPrebate, currentAge, discountRate, surv);
+    // The carbon dividend keeps falling with decarbonization after year y, so its stream is
+    // discounted at the discount rate grossed up by the decline rate.
+    const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
+    const carbonRate = (1 + discountRate) / (1 - CARBON_DECARB_RATE) - 1;
+    const pvPrebateFull = pvStream(prebatePC(P, fx) * d.hhSz - PROG_LOST[k], currentAge, discountRate, surv)
+      + pvStream(carbonDiv, currentAge, carbonRate, surv);
     const prebateSavedInNW = getNW(k, y, P, params.fx ?? FISCAL_DEFAULTS).pre;
     pvPrebateConsumed = Math.max(0, pvPrebateFull - prebateSavedInNW);
   }
@@ -495,8 +235,8 @@ function computeSuite(y, P, params) {
 
   /* eslint-disable no-unused-vars */
   const marketInc = (k, yr, _p, _r) => getMarketIncome(k, yr);
-  const dispInc   = (k, yr, prov, _r) => getDisposableIncome(k, yr, prov);
-  const nwVal     = (k, yr, prov, _r) => getNetWorthVal(k, yr, prov);
+  const dispInc   = (k, yr, prov, par) => getDisposableIncome(k, yr, prov, par);
+  const nwVal     = (k, yr, prov, par) => getNetWorthVal(k, yr, prov, par);
   const augW      = (k, yr, prov, par) => getAugmentedWealth(k, yr, prov, par);
   const ccVal     = (k, yr, prov, par) => getConsumptionCapacity(k, yr, prov, par);
   /* eslint-enable no-unused-vars */
@@ -588,9 +328,9 @@ function runValidation(params) {
   const y0Match = cl0.every((m, i) => Math.abs(m.gini - acc0[i].gini) < 0.001);
   results.push({ test: 'Year 0 CL === Accord (all 5 Ginis)', expected: 'Pass', actual: y0Match ? 'Pass' : 'FAIL', pass: y0Match });
 
-  // 5. PSU cashout at Year 0 = 0
-  const psuY0 = psuCashoutPerFiler(5, 0);
-  results.push({ test: 'PSU cashout at Year 0 = 0', expected: '0', actual: psuY0.toFixed(0), pass: psuY0 === 0 });
+  // 5. No worker fund units at Year 0
+  const psuY0 = wefAccrualPerFiler(5, 0);
+  results.push({ test: 'Worker fund units at Year 0 = 0', expected: '0', actual: psuY0.toFixed(0), pass: psuY0 === 0 });
 
   // 6. NW Gini decreases under Accord (Year 0 vs Year 30)
   const nw0 = computeSuite(0, ALL_PROVS, params).find(m => m.key === 'netWorth').gini;
@@ -639,7 +379,7 @@ const fD = n => {
 const GINI_META = [
   { key: 'dispInc', label: 'Disposable Income', color: '#f97316', group: 'income', desc: 'Post-tax, post-transfer. Dips early (prebate impact), then creeps up as top incomes compound faster than the fixed prebate.' },
   { key: 'consCap', label: 'Consumption Capacity', color: '#307ca6', group: 'income', desc: 'Sustainable spending power. Goes up under both scenarios, but the Accord cuts the increase by ~70%. The DELTA widens every year.' },
-  { key: 'netWorth', label: 'Net Worth', color: '#8b5cf6', group: 'wealth', desc: 'Ownership distribution. Goes DOWN under the Accord — AMCF scrip and PSU equity compress wealth inequality. The core success metric.' },
+  { key: 'netWorth', label: 'Net Worth', color: '#8b5cf6', group: 'wealth', desc: 'Ownership distribution. Goes DOWN under the Accord — AMCF scrip and worker fund units compress wealth inequality. The core success metric.' },
 ];
 
 const SNAP_YRS = [0, 1, 5, 10, 15, 20, 25, 30];
@@ -990,8 +730,8 @@ const PROV_LAYERS = [
   { key: 'TAX',   label: 'Tax Reform',         color: '#f97316', set: new Set(['BASE','TAX']) },
   { key: 'PRE',   label: 'Prebate + Carbon',   color: '#307ca6', set: new Set(['BASE','TAX','PRE']) },
   { key: 'AMCF',  label: 'AMCF Grants',        color: '#3b82f6', set: new Set(['BASE','TAX','PRE','AMCF']) },
-  { key: 'PSU_D', label: 'PSU Dividends',       color: '#a855f7', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D']) },
-  { key: 'PSU_C', label: 'PSU Cashouts',        color: '#f59e0b', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']) },
+  { key: 'PSU_D', label: 'Worker Dividends',       color: '#a855f7', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D']) },
+  { key: 'PSU_C', label: 'Worker & Sectoral Funds',   color: '#f59e0b', set: new Set(['BASE','TAX','PRE','AMCF','PSU_D','PSU_C']) },
 ];
 
 function ProvisionDecomp({ params }) {
@@ -1022,7 +762,7 @@ function ProvisionDecomp({ params }) {
           <h3 className="text-lg font-semibold tracking-tight mb-1">Where Does the Equalizing Power Come From?</h3>
           <p className="text-xs text-muted-foreground mb-5">
             Each segment shows one provision's marginal contribution to Gini reduction at each year.
-            Provisions are added cumulatively: Tax Reform first, then Prebate, then AMCF, then PSU.
+            Provisions are added cumulatively: Tax Reform first, then Prebate, then AMCF, then worker equity.
             Taller bars = more total inequality reduction. The composition shows which mechanism does the heavy lifting.
           </p>
 
@@ -1065,7 +805,7 @@ function MethodologyTab({ params }) {
           <h3 className="text-base font-semibold tracking-tight mb-3">Measurement Framework</h3>
           <InfoBox>
             <div className="space-y-3 text-xs leading-relaxed text-foreground/80">
-              <p><strong>The core problem:</strong> The AOA delivers benefits as held wealth (AMCF scrip, PSUs) and income streams (prebate) — forms that conventional metrics handle badly. No single Gini tells the truth. This module reports five variants and makes the gaps between them legible.</p>
+              <p><strong>The core problem:</strong> The AOA delivers benefits as held wealth (AMCF scrip, worker fund units) and income streams (prebate) — forms that conventional metrics handle badly. No single Gini tells the truth. This module reports five variants and makes the gaps between them legible.</p>
               <p><strong>Annuity factor:</strong> AF(age, r) = Sum_t [ P(alive at age+t | alive at age) / (1+r)^t ]. Converts streams to stocks and stocks to sustainable flows.</p>
               <p><strong>Why no Augmented Wealth time series:</strong> Augmented wealth (NW + PV of Social Security and other entitlements) is a useful cross-sectional concept but cannot be reliably tracked in a 13-bracket model. The fixed-dollar PV additions get diluted as NW compounds, causing the augmented Gini to rise even when NW Gini falls. The Net Worth Gini directly measures ownership inequality, and the Consumption Capacity Gini captures affordability including drawdown value. Together they cover what augmented wealth was intended to measure.</p>
               <p><strong>Model structure:</strong> 13 representative brackets (B10 through Elon Musk) with population-weighted Gini computation. Each bracket has a fixed cross-sectional age (SCF/CPS demographic profiles, e.g. B10=48, BILL=65) — Gini is computed as a population snapshot, not a cohort tracked over time. Brackets track policy-year evolution, not individual aging. Population shares are held constant.</p>
@@ -1144,8 +884,8 @@ const PROVS = [
   { key: 'TAX', label: 'Tax Reform' },
   { key: 'PRE', label: 'Prebate + Carbon' },
   { key: 'AMCF', label: 'AMCF Grants' },
-  { key: 'PSU_D', label: 'PSU Dividends' },
-  { key: 'PSU_C', label: 'PSU Cashouts' },
+  { key: 'PSU_D', label: 'Worker Dividends' },
+  { key: 'PSU_C', label: 'Worker & Sectoral Funds' },
   { key: 'LVT_EX', label: '$500k Homeowner Exemption',
     tip: 'Coupled, deficit-neutral swap: turning the exemption ON also reverts the prebate from $6,250 to $5,000/person. OFF (default) = no exemption + the higher redirected prebate.' },
 ];

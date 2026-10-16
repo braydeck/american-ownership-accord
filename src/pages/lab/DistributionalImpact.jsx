@@ -20,80 +20,13 @@ import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { BRACKETS, CARBON_TONS, LVT_NET_BASE, TOTAL_POP } from '@/lib/brackets';
 import { lvtNetBurdenByBracket, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 import { useUrlValue } from '@/lib/url-state';
+import {
+  TIER_DIST, PARTTIME_FTE,
+  PSU_YIELD, sectoralFundBalance, psuDividendPerFiler, wefAccrualPerFiler,
+} from '@/lib/worker-equity';
 import { BASE_PARAMS, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 
-// ─── THREE-TIER WORKER EQUITY (from Income Tax Design) ─────────────────────────────────────
-// Tier 1 (<$10M EV): $1K/yr sectoral fund at 6% gross; 3.5% distributed as dividends
-// Tier 2 ($10M–$100M): phantom equity; company routes dividends to sectoral fund; cashout at departure
-// Tier 3 (>$100M): 4% annual Equity Excise → 20% PSU by Year 5; appreciates at EV_GROWTH/yr
-const TIER_DIST = [
-  [0.12, 0.20, 0.40],  // $0–10K
-  [0.15, 0.22, 0.48],  // $10–15K
-  [0.18, 0.25, 0.52],  // $15–25K
-  [0.20, 0.27, 0.50],  // $25–40K
-  [0.22, 0.28, 0.45],  // $40–55K
-  [0.24, 0.28, 0.40],  // $55–75K
-  [0.26, 0.26, 0.36],  // $75–100K
-  [0.25, 0.24, 0.32],  // $100–150K
-  [0.22, 0.20, 0.30],  // $150–200K
-  [0.16, 0.18, 0.25],  // $200–500K
-  [0.09, 0.12, 0.20],  // $500K–1M
-  [0.04, 0.08, 0.15],  // $1–2M
-  [0.02, 0.05, 0.10],  // $2–5M
-  [0.01, 0.03, 0.07],  // $5–15M
-  [0.00, 0.01, 0.04],  // $15M+
-];
-
-// Tier 2: per-worker phantom equity (20% of employer EV ÷ employee count)
-const TIER2_PHANTOM_EQ = [
-  25000, 30000, 38000, 48000, 60000, 70000, 80000, 90000,
-  100000, 100000, 100000, 100000, 100000, 100000, 100000,
-];
-
-// Tier 3: PSU equity per worker at 20% ownership equilibrium (Year 5+)
-const TIER3_PSU_EQ = [
-   40000,  55000,  75000, 100000, 135000, 165000, 200000,
-  260000, 325000, 400000, 500000, 650000, 800000, 950000, 1100000,
-];
-
-const PSU_YIELD  = 0.035;
-const EV_GROWTH  = 0.075;
-const AVG_TENURE = 4.1;
-
-// Part-time FTE adjustment by bracket (hours-worked fraction for equity allocation)
-const PARTTIME_FTE = [
-  0.20, 0.45, 0.65, 0.90, 0.95,
-  1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00,
-];
-
-// Sectoral fund balance at Year N with fixed annual contribution C (6% gross growth)
-function sectoralFundBalance(annualContrib, year) {
-  if (year <= 0) return 0;
-  return annualContrib * (Math.pow(1.06, year) - 1) / 0.06;
-}
-
-// Annual dividend income from held worker equity (all three tiers)
-function psuDividendPerFiler(bracketIndex, year) {
-  const [t1, t2, t3] = TIER_DIST[bracketIndex];
-  const t1Balance = sectoralFundBalance(1000, year);
-  const t1Income  = t1Balance * PSU_YIELD;
-  const t2Balance = sectoralFundBalance(TIER2_PHANTOM_EQ[bracketIndex] * PSU_YIELD, year);
-  const t2Income  = t2Balance * PSU_YIELD;
-  const t3Ramp   = Math.min(1, year / 5);
-  const t3Apprec = year > 5 ? Math.pow(1 + EV_GROWTH, year - 5) : 1;
-  const t3Income = TIER3_PSU_EQ[bracketIndex] * t3Ramp * t3Apprec * PSU_YIELD;
-  return (t1 * t1Income + t2 * t2Income + t3 * t3Income) * PARTTIME_FTE[bracketIndex];
-}
-
-// Annualized wealth event from PSU cashout at job change (Tier 2 + 3 only)
-function psuCashoutPerFiler(bracketIndex, year) {
-  const [, t2, t3] = TIER_DIST[bracketIndex];
-  const tenureGrowth = Math.pow(1 + EV_GROWTH, AVG_TENURE);
-  const t2Cashout = TIER2_PHANTOM_EQ[bracketIndex] * tenureGrowth / AVG_TENURE;
-  const t3Ramp    = Math.min(1, year / 5);
-  const t3Cashout = TIER3_PSU_EQ[bracketIndex] * t3Ramp * tenureGrowth / AVG_TENURE;
-  return (t2 * t2Cashout + t3 * t3Cashout) * PARTTIME_FTE[bracketIndex];
-}
+// Worker-equity tables and PSU formulas live in src/lib/worker-equity.js.
 
 // ─── AMCF (from Income Tax Design, anchored to National Balance Sheet validated outputs) ──────────────────
 
@@ -146,7 +79,7 @@ function computeDistrib(vatRate, lvtRate, year, exemption = 0) {
     const carbonNet      = carbonPaid - carbonDividend;
 
     const psuDividend = psuDividendPerFiler(i, year);
-    const psuCashout  = psuCashoutPerFiler(i, year);
+    const psuCashout  = wefAccrualPerFiler(i, year);
 
     // Net Δ vs Current Law — positive = household pays more
     const delta        = vatBurden + lvtBurden + carbonNet - prebate - amcfBenefit;
@@ -510,7 +443,7 @@ export default function DistributionalImpact() {
               >
                 {showPSU ? '✓ Equity On' : 'Equity Off'}
               </Button>
-              <p className="text-[10px] text-muted-foreground mt-1 max-w-[110px]">PSU dividends + annualized cashout</p>
+              <p className="text-[10px] text-muted-foreground mt-1 max-w-[110px]">worker dividends + fund units issued</p>
             </ControlGroup>
           </ControlPanel>
         )}
@@ -534,7 +467,7 @@ export default function DistributionalImpact() {
                 Sources: IRS Statistics of Income (2024 estimates); EPA household carbon survey; BLS Consumer Expenditure Survey.
                 Accord parameters: VAT {(vatRate * 100).toFixed(0)}%, LVT {(lvtRate * 100).toFixed(0)}% ({exemptionOn ? '$500k homeowner exemption' : 'no exemption'}), carbon $100/ton (80% recycled as equal per-capita dividend),
                 ${prebateShown.toLocaleString()}/person/yr prebate, AMCF dividend ${Math.round(amcfPerCap).toLocaleString()}/person (National Balance Sheet validated equity base).
-                {showPSU ? ' Worker equity (PSU dividends + annualized cashout) included.' : ' Worker equity not included — toggle above.'}
+                {showPSU ? ' Worker equity (worker dividends + fund units issued) included.' : ' Worker equity not included — toggle above.'}
               </>
             }
           >
@@ -625,12 +558,12 @@ export default function DistributionalImpact() {
                     'Bracket', 'Avg Inc', 'Filers',
                     'VAT Burden', 'LVT Net', 'Carbon Net',
                     'Prebate', 'AMCF Div',
-                    ...(showPSU ? ['PSU Div', 'Cashout (ann.)'] : []),
+                    ...(showPSU ? ['PSU Div', 'Fund units (yr)'] : []),
                     'NET Δ vs CL', '% Income', 'Status',
                   ].map((h, i) => (
                     <TableHead key={i} className={`text-white text-[11px] font-bold ${i > 2 ? 'text-right' : 'text-left'} ${
                       h === 'Prebate' || h === 'PSU Div' ? 'bg-[#1a4d68]'
-                      : h === 'Cashout (ann.)' ? 'bg-[#1f5d7e]'
+                      : h === 'Fund units (yr)' ? 'bg-[#1f5d7e]'
                       : h === 'NET Δ vs CL' ? 'bg-[#1a5276]'
                       : ''
                     }`}>
@@ -695,8 +628,8 @@ export default function DistributionalImpact() {
           </div>
           {showPSU && (
             <InfoBox className="mt-3 bg-[#307ca6]/10 text-[#307ca6] border-[#307ca6]/30">
-              <strong>PSU Div:</strong> Annual income from held stakes — Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed) + Tier 2 phantom-equity fund dividends + Tier 3 PSU dividends at 3.5% yield (Tier 3 value appreciates at 7.5%/yr after Year 5 ramp). &nbsp;
-              <strong>Cashout (ann.):</strong> Wealth transfer when worker changes jobs — PSU/phantom equity redeemed at FMV, annualized as value ÷ average tenure (4.1 yr). Tier 1 sectoral fund is portable (no cashout event).
+              <strong>PSU Div:</strong> Annual worker-equity cash income: Tier 1 Sectoral Fund payouts, one-third of the worker trust's dividends paid as profit-sharing to the company's current workers, and cash dividends on Worker Equity Fund units already held. &nbsp;
+              <strong>Fund units (yr):</strong> Worker Equity Fund units issued that year by hours worked, from the dividends on the 21% stake each large company's worker trust holds permanently. Units are portable wealth; nothing is redeemed at a job change.
             </InfoBox>
           )}
           <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
@@ -849,8 +782,8 @@ export default function DistributionalImpact() {
         Accord parameters (base): VAT 3% on consumption (BLS CES ratios by bracket); LVT 10% net burden (renters receive rent relief, homeowners net-pay land value tax — lower brackets net zero);
         carbon ${BASE_PARAMS.carbonRate}/ton × EPA household emissions, 80% recycled as equal per-capita dividend (~${Math.round(carbonDividendPerCapita(BASE_PARAMS.carbonRate)).toLocaleString()}/person/yr);
         ${PREBATE_REDIRECTED.toLocaleString()}/person/yr universal prebate; AMCF equity dividend from National Balance Sheet validated equity trajectory.
-        Worker equity (three-tier): Tier 1 sectoral fund ($1K/yr at 6% gross, 3.5% distributed); Tier 2 phantom equity ($25K–$100K/worker) via sectoral fund contributions;
-        Tier 3 PSU (4%/yr Equity Excise → 20% ownership, appreciates at 7.5%/yr after Year 5 ramp, 3.5% dividend yield).
+        Worker equity: firms under $10M EV pay $1K/yr per worker into the Sectoral Wealth Fund (6% gross, 3.5% distributed);
+        at firms worth $10M or more, the 4.2%/yr Equity Excise builds a 21% stake held permanently in each company's worker trust; its dividends pay one-third as profit-sharing to current workers and two-thirds as portable Worker Equity Fund units issued to all workers by hours worked.
         Part-time FTE adjustment applied by bracket. All values in 2024 real dollars. Income tax unchanged vs current law in this view (see Income Tax Design for income tax reform).
       </InfoBox>
     </PageShell>

@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/table';
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { PREBATE_REDIRECTED } from '@/lib/land';
+import { BASE_PARAMS, SCENARIO_PRESETS, realGrantSeries } from '@/lib/fiscal-engine';
+import { wefAccrualPerFte, profitSharePerTrustFte } from '@/lib/worker-equity';
 
 // ─── Seeded PRNG ──────────────────────────────────────────────────────────────
 
@@ -36,17 +38,15 @@ const N_PATHS    = 6000;  // Monte Carlo paths (balance between accuracy and spe
 const AGE_MAX    = 65;
 const STD_RETURN = 0.16;  // annual return standard deviation (historical S&P 500)
 
-// PSU equilibrium by employer tier (EV per employee × 20% worker pool share)
-// Tier 3 (>$100M EV, large firms): 20% PSU via 4%/yr Equity Excise → equilibrium ~$100K/worker
-// Tier 2 ($10M–$100M EV, mid-market): phantom equity ~$55K/worker, portable, cashed at departure
-// Tier 1 (<$10M EV, small/exempt firms): no PSU; workers receive $1K/yr Sectoral Fund contribution
-// 50% of workers at Tier 3 firms, 30% at Tier 2, 20% at Tier 1/exempt
+// Worker equity. Every worker accrues portable Worker Equity Fund units each year worked, issued
+// from the dividends on the 21% stakes held permanently in large companies' worker trusts.
+// Workers at large (Tier 3) firms also receive cash profit-sharing from their own company.
+// Units are never redeemed at a job change. Per-worker amounts come from the fiscal engine.
+// Small-firm (Tier 1) workers also receive the $1K/yr Sectoral Fund contribution.
 const AMCF_RET = 0.05; // AMCF fund real return — fixed, separate from market slider (matches Sims 3/4)
 
-const PSU_BY_TYPE = { large: 100000, mid: 55000, small: 0 };
 const SWF_SMALL_FIRM = 1000; // $1,000/yr Tier 1 Sectoral Fund contribution (builds at 6% gross; 3.5% distributed as dividends)
-const PSU_RAMP_YRS   = 5;
-const PSU_DIV_BASE   = 0.035; // base PSU dividend yield (slider adjusts)
+const PSU_DIV_BASE   = 0.035; // base fund-unit dividend yield (slider adjusts)
 
 // Employment start age distribution (spec: 10%@16, 15%@18, 40%@22, 25%@25, 10%@28)
 const EMP_START_CDF = [
@@ -78,28 +78,18 @@ function baseWage(age) {
   return 57000;
 }
 
-// AMCF grant schedule — per capita, per year, per Accord year
-// Person born Year 1 → at age A, Accord is in Year A+1
-//
-// Base trajectory calibrated to Sim 6 validated outputs:
-//   Yr 9: AMCF self-funds grants (~11% ownership). Yr 19: 20% ownership cap hit.
-//   Pre-cap growth ~18%/yr (scrip + market return); post-cap ~11%/yr (tracks 20% of EV).
-//   Sim 6 key outputs: Yr10=$1,066 Yr15=$2,678 Yr20=$5,597 Yr25=$8,958 Yr30=$14,784 Yr35=$25,111
-const _S6_PTS = [[9,800],[10,1066],[15,2678],[20,5597],[25,8958],[30,14784],[35,25111]];
-function _grantBase(yr) {
-  if (yr <= 3)  return 500;
-  if (yr <= 6)  return 550;
-  if (yr <= 9)  return 800;
-  for (let i = 1; i < _S6_PTS.length; i++) {
-    const [x0, y0] = _S6_PTS[i - 1], [x1, y1] = _S6_PTS[i];
-    if (yr <= x1) return Math.round(y0 + (y1 - y0) * (yr - x0) / (x1 - x0));
-  }
-  return Math.round(25111 * Math.pow(1.10, yr - 35)); // extrapolate beyond Yr 35 at ~10%/yr
+// AMCF grant per person, per Accord year, in 2024 real dollars, from the shared fiscal engine.
+// A person born in Year 1 is age A in Accord Year A+1, so a lifetime needs a long horizon.
+// The three trajectories are the engine's conservative, base, and optimistic scenarios.
+const GRANT_HORIZON = 100;
+function grantPath(overrides) {
+  const series = realGrantSeries({ ...BASE_PARAMS, ...overrides }, GRANT_HORIZON);
+  return yr => yr <= 0 ? 0 : series[Math.min(Math.round(yr), GRANT_HORIZON)][1];
 }
 const GRANT_SCHEDULES = {
-  conservative: (yr) => yr <= 3 ? 500 : yr <= 6 ? 500 : yr <= 9 ? 700 : Math.round(_grantBase(yr) * 0.60),
-  base:         _grantBase,
-  optimistic:   (yr) => yr <= 3 ? 500 : yr <= 6 ? 600 : yr <= 9 ? 950 : Math.round(_grantBase(yr) * 1.55),
+  conservative: grantPath(SCENARIO_PRESETS.conservative),
+  base:         grantPath({}),
+  optimistic:   grantPath(SCENARIO_PRESETS.optimistic),
 };
 
 // ─── Income Quintile Definitions ─────────────────────────────────────────────
@@ -166,10 +156,9 @@ function runSimulation(params) {
 
     // Wealth components (Accord)
     let amcf   = 0;  // AMCF account (custodial until 18, adult after)
-    let savAcc = 0;  // base savings + PSU cashouts + PSU dividends
-    let psuBal = 0;  // current PSU equity value
+    let savAcc = 0;  // base savings + worker dividends + profit-sharing
+    let wefBal = 0;  // Worker Equity Fund units held
     let prebSav = 0; // compounded prebate savings
-    let psuYrs = 0;  // years at current employer (for PSU ramp)
 
     // Wealth components (Current system)
     let savCur = 0;
@@ -186,30 +175,16 @@ function runSimulation(params) {
 
       if (age >= empStartAge) {
         // Become employed: draw initial employer type once
-        if (empType === null) {
-          empType = drawEmpType(rng, q);
-          psuYrs = 0;
-        }
+        if (empType === null) empType = drawEmpType(rng, q);
 
         const salary = baseWage(age) * q.wageMultiplier;
 
-        // ── PSU accumulation ──
-        psuYrs++;
-        const psuEquil = PSU_BY_TYPE[empType];
-        const psuTarget = psuEquil * Math.min(psuYrs / PSU_RAMP_YRS, 1);
-        const psuDiv = psuBal * psuDivYield;
-
-        // Check for job change
-        if (rng.next() < jobChangeProbability(age)) {
-          // Cash out PSU at FMV, add to savings
-          savAcc = (savAcc + psuBal) * (1 + ret) + psuDiv;
-          psuBal = 0;
-          psuYrs = 0;
-          empType = drawEmpType(rng, q); // new employer
-        } else {
-          psuBal = psuTarget;
-          savAcc = savAcc * (1 + ret) + psuDiv;
-        }
+        // ── Worker equity: units accrue every year worked and travel with the worker ──
+        const psuDiv = wefBal * psuDivYield;
+        const profitShare = empType === 'large' ? profitSharePerTrustFte(accordYear) : 0;
+        wefBal = wefBal * (1 + ret - psuDivYield) + wefAccrualPerFte(accordYear);
+        savAcc = savAcc * (1 + ret) + psuDiv + profitShare;
+        if (rng.next() < jobChangeProbability(age)) empType = drawEmpType(rng, q);
 
         // SWF grant for exempt-firm workers
         if (empType === 'small') {
@@ -232,7 +207,7 @@ function runSimulation(params) {
         prebSav = prebSav * (1 + Math.max(-0.40, ret));
       }
 
-      accordAt[age][p]  = Math.max(0, savAcc + amcf + psuBal + prebSav);
+      accordAt[age][p]  = Math.max(0, savAcc + amcf + wefBal + prebSav);
       currentAt[age][p] = Math.max(0, savCur);
     }
   }
@@ -393,7 +368,7 @@ export default function GenerationalWealth() {
 
         <ControlGroup>
           <SliderControl
-            label="PSU Dividend Yield"
+            label="Worker Fund Unit Yield"
             value={psuDivYield}
             onChange={setPsuDivYield}
             min={0.02}
@@ -435,7 +410,7 @@ export default function GenerationalWealth() {
             ))}
           </ToggleGroup>
           <p className="text-xs text-muted-foreground mt-2">
-            Base: $500-$800 floor (Yrs 1-9), then grows uncapped with AMCF fund — $1,066 at Yr 10, $5,597 at Yr 20, $25,111 at Yr 35 (Sim 6 validated)
+            Grants follow the National Balance Sheet engine in 2024 real dollars: base case ${GRANT_SCHEDULES.base(10).toLocaleString()} at Yr 10, ${GRANT_SCHEDULES.base(20).toLocaleString()} at Yr 20, ${GRANT_SCHEDULES.base(35).toLocaleString()} at Yr 35. Conservative and optimistic use the engine's scenario presets.
           </p>
         </ControlGroup>
       </ControlPanel>
@@ -445,7 +420,7 @@ export default function GenerationalWealth() {
         className="mt-12"
         title={`Lifetime Wealth Trajectory — ${qLabel} Household`}
         subtitle="Shaded bands = 25th-75th percentile range. Lines = median path. Green = American Ownership Accord | Blue = Current system"
-        source={`Monte Carlo simulation: ${N_PATHS.toLocaleString()} paths. Annual returns drawn from N(${(meanReturn * 100).toFixed(0)}%, ${(STD_RETURN * 100).toFixed(0)}%). AMCF grants accumulate from birth (age 0-17: custodial account, age 18+: personal account). PSU equity accumulates with each employer over 5-year ramp; cashed out at job changes and reinvested. All values in 2024 real dollars (2% annual inflation adjustment applied to nominal returns).`}
+        source={`Monte Carlo simulation: ${N_PATHS.toLocaleString()} paths. Annual returns drawn from N(${(meanReturn * 100).toFixed(0)}%, ${(STD_RETURN * 100).toFixed(0)}%). AMCF grants accumulate from birth (age 0-17: custodial account, age 18+: personal account). Worker Equity Fund units accrue every year worked and are kept across job changes; large-firm workers also receive profit-sharing. All values in 2024 real dollars (2% annual inflation adjustment applied to nominal returns).`}
         height={420}
       >
         <ComposedChart data={trajectoryData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
@@ -549,7 +524,7 @@ export default function GenerationalWealth() {
           </div>
           <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
             Using {(meanReturn * 100).toFixed(0)}% nominal return, {grantTraj} grant trajectory,{' '}
-            {(psuDivYield * 100).toFixed(1)}% PSU yield, {Math.round(k401Part * 100)}% 401k participation.
+            {(psuDivYield * 100).toFixed(1)}% worker fund yield, {Math.round(k401Part * 100)}% 401k participation.
           </p>
         </div>
 
@@ -593,7 +568,7 @@ export default function GenerationalWealth() {
         Employment start age drawn from empirical distribution (10%@16, 15%@18, 40%@22, 25%@25, 10%@28).
         Wages use BLS age-earnings profile (annualized) x quintile multiplier.
         Job changes drawn stochastically (probability 42% age &lt;25, 28% age 25-34, 20% age 35-44, 12% age 45-54, 8% age 55+);
-        at each change, PSU cashed out at FMV and reinvested. Employer type drawn at each job from quintile-specific
+        Worker Equity Fund units are kept at each change. Employer type drawn at each job from quintile-specific
         distribution (large/mid/exempt firms per Census Statistics of US Businesses).
         AMCF grows at the same annual return as household portfolio (AMCF holds passive equity).
         Prebate net savings = max(0, $6,250 - 3% VAT on quintile consumption, New Accord rate) x income-appropriate savings rate.
