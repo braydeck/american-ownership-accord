@@ -1,0 +1,54 @@
+{
+  "designs": 5000,
+  "seed": 42,
+  "currentLaw": {
+    "incomeGiniY30": 0.6631,
+    "nwGiniY30": 0.8845
+  },
+  "currentDefault": {
+    "fiscalGoalYear": 6,
+    "debtFreeYear": 32,
+    "netCreditorYear": 23,
+    "intToRevY30": 0.9,
+    "debtToGdpY30": 4.3,
+    "laborLevelY10": 0.9776,
+    "minIncomeGain": -10278,
+    "worstIncome": "P70 Yr 30",
+    "minNwGain": -560,
+    "worstNw": "P70 Yr 5",
+    "bottom80Pass": false,
+    "incomeGiniY30": 0.5807,
+    "nwGiniY30": 0.7182,
+    "P50Y30": 2801,
+    "P70Y30": -10278,
+    "P80Y30": -39615,
+    "T10Y30": -118757
+  },
+  "runs": {
+    "10": {
+      "fiscalPass": 1397,
+      "bottom80Pass": 2813,
+      "bothPass": 83,
+      "frontier": [
+        324,
+        2045
+      ]
+    },
+    "15": {
+      "fiscalPass": 1697,
+      "bottom80Pass": 2813,
+      "bothPass": 173,
+      "frontier": [
+        324,
+        2045
+      ]
+    }
+  },
+  "robust": {
+    "count": 26,
+    "frontier": [
+      133,
+      4456
+    ]
+  }
+}
