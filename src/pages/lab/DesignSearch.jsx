@@ -17,13 +17,18 @@ import {
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { useUrlValue } from '@/lib/url-state';
 import DATA from '@/data/design-search.json';
+import VARIANTS from '@/data/design-variants.json';
 import { DesignCompare } from '@/pages/lab/DesignCompare';
 
-// Designs compared by default: the two robust frontier designs and design 1321, which ties
-// design 133 on income Gini.
-const COMPARE_IDS = [133, 1321, 4456];
+// Every design the page can show: searched designs plus named variants of them
+// (scripts/design-variants.mjs).
+const ALL_DESIGNS = [...DATA.passing, ...VARIANTS];
+const designName = d => d.name ?? `Design ${d.id}`;
+// Designs compared by default: design 1321 and its variants, and design 133, the robust design
+// with the lowest income Gini.
+const COMPARE_IDS = ['1321-lvt8', '1321-3rate', '1321-p80', 133];
 
-const COLORS = { fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
+const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const usd = v => `${v < 0 ? '−' : '+'}$${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(1)}K` : Math.round(Math.abs(v))}`;
@@ -63,7 +68,7 @@ function inView(d, view) {
 export default function DesignSearch() {
   const [view, setView] = useUrlValue('dsview', 'robust');
   const [sortKey, setSortKey] = useUrlValue('dssort', 'incomeGiniY30');
-  const defaultId = DATA.passing.find(d => d.frontierRobust)?.id ?? DATA.passing[0]?.id;
+  const defaultId = '1321-p80';
   const [selectedId, setSelectedId] = useState(defaultId);
 
   const scatter = useMemo(() => {
@@ -81,8 +86,8 @@ export default function DesignSearch() {
       .sort((a, b) => dir * ((a[sortKey] ?? 99) - (b[sortKey] ?? 99)));
   }, [view, sortKey]);
 
-  const selected = DATA.passing.find(d => d.id === selectedId) ?? rows[0];
-  const onPoint = p => { if (p?.payload?.id != null && DATA.passing.some(d => d.id === p.payload.id)) setSelectedId(p.payload.id); };
+  const selected = ALL_DESIGNS.find(d => d.id === selectedId) ?? rows[0];
+  const onPoint = p => { if (p?.payload?.id != null && ALL_DESIGNS.some(d => d.id === p.payload.id)) setSelectedId(p.payload.id); };
 
   return (
     <PageShell>
@@ -130,12 +135,14 @@ export default function DesignSearch() {
           <Scatter name="Passes, goal by Year 15" data={scatter.pass15} fill={COLORS.pass15} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Passes, goal by Year 10" data={scatter.pass10} fill={COLORS.pass10} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Robust to recessions" data={scatter.robust} fill={COLORS.robust} onClick={onPoint} isAnimationActive={false} />
+          <Scatter name="Variants of design 1321" zAxisId="ref" data={VARIANTS.map(v => ({ x: v.incomeGiniY30, y: v.nwGiniY30, id: v.id }))}
+                   fill={COLORS.variant} shape="star" onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Current law" zAxisId="ref" data={[{ x: DATA.currentLaw.incomeGiniY30, y: DATA.currentLaw.nwGiniY30 }]}
                    fill={COLORS.law} shape="diamond" isAnimationActive={false} />
           <Scatter name="Current Accord settings" zAxisId="ref" data={[{ x: DATA.currentDefault.incomeGiniY30, y: DATA.currentDefault.nwGiniY30 }]}
                    fill={COLORS.accord} shape="diamond" isAnimationActive={false} />
           {selected && (
-            <Scatter name={`Design ${selected.id}`} zAxisId="ref" data={[{ x: selected.incomeGiniY30, y: selected.nwGiniY30, id: selected.id }]}
+            <Scatter name={designName(selected)} zAxisId="ref" data={[{ x: selected.incomeGiniY30, y: selected.nwGiniY30, id: selected.id }]}
                      fill="none" stroke="#18181b" strokeWidth={2} shape="circle" legendType="none" isAnimationActive={false} />
           )}
         </ScatterChart>
@@ -143,7 +150,22 @@ export default function DesignSearch() {
 
       {selected && <DesignDetail d={selected} />}
 
-      <DesignCompare designs={DATA.passing}
+      <Card className="mt-6">
+        <CardContent className="pt-4">
+          <h3 className="text-sm font-semibold mb-2">Variants of design 1321</h3>
+          <div className="space-y-2">
+            {VARIANTS.map(v => (
+              <button key={v.id} onClick={() => setSelectedId(v.id)}
+                      className={`block w-full text-left rounded-md border px-3 py-2 text-xs hover:bg-muted/50 ${v.id === selected?.id ? 'border-[#d4940a] bg-[#d4940a]/10' : 'border-border'}`}>
+                <span className="font-semibold">{v.name}</span>
+                <span className="text-muted-foreground"> · {v.note} Fiscal goal {yr(v.fiscalGoalYear)}; P80 income {usd(v.P80Y30)} at Year 30.</span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <DesignCompare designs={ALL_DESIGNS}
                      ids={selected && !COMPARE_IDS.includes(selected.id) ? [...COMPARE_IDS, selected.id] : COMPARE_IDS} />
 
       <Card className="mt-6">
@@ -247,7 +269,7 @@ function DesignDetail({ d }) {
     <Card className="mt-6">
       <CardContent className="pt-4">
         <h3 className="text-sm font-semibold mb-3">
-          Design {d.id}{d.robust ? ', robust to recessions' : ''}
+          {designName(d)}{d.robust ? ', robust to recessions' : ''}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <dl className="text-xs space-y-1.5">

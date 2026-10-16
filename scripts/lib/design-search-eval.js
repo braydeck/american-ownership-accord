@@ -84,3 +84,14 @@ export function currentLawGinis() {
     nwGiniY30: +giniAt((k, y) => getNW(k, y, BASE_ONLY, fx).total, 30).toFixed(4),
   };
 }
+
+// Income and net-worth gain against current law for one group in each of `years`.
+export function groupGains(design, k, years) {
+  const p = { ...BASE_PARAMS, ...design };
+  const fx = { ...p, grants: realGrantSeries(p), hh: householdFiscalSeries(p) };
+  return years.map(y => ({
+    year: y,
+    income: getInc(k, y, ALL, fx).total - getInc(k, y, BASE_ONLY, fx).total,
+    netWorth: getNW(k, y, ALL, fx).total - getNW(k, y, BASE_ONLY, fx).total,
+  }));
+}

@@ -20,7 +20,7 @@ import { paramsFromDesign, fxFromParams } from '@/lib/design-params';
 
 const ALL = new Set(['BASE', 'TAX', 'PRE', 'AMCF', 'PSU_D', 'PSU_C']);
 const HORIZON = 35;
-const PALETTE = ['#d4940a', '#2563C9', '#0B3D91', '#69C79B'];
+const PALETTE = ['#9cc3e8', '#2563C9', '#0B3D91', '#d4940a', '#69C79B'];
 const ACCORD_COLOR = '#c27040';
 
 const fmtMoney = v => {
@@ -53,8 +53,10 @@ export function DesignCompare({ designs, ids }) {
     const defaultFx = fxFromParams(BASE_PARAMS);
     const list = [
       { key: 'Current Accord settings', color: ACCORD_COLOR, fx: defaultFx },
-      ...ids.map((id, i) => ({ key: `Design ${id}`, color: PALETTE[i % PALETTE.length],
-        fx: fxFromParams(paramsFromDesign(designs.find(d => d.id === id))) })),
+      ...ids.map((id, i) => {
+        const d = designs.find(x => x.id === id);
+        return { key: d.name ?? `Design ${id}`, color: PALETTE[i % PALETTE.length], fx: fxFromParams(paramsFromDesign(d)) };
+      }),
     ];
     return {
       law: outcomes(defaultFx, BASE_ONLY),

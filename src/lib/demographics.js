@@ -59,7 +59,9 @@ export const DEMOS = {
     hhSz:2.1,  save:0.70, ret:0.08, consume:0.25,
     taxChg:202913, lvt:50000,  homePct:0.15, k401Pct:0.15, finPct:0.40, bizPct:0.30 },
   BILL: { label:'Billionaires',short:'Bill',color:'#AC1D1D',
-    income:3e8,     nw:4.7e9,   incG:0.080, nwG:0.120,  accordIncG:0.050,
+    // Net worth $8.5B: 989 US billionaires worth $8.4T (Forbes, March 2026). Grows 7.5% a year
+    // real, the same billionaire pace as the Musk persona.
+    income:3e8,     nw:8.5e9,   incG:0.075, nwG:0.075,  accordIncG:0.050,
     // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
     // Three Accord channels: income tax reform + PSU equity excise + mark-to-market phase-in
     hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,

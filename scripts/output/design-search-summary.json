@@ -2,8 +2,8 @@
   "designs": 5000,
   "seed": 42,
   "currentLaw": {
-    "incomeGiniY30": 0.6578,
-    "nwGiniY30": 0.8828
+    "incomeGiniY30": 0.6548,
+    "nwGiniY30": 0.8717
   },
   "currentDefault": {
     "fiscalGoalYear": 6,
@@ -12,31 +12,31 @@
     "intToRevY30": 0.9,
     "debtToGdpY30": 4.3,
     "laborLevelY10": 0.9776,
-    "minIncomeGain": -10321,
+    "minIncomeGain": -10591,
     "worstIncome": "P70 Yr 30",
-    "minNwGain": -518,
+    "minNwGain": -353,
     "worstNw": "P70 Yr 5",
     "bottom80Pass": false,
-    "incomeGiniY30": 0.5763,
-    "nwGiniY30": 0.716,
-    "P50Y30": 2790,
-    "P70Y30": -10321,
-    "P80Y30": -39731,
-    "T10Y30": -119328
+    "incomeGiniY30": 0.5741,
+    "nwGiniY30": 0.6965,
+    "P50Y30": 2721,
+    "P70Y30": -10591,
+    "P80Y30": -40458,
+    "T10Y30": -122911
   },
   "runs": {
     "10": {
       "fiscalPass": 1397,
-      "bottom80Pass": 2812,
-      "bothPass": 84,
+      "bottom80Pass": 2806,
+      "bothPass": 85,
       "frontier": [
         324
       ]
     },
     "15": {
       "fiscalPass": 1697,
-      "bottom80Pass": 2812,
-      "bothPass": 174,
+      "bottom80Pass": 2806,
+      "bothPass": 175,
       "frontier": [
         324,
         2588
@@ -44,10 +44,9 @@
     }
   },
   "robust": {
-    "count": 27,
+    "count": 26,
     "frontier": [
-      133,
-      4456
+      133
     ]
   }
 }
