@@ -69,12 +69,19 @@ export function clIncomeTax(income, hhSz, pref = 0) {
   return j * clTaxOne(income, pref, CL_SCHED.joint) + (1 - j) * clTaxOne(income, pref, CL_SCHED.single);
 }
 
-// Accord income tax on the engine's schedule. All income types are ordinary income.
-export function accordIncomeTax(income, hhSz, fx) {
+// Accord thresholds, the standard deduction and the Social Security cap rise with average wages
+// (decided 2026-10-16), measured by real GDP per person, the same index the engine's revenue
+// scaling implies. Current-law brackets stay CPI-indexed, as in statute.
+const wageIndex = (fx, y) => hhAt(fx, y).gdpPerCapIdx ?? 1;
+
+// Accord income tax on the engine's schedule in year y. All income types are ordinary income.
+export function accordIncomeTax(income, hhSz, fx, y = 0) {
+  const w = wageIndex(fx, y);
   const jFrac = Math.min(1, Math.max(0, hhSz - 1));
-  const ded   = jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle;
+  const ded   = (jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle) * w;
   const sched = accordSchedule({ brackets: fx.incomeTaxBrackets ?? undefined,
-    lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold });
+    lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold })
+    .map(([hi, r]) => [hi * w, r]);
   return accordScheduleTax(income, ded, sched);
 }
 
@@ -90,16 +97,14 @@ export const incomeAt = (k, y) => DEMOS[k].income * Math.pow(1 + DEMOS[k].incG, 
 export const clTaxAt = (k, y) => clIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, prefShare(k));
 // Income tax reform delta at year y: Accord minus current law on the same income.
 export const taxAt = (k, y, fx = FISCAL_DEFAULTS) =>
-  accordIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, fx) - clTaxAt(k, y);
+  accordIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, fx, y) - clTaxAt(k, y);
 // Social Security contribution above the cap: 12.4% on all income above the per-worker cap,
-// with no benefit credit. The cap follows average wages, which grow 1.1% a year faster than
-// prices (Trustees intermediate real-wage differential).
-const SS_REAL_WAGE_GROWTH = 0.011;
+// with no benefit credit. The cap follows average wages (wageIndex).
 export function payrollFix(k, y, fx = FISCAL_DEFAULTS) {
   if (fx.ssUncapOn === false) return 0;
   const jFrac = BRACKETS[DEMO_BRACKET[k]].jFrac;
   const e = earnersPerFiler(jFrac);
-  const cap = SS_CAP_SNAPSHOT * Math.pow(1 + SS_REAL_WAGE_GROWTH, y);
+  const cap = SS_CAP_SNAPSHOT * wageIndex(fx, y);
   return SS_RATE * Math.max(0, incomeAt(k, y) / e - cap) * e;
 }
 
@@ -208,7 +213,7 @@ export function extraIncomeTax(k, y, P, fx = FISCAL_DEFAULTS) {
   if (x <= 0) return 0;
   const d = DEMOS[k], inc = incomeAt(k, y);
   return P.has('TAX')
-    ? accordIncomeTax(inc + x, d.hhSz, fx) - accordIncomeTax(inc, d.hhSz, fx)
+    ? accordIncomeTax(inc + x, d.hhSz, fx, y) - accordIncomeTax(inc, d.hhSz, fx, y)
     : clIncomeTax(inc + x, d.hhSz, prefShare(k)) - clIncomeTax(inc, d.hhSz, prefShare(k));
 }
 // After-tax share of the Accord's taxable flows in year y.
