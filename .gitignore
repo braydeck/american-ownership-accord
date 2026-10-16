@@ -1,5 +1,6 @@
 node_modules/
 dist/
 footer stuff
-docs/scripts/output/*.csv
+docs/
+scripts/output/*.csv
 scripts/output/*.log
