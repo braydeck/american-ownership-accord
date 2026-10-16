@@ -23,6 +23,7 @@ const LAB_ITEMS = [
   { key: 'renttax', label: 'Rent Tax Optimizer' },
   { key: 'market', label: 'Market Stabilization' },
   { key: 'lifetimegrants', label: 'Lifetime Grants' },
+  { key: 'designsearch', label: 'Design Search' },
 ];
 
 const LAB_KEYS = LAB_ITEMS.map((l) => l.key);

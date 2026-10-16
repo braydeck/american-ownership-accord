@@ -13,6 +13,7 @@ import IncomeTaxDesign from '@/pages/lab/IncomeTaxDesign.jsx';
 import RentTaxOptimizer from '@/pages/lab/RentTaxOptimizer.jsx';
 import MarketStabilization from '@/pages/lab/MarketStabilization.jsx';
 import LifetimeGrants from '@/pages/lab/LifetimeGrants.jsx';
+import DesignSearch from '@/pages/lab/DesignSearch.jsx';
 
 const PAGES = {
   fiscal: NationalBalanceSheet,
@@ -26,6 +27,7 @@ const PAGES = {
   renttax: RentTaxOptimizer,
   market: MarketStabilization,
   lifetimegrants: LifetimeGrants,
+  designsearch: DesignSearch,
 };
 
 function SiteFooter() {
