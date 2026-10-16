@@ -65,7 +65,10 @@ export const DEMOS = {
     hhSz:2.0,  save:0.85, ret:0.10, consume:0.01,
     taxChg:83691871, lvt:5e5,  homePct:0.05, k401Pct:0.05, finPct:0.30, bizPct:0.60 },
   ELON: { label:'Elon Musk', short:'Elon', color:'#6E0E14',
-    income:1e10,    nw:2.5e11,  incG:0.150, nwG:0.150,  accordIncG:0.124,
+    // Net worth $839B (Forbes annual list, March 2026). Grows 7.5% a year real: billionaire
+    // wealth has grown about 5 points a year faster than the economy (Saez & Zucman), on 2.5%
+    // real GDP growth.
+    income:1e10,    nw:8.39e11, incG:0.075, nwG:0.075,  accordIncG:0.124,
     // ETR now model-derived via billionaireETR(): economic income basis (reported + unrealized)
     hhSz:1.0,  save:0.95, ret:0.12, consume:0.001,
     taxChg:2796462204, lvt:5e6, homePct:0.02, k401Pct:0.01, finPct:0.15, bizPct:0.82 },

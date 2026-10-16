@@ -94,12 +94,14 @@ export function DesignCompare({ designs, ids }) {
           wealthiest individuals. Income is annual household income after taxes and transfers; net
           worth includes AMCF units, worker fund units and savings. 2024 dollars.
         </p>
-        <div className="max-w-md">
+        <div className="sticky top-14 z-20 -mx-4 px-4 py-2 bg-card/95 backdrop-blur border-b border-border">
+          <div className="max-w-md">
           <SliderControl
             label={`Year ${y} of the Accord`}
             value={y} onChange={setYear} min={1} max={HORIZON} step={1}
             helpText="Early years show the tax change before ownership builds up; later years include accumulated AMCF and worker fund wealth."
           />
+          </div>
         </div>
 
         <ChartContainer
