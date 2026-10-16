@@ -57,8 +57,7 @@ const BASE_PARAMS = {
   incomeTaxBrackets:      null,   // [[upper income bound, rate], ...]; null = the two-rate low/high/threshold form
   realizationOn:          true,   // gains realized at death and on gifts (incl. charitable), pledged-asset backstop (gaps item 3)
   ssUncapOn:              true,
-  retirementReserveShare: 0.10,   // share of Treasury-tranche cash credited to the OASDI trust funds (gaps item 4)
-  retirementReserveStart: 15,     // first year of Retirement Reserve transfers   // 12.4% Social Security contribution on all income above the cap, no benefit credit (gaps item 1)
+  ssBackstopOn:           true,   // general revenue tops the OASDI trust funds up to 100% of a year's cost (decided 2026-10-16)   // 12.4% Social Security contribution on all income above the cap, no benefit credit (gaps item 1)
   carbonRate:             100,
   stableTaxFrac:          STABLE_RENT_FRAC,
   publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
@@ -291,7 +290,7 @@ function runFiscalSimulation(p, horizon = 35) {
   let priceLevel = 1.0;
   let scarLevel = 0, prevCycGap = 0;
   let debt = p.startingDebt;
-  let ssTrustFund = null, ssDepletionYear = null;
+  let ssTrustFund = null, ssDepletionYear = null, ssBackstopStartYear = null;
   let creditBp = 0; // phased-in borrowing-cost credit, in rate units
 
   // Corporate value. Fundamental values grow with nominal GDP; market value = fundamental ×
@@ -544,25 +543,25 @@ function runFiscalSimulation(p, horizon = 35) {
     const debtReductionAMCF = solventBrakeActive ? treasuryFlow : saleToDebt;
     const discretionaryAMCF = solventBrakeActive ? 0 : treasuryFlow - saleToDebt;
     // Net Treasury purchases of units (cap overflow, term repurchases) are a cost even when spent.
-    // Retirement Reserve: a share of Treasury-tranche cash is credited to the OASDI trust funds.
-    // Taken from post-brake budget cash, it is no longer spent, so it lowers the unified deficit;
-    // while the brake is on, the same cash already retires debt.
-    const reserveTransfer = yr >= p.retirementReserveStart ? cashT * p.retirementReserveShare : 0;
-    const reserveFromBudget = solventBrakeActive || p.bankPostBrake ? 0 : Math.min(reserveTransfer, Math.max(0, discretionaryAMCF));
-    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF)) - reserveFromBudget;
+    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
     debt = debt + deficit - debtReductionAMCF;
     // OASDI trust funds: scheduled benefits stay in spending (CBO convention); the balance
     // shows whether they are payable under law. The contribution above the cap is credited
-    // to the funds by statute.
+    // to the funds by statute. With the backstop on, general revenue tops the funds up to 100%
+    // of the year's cost whenever they fall below it. The transfer is intragovernmental, so it
+    // leaves the unified deficit unchanged.
     const fy = 2025 + yr;
     // Benefits follow wages, so the Accord's productivity effects raise cost along with payroll.
     // Extra immigrants pay in now and claim later: their share of cost phases in over 45 years.
     const ssCostGdp = potentialBase * priceLevel * growthLevel * (1 + (immLevel - 1) * Math.min(1, yr / SS_IMMIGRANT_COST_LAG));
     const ssCost = interp(SS_COST_RATE, fy) * TAXABLE_PAYROLL_GDP * ssCostGdp;
     if (ssTrustFund == null) ssTrustFund = SS_START_RATIO * ssCost;
-    const ssIncome = interp(SS_INCOME_RATE, fy) * TAXABLE_PAYROLL_GDP * nominalGdp + payrollFix + reserveTransfer;
+    const ssIncome = interp(SS_INCOME_RATE, fy) * TAXABLE_PAYROLL_GDP * nominalGdp + payrollFix;
     ssTrustFund = ssTrustFund * (1 + effectiveRate) + ssIncome - ssCost;
     if (ssDepletionYear == null && ssTrustFund < 0) ssDepletionYear = yr;
+    const ssGeneralTransfer = p.ssBackstopOn ? Math.max(0, ssCost - ssTrustFund) : 0;
+    if (ssBackstopStartYear == null && ssGeneralTransfer > 0) ssBackstopStartYear = yr;
+    ssTrustFund += ssGeneralTransfer;
     const netSovPos = debt - tClaim;
 
     // ── Current-law path ──
@@ -604,7 +603,7 @@ function runFiscalSimulation(p, horizon = 35) {
       workerUnitAccrual: T(workerUnitAccrual), wefUnits: T(wefUnits), wefPriceReal: +(wefPrice / priceLevel).toFixed(4), workerOwnershipPct: +((totalEV > 0 ? workerEquity / totalEV : 0) * 100).toFixed(1),
       combinedYield: +(combinedYield * 100).toFixed(2),
       amcfCashFlow: T(amcfCashFlow), amcfDividends: T(amcfCashFlow), treasuryCash: T(cashT),
-      healthcareAMCF: T(healthcareAMCF), reserveTransfer: T(reserveTransfer), ssTrustFund: T(ssTrustFund), ssTrustFundRatio: +(ssTrustFund / ssCost * 100).toFixed(0), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
+      healthcareAMCF: T(healthcareAMCF), ssGeneralTransfer: T(ssGeneralTransfer), ssTrustFund: T(ssTrustFund), ssIncome: T(ssIncome), ssCost: T(ssCost), ssTrustFundRatio: +(ssTrustFund / ssCost * 100).toFixed(0), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
       unitSaleProceeds: T(unitSaleProceeds), citizenWithdrawals: T(withdrawals),
       citizenUnitPurchases: T(citizenBuysW + citizenBuysT), treasuryUnitPurchases: T(treasuryBuysW), expiryBuyback: T(expiryBuyback),
       privateUnitPct: +((tClaim + cClaim + pClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim) * 100 : 0).toFixed(1),
@@ -635,11 +634,15 @@ function runFiscalSimulation(p, horizon = 35) {
   let fiscalGoalYear = null;
   for (let i = goalOk.length - 1; i >= 0 && goalOk[i]; i--) fiscalGoalYear = goalRows[i].year;
 
+  // ssDepletionYear: first year the funds would run out without the backstop.
+  // ssBackstopStartYear: first year general revenue tops them up (backstop on).
   const ssDepletion = longRun ? longRun.milestones.ssDepletionYear : ssDepletionYear;
+  const ssBackstopStart = longRun ? longRun.milestones.ssBackstopStartYear : ssBackstopStartYear;
 
   const m = {
     fiscalGoalYear,
     ssDepletionYear: ssDepletion,
+    ssBackstopStartYear: ssBackstopStart,
     fiscalCrossoverYear:   rows.find(r => r.deficit < 0)?.year ?? null,
     interestThresholdYear: rows.find(r => r.intToRev < BRAKE_THRESHOLD_PCT)?.year ?? null,
     debtPeakYear:          rows.reduce((b, r) => r.grossDebt > b.grossDebt ? r : b, rows[0]).year,
