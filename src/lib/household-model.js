@@ -8,7 +8,7 @@ import { BRACKETS, CARBON_TONS } from '@/lib/brackets';
 import { lvtNetIncidenceArray, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 import { DEMOS, DEMO_KEYS, POP, PROG_LOST, AMCF_LIQ_BASE, CL_ETR } from '@/lib/demographics';
 import { CL_SCHED, accordSchedule, accordScheduleTax, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE } from '@/lib/income-tax';
-import { BASE_PARAMS, carbonDividendPerCapita, carbonDecayFactor, realGrantSeries, householdFiscalSeries } from '@/lib/fiscal-engine';
+import { PCE_GDP_SHARE, BASE_PARAMS, carbonDividendPerCapita, carbonDecayFactor, realGrantSeries, householdFiscalSeries } from '@/lib/fiscal-engine';
 import { psuDividendPerFiler, wefBalancePerFiler, sectoralBalancePerFiler, extraGrantsPerFiler } from '@/lib/worker-equity';
 
 export const BASE_ONLY = new Set(['BASE']);
@@ -231,7 +231,10 @@ function reformCosts(k, y, P, fx) {
   const bi = DEMO_BRACKET[k], inc = incomeAt(k, y);
   return {
     incomeTax: taxAt(k, y, fx),
-    vat: fx.vatRate * BRACKETS[bi].cRat * inc,
+    // The VAT reaches consumption other than housing services. Assumption: housing is the same
+    // share of every bracket's consumption; renters' higher shelter shares would make this
+    // slightly more progressive.
+    vat: fx.vatRate * BRACKETS[bi].cRat * inc * (fx.vatBaseFrac / PCE_GDP_SHARE),
     lvt: lvtNetBr(k, y, P, fx),
     carbon: carbonCostAt(bi, y, fx),
     payrollFix: payrollFix(k, y, fx),

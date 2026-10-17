@@ -41,7 +41,10 @@ const BASE_PARAMS = {
   assetRateCreditBp:      1,      // bp off the Treasury's rate per point of GDP held in the Treasury tranche
   // ── Revenue ──
   vatRate:                0.10,
-  vatBaseFrac:            0.68,   // canonical §3.1 universal base: all personal consumption, ~68% of GDP (BEA)
+  // VAT base: personal consumption (~68% of GDP) less housing services, which no VAT taxes:
+  // owner-occupied imputed rent ($2.50T) and tenant rent ($0.77T) were 15.9% of PCE in 2025
+  // (BEA via FRED). Decided 2026-10-16. New residential construction is investment, outside PCE.
+  vatBaseFrac:            0.57,
   lvtRate:                0.10,
   lvtModel:               'capitalized', // 'capitalized' | 'legacy'
   lvtExemption:           0,             // 0 = no homeowner exemption; 500000 to restore it
@@ -202,6 +205,7 @@ const LABOR_SUB_ELASTICITY = [0.30, 0.20, 0.10];
 const LABOR_INC_ELASTICITY = [-0.10, -0.05, 0];
 const LABOR_OUTPUT_SHARE = 0.65;
 const LABOR_PHASE_YEARS = 5;
+export const PCE_GDP_SHARE = 0.68; // personal consumption expenditures as a share of GDP (BEA)
 const CL_EMPLOYEE_PAYROLL = 0.0765, CL_PAYROLL_ABOVE_CAP = 0.0145;
 // Current-law marginal rates from the programs the prebate replaces, by bracket: the EITC
 // phase-in (negative) at the bottom, then EITC and SNAP phase-outs. Assumption scaled to CBO
@@ -212,8 +216,8 @@ function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
   const i = GROWTH_CASE_INDEX[p.growthCase] ?? 1;
   const sched = accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
     lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold });
-  const vatEff = p.vatRate * 0.9;
-  const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (p.vatBaseFrac * p.startingGdp * realIdx);
+  const vatEff = p.vatRate * 0.9 * (p.vatBaseFrac / PCE_GDP_SHARE); // share of consumption the VAT reaches
+  const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (PCE_GDP_SHARE * p.startingGdp * realIdx);
   const tc = vatEff + carbonEff;
   const prebate = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) / gdpPcIdx; // in snapshot-income terms
   const cdiv = carbonDividendPerCapita(p.carbonRate) * carbonDecayFactor(yr) / gdpPcIdx;
