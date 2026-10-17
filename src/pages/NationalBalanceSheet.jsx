@@ -375,6 +375,7 @@ function RevenueChart({ rows, compareRows }) {
     "Income Tax": r.incomeTax,
     "Payroll Tax": r.payrollTax,
     "VAT (gross)": r.vatGross,
+    "Financial Activities Tax": r.fatRev,
     "LVT": r.lvtRev,
     "SS Contribution Above Cap": r.payrollFix,
     "Carbon": r.carbonRev,
@@ -400,6 +401,7 @@ function RevenueChart({ rows, compareRows }) {
         <Bar dataKey="Income Tax" stackId="rev" fill="#60a5fa" />
         <Bar dataKey="Payroll Tax" stackId="rev" fill="#93c5fd" />
         <Bar dataKey="VAT (gross)" stackId="rev" fill={C.accordLight} />
+        <Bar dataKey="Financial Activities Tax" stackId="rev" fill="#8fb8a8" />
         <Bar dataKey="LVT" stackId="rev" fill="#307ca6" />
         <Bar dataKey="SS Contribution Above Cap" stackId="rev" fill="#a9cde0" />
         <Bar dataKey="Carbon" stackId="rev" fill="#fcd34d" />

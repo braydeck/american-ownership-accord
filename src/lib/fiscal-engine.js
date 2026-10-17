@@ -41,10 +41,12 @@ const BASE_PARAMS = {
   assetRateCreditBp:      1,      // bp off the Treasury's rate per point of GDP held in the Treasury tranche
   // ── Revenue ──
   vatRate:                0.10,
-  // VAT base: personal consumption (~68% of GDP) less housing services, which no VAT taxes:
-  // owner-occupied imputed rent ($2.50T) and tenant rent ($0.77T) were 15.9% of PCE in 2025
-  // (BEA via FRED). Decided 2026-10-16. New residential construction is investment, outside PCE.
-  vatBaseFrac:            0.57,
+  // VAT base (decided 2026-10-16): personal consumption (~68% of GDP) less housing services
+  // (owner-occupied imputed rent $2.50T and tenant rent $0.77T, 15.9% of PCE in 2025) and less
+  // financial services and insurance ($1.69T), which the FAT taxes instead (BEA via FRED).
+  vatBaseFrac:            0.514,
+  vatNewHomesOn:          true,   // VAT on new residential construction at the full price, land included (decided 2026-10-16)
+  fatOn:                  true,   // Financial Activities Tax on financial firms' profits plus pay (decided 2026-10-16)
   lvtRate:                0.10,
   lvtModel:               'capitalized', // 'capitalized' | 'legacy'
   lvtExemption:           0,             // 0 = no homeowner exemption; 500000 to restore it
@@ -206,6 +208,21 @@ const LABOR_INC_ELASTICITY = [-0.10, -0.05, 0];
 const LABOR_OUTPUT_SHARE = 0.65;
 const LABOR_PHASE_YEARS = 5;
 export const PCE_GDP_SHARE = 0.68; // personal consumption expenditures as a share of GDP (BEA)
+// New residential construction: private residential fixed investment, $1.18T in 2025 (BEA),
+// 3.9% of GDP. The VAT reaches housing by taxing new homes once, as New Zealand's GST does.
+export const NEW_HOMES_GDP = 0.039;
+// Financial Activities Tax: financial firms' profits plus pay (their value added), 7.6% of GDP
+// (finance and insurance GDP $2.23T in 2024), taxed at the VAT rate times the share households
+// buy (household financial services and insurance $1.69T of $2.23T, 76%). This stands in for
+// the VAT the sector's margins escape.
+export const FINANCE_VA_GDP = 0.076;
+export const FAT_HOUSEHOLD_SHARE = 0.76;
+// Share of household consumption the consumption taxes reach, for household burdens and the
+// labor wedge: the VAT base, plus new homes and household financial services when they are taxed.
+export function consumptionTaxCoverage(p) {
+  return (p.vatBaseFrac + (p.vatNewHomesOn ? NEW_HOMES_GDP : 0)
+    + (p.fatOn ? FINANCE_VA_GDP * FAT_HOUSEHOLD_SHARE : 0)) / PCE_GDP_SHARE;
+}
 const CL_EMPLOYEE_PAYROLL = 0.0765, CL_PAYROLL_ABOVE_CAP = 0.0145;
 // Current-law marginal rates from the programs the prebate replaces, by bracket: the EITC
 // phase-in (negative) at the bottom, then EITC and SNAP phase-outs. Assumption scaled to CBO
@@ -216,7 +233,7 @@ function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
   const i = GROWTH_CASE_INDEX[p.growthCase] ?? 1;
   const sched = accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
     lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold });
-  const vatEff = p.vatRate * 0.9 * (p.vatBaseFrac / PCE_GDP_SHARE); // share of consumption the VAT reaches
+  const vatEff = p.vatRate * 0.9 * consumptionTaxCoverage(p);
   const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (PCE_GDP_SHARE * p.startingGdp * realIdx);
   const tc = vatEff + carbonEff;
   const prebate = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) / gdpPcIdx; // in snapshot-income terms
@@ -485,7 +502,8 @@ function runFiscalSimulation(p, horizon = 35) {
     const el = line => Math.max(0, 1 - ((REV_ELASTICITY[line] ?? 1.0) - 1) * cycGap);
     const elLvt = Math.max(0, 1 - (REV_ELASTICITY.lvt - 1) * prevCycGap);
     const vatCompliance = Math.min(0.75 + 0.025 * (yr - 1), 0.90);
-    const vatGross = nominalGdp * p.vatBaseFrac * p.vatRate * vatCompliance * el('vat');
+    const vatGross = nominalGdp * (p.vatBaseFrac + (p.vatNewHomesOn ? NEW_HOMES_GDP : 0)) * p.vatRate * vatCompliance * el('vat');
+    const fatRev = p.fatOn ? nominalGdp * FINANCE_VA_GDP * p.vatRate * FAT_HOUSEHOLD_SHARE * el('vat') : 0;
     const lvtRev = lvtRevForFiscal({
       rate: p.lvtRate, year: yr, nominalGdp,
       model: p.lvtModel, exemption: p.lvtExemption,
@@ -510,7 +528,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const otherTax = nominalGdp * 0.010;
     const realizationRev = p.realizationOn ? nominalGdp * REALIZATION_GDP : 0;
     const publicOptionRev = nominalGdp * p.publicOptionRevenue * ramp(yr, 2, 6);
-    const grossRev = vatGross + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax
+    const grossRev = vatGross + fatRev + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax
       + incomeTax + payrollTax + otherTax + publicOptionRev + realizationRev;
     // Output added by immigrants is taxed at a lower average rate (CBO 2024).
     const immGdpShare = 1 - 1 / immLevel;
@@ -614,7 +632,7 @@ function runFiscalSimulation(p, horizon = 35) {
       solventBrakeActive,
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
       ceocSpend: T(ceocSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
-      vatGross: T(vatGross), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
+      vatGross: T(vatGross), fatRev: T(fatRev), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
       payrollFix: T(payrollFix), realizationRev: T(realizationRev), gdpPerCapIdx: +gdpPcIdx.toFixed(4), laborLevel: +laborLevel.toFixed(4), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
       otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
       cycGap: +(cycGap * 100).toFixed(2), clCycGap: +(clCycGap * 100).toFixed(2),
