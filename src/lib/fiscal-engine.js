@@ -18,6 +18,13 @@ const BASE_PARAMS = {
   smallFirmEvShare:       0.08,   // share of corporate EV in Tier 1 firms (<$10M EV), outside the worker trust (assumption)
   creditCapFrac:          0.20,   // codetermination credits offset up to 20% of Growth Tax
   startingEvRatio:        2.4,    // EV/GDP at Year 0: 2015–25 average of nonfinancial equity + debt (Fed Z.1)
+  // Financial corporations in the Growth Tax and worker trusts (decided 2026-10-18), on the market
+  // value of their equity: $23.19T of financial-sector equity at end-2025 less $14.23T of ETF and
+  // other investment-fund shares, which hold already-taxed companies (Fed Z.1). REITs are in;
+  // cooperatives (mutual insurers, credit unions) have no shares and are out. Assumption: the
+  // same payout yield as nonfinancial corporations.
+  financialGrowthTaxOn:   true,
+  financialEquityGdp:     0.295,
   revaluationOn:          true,   // one-time rise in corporate value from repealing the corporate tax
   revaluationPct:         0.18,   // central of +13% to +27% (1/(1−t), capital share of incidence)
   entrantShare:           0.015,  // new firms + net issuance as a share of EV per year (Bernstein & Arnott)
@@ -316,7 +323,8 @@ function runFiscalSimulation(p, horizon = 35) {
 
   // Corporate value. Fundamental values grow with nominal GDP; market value = fundamental ×
   // valuation gap (recession shocks, recovering toward 1). Incumbents and entrants are pools.
-  const ev0 = p.startingEvRatio * p.startingGdp * (p.revaluationOn ? 1 + p.revaluationPct : 1);
+  const ev0 = (p.startingEvRatio + (p.financialGrowthTaxOn ? p.financialEquityGdp : 0)) * p.startingGdp
+    * (p.revaluationOn ? 1 + p.revaluationPct : 1);
   let fundInc = ev0, fundEnt = 0;
   let valGap = 1;
   let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
