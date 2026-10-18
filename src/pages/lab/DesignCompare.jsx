@@ -14,8 +14,8 @@ import {
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { useUrlValue } from '@/lib/url-state';
 import { BASE_PARAMS } from '@/lib/fiscal-engine';
-import { getInc, getNW, BASE_ONLY } from '@/lib/household-model';
-import { DEMOS, DEMO_KEYS } from '@/lib/demographics';
+import { getInc, getNW, BASE_ONLY, computeGini } from '@/lib/household-model';
+import { DEMOS, DEMO_KEYS, POP } from '@/lib/demographics';
 import { paramsFromDesign, fxFromParams } from '@/lib/design-params';
 
 const ALL = new Set(['BASE', 'TAX', 'PRE', 'AMCF', 'PSU_D', 'PSU_C']);
@@ -98,6 +98,19 @@ export function DesignCompare({ designs, ids, onRemove }) {
     return { ...s, avgEarly: early.reduce((a, b) => a + b.v, 0) / 10, worstEarly, worst, firstBehind,
       nw10: nwLine[9][s.key], nw30: nwLine[29][s.key] };
   });
+  // Inequality across the 13 groups, weighted by population, each year (current law included).
+  const gini = (data, y, metric) => computeGini(DEMO_KEYS.map(k => ({ v: Math.max(data[y][k][metric], 0), w: POP[k] })));
+  const giniLine = metric => Array.from({ length: HORIZON }, (_, i) => {
+    const yy = i + 1, r = { year: yy, 'Current law': gini(series.law, yy, metric) };
+    for (const s of series.list) r[s.key] = gini(s.data, yy, metric);
+    return r;
+  });
+  const incGini = giniLine('inc'), nwGini = giniLine('nw');
+  const giniLines = [
+    <Line key="law" dataKey="Current law" stroke="#71717a" strokeDasharray="5 4" strokeWidth={2} dot={false} isAnimationActive={false} />,
+    ...series.list.map(s => <Line key={s.key} dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} isAnimationActive={false} />),
+  ];
+
   const lines = series.list.map(s => (
     <Line key={s.key} dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} isAnimationActive={false} />
   ));
@@ -125,6 +138,48 @@ export function DesignCompare({ designs, ids, onRemove }) {
             </span>
           ))}
           <span className="text-[11px] text-muted-foreground self-center">Select any design above and use "Add to comparison" to add it.</span>
+        </div>
+
+        <h3 className="text-sm font-semibold">Inequality over time</h3>
+        <p className="text-[11px] text-muted-foreground mb-1">
+          Gini coefficients across the 13 household groups, weighted by population. Lower is more equal.
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
+          {[['Income Gini', incGini], ['Net-worth Gini', nwGini]].map(([title, data]) => (
+            <ChartContainer key={title} title={title} height={260} className="mt-3">
+              <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                <CartesianGrid {...CHART_GRID} />
+                <XAxis dataKey="year" {...CHART_AXIS} />
+                <YAxis {...CHART_AXIS} domain={['auto', 'auto']} tickFormatter={v => v.toFixed(2)} width={44} />
+                <Tooltip formatter={(v, n) => [v.toFixed(3), n]} labelFormatter={yy => `Year ${yy}`} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                {giniLines}
+              </LineChart>
+            </ChartContainer>
+          ))}
+        </div>
+        <div className="rounded-lg border overflow-x-auto mt-4 mb-10">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                {['Design', 'Income Gini, Yr 5', 'Yr 10', 'Yr 30', 'Net-worth Gini, Yr 5', 'Yr 10', 'Yr 30'].map((h, i) => (
+                  <TableHead key={i} className={i === 0 ? 'whitespace-nowrap' : 'text-right whitespace-nowrap'}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[{ key: 'Current law', color: '#71717a' }, ...series.list].map(s => (
+                <TableRow key={s.key}>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ background: s.color }} />{s.key}
+                  </TableCell>
+                  {[incGini, nwGini].flatMap(data => [5, 10, 30].map(yy => (
+                    <TableCell key={`${data === incGini ? 'i' : 'n'}${yy}`} className="text-right text-xs">{data[yy - 1][s.key].toFixed(3)}</TableCell>
+                  )))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         <h3 className="text-sm font-semibold">One group over time</h3>
