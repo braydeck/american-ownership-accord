@@ -6,7 +6,7 @@
 // realValue = nominalValue / row.priceLevel. See realGrantSeries and householdFiscalSeries.
 import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/land';
 import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS, accordSchedule, accordScheduleTax, accordMarginalRate,
-  clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE } from '@/lib/income-tax';
+  clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE, etiTopFloor, bracketPoints } from '@/lib/income-tax';
 import { BRACKETS } from '@/lib/brackets';
 import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
 import { cboFiscalShares, CBO_REV_MIX_2026 } from '@/lib/cbo-baseline';
@@ -245,24 +245,26 @@ function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
   const tc = vatEff + carbonEff;
   const prebate = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) / gdpPcIdx; // in snapshot-income terms
   const cdiv = carbonDividendPerCapita(p.carbonRate) * carbonDecayFactor(yr) / gdpPcIdx;
-  // Brackets in the top rate respond through the elasticity of taxable income in income-tax.js,
+  // Filers above ETI_TOP_INCOME respond through the elasticity of taxable income in income-tax.js,
   // which already shrinks their base, so they are left out here.
-  const topFloor = sched.length > 1 ? sched[sched.length - 2][0] : Infinity;
+  const topFloor = etiTopFloor(sched);
   let wSum = 0, sub = 0, inc = 0;
   BRACKETS.forEach((b, bi) => {
-    const agi = b.agi / b.filers;
-    if (agi > topFloor) return;
-    const w = b.agi * (1 - b.cgShare);
-    const aboveCap = agi / earnersPerFiler(b.jFrac) > SS_CAP_SNAPSHOT;
-    const pay = aboveCap ? CL_PAYROLL_ABOVE_CAP : CL_EMPLOYEE_PAYROLL;
-    const ssExtra = p.ssUncapOn && aboveCap ? SS_RATE / 2 : 0;
+    const pts = bracketPoints(bi), mean = b.agi / b.filers;
     const ded = b.jFrac * p.incomeTaxExemptJoint + (1 - b.jFrac) * p.incomeTaxExemptSingle;
-    const nCL = (1 - clMarginalRate(agi, b.jFrac) - CL_PROGRAM_MARGINAL[bi] - pay) / (1 + pay);
-    const nA = (1 - accordMarginalRate(agi, ded, sched) - pay - ssExtra) / (1 + pay + ssExtra) / (1 + tc);
-    const taxDelta = accordScheduleTax(agi, ded, sched) - b.effCL * agi + tc * b.cRat * agi
-      + (p.ssUncapOn ? SS_RATE * ssAboveCapBase(agi, b.jFrac) : 0);
-    const dY = ((prebate + cdiv) * b.hhSz - taxDelta) / (agi * (1 - b.effCL - pay));
-    wSum += w; sub += w * Math.log(Math.max(0.05, nA) / Math.max(0.05, nCL)); inc += w * dY;
+    for (const agi of pts) {
+      if (agi > topFloor) continue;
+      const w = b.agi * (1 - b.cgShare) * agi / mean / pts.length;
+      const aboveCap = agi / earnersPerFiler(b.jFrac) > SS_CAP_SNAPSHOT;
+      const pay = aboveCap ? CL_PAYROLL_ABOVE_CAP : CL_EMPLOYEE_PAYROLL;
+      const ssExtra = p.ssUncapOn && aboveCap ? SS_RATE / 2 : 0;
+      const nCL = (1 - clMarginalRate(agi, b.jFrac) - CL_PROGRAM_MARGINAL[bi] - pay) / (1 + pay);
+      const nA = (1 - accordMarginalRate(agi, ded, sched) - pay - ssExtra) / (1 + pay + ssExtra) / (1 + tc);
+      const taxDelta = accordScheduleTax(agi, ded, sched) - b.effCL * agi + tc * b.cRat * agi
+        + (p.ssUncapOn ? SS_RATE * ssAboveCapBase(agi, b.jFrac) : 0);
+      const dY = ((prebate + cdiv) * b.hhSz - taxDelta) / (agi * (1 - b.effCL - pay));
+      wSum += w; sub += w * Math.log(Math.max(0.05, nA) / Math.max(0.05, nCL)); inc += w * dY;
+    }
   });
   const dL = LABOR_SUB_ELASTICITY[i] * sub / wSum + LABOR_INC_ELASTICITY[i] * inc / wSum;
   return LABOR_OUTPUT_SHARE * dL * Math.min(1, yr / LABOR_PHASE_YEARS);
@@ -403,13 +405,13 @@ function runFiscalSimulation(p, horizon = 35) {
     const evGrowth = Math.max(0, totalEV - prevEvTotal);
 
     // Equity Excise and codetermination credits
-    const prevWorkerFrac = prevEvTotal > 0 ? workerEquity / prevEvTotal : 0;
     // Tier 2 and larger firms ($10M+ EV) fund a worker trust; Tier 1 firms pay into the Sectoral Fund instead.
     const trustEV = totalEV * (1 - p.smallFirmEvShare);
-    if (!workerAtCap && prevWorkerFrac >= WORKER_EQUITY_CAP * (1 - p.smallFirmEvShare)) workerAtCap = true;
-    const equityExcise = workerAtCap ? 0 : trustEV * p.equityExciseRate;
-    workerEquity = workerAtCap ? trustEV * WORKER_EQUITY_CAP
-      : workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1) + equityExcise;
+    const carriedWorker = workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1);
+    // The excise stops at the cap within the year it is reached, so the trust never overshoots 21%.
+    const equityExcise = workerAtCap ? 0 : Math.min(trustEV * p.equityExciseRate, Math.max(0, trustEV * WORKER_EQUITY_CAP - carriedWorker));
+    workerEquity = workerAtCap ? trustEV * WORKER_EQUITY_CAP : carriedWorker + equityExcise;
+    if (!workerAtCap && workerEquity >= trustEV * WORKER_EQUITY_CAP * (1 - 1e-9)) workerAtCap = true;
     const creditGenerated = equityExcise;
     const available = creditBalance + creditGenerated;
     const creditUsed = Math.min(available, growthTax * p.creditCapFrac);

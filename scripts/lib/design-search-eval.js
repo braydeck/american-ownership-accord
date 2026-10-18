@@ -51,6 +51,31 @@ export function designFromUnit(u) {
 }
 export const UNIT_DIMS = 13;
 
+// Curve schedule (Brayden, 2026-10-18): the marginal rate rises from the low rate at a start
+// income to the top rate at an end income, following low + (top − low) · t^shape with t running
+// 0 → 1 in log income, stepped in CURVE_STEPS brackets. Uses the same low, top and non-income-tax
+// lever ranges as designFromUnit; u[0], u[3] and u[4] set start, end and shape.
+export const CURVE_STEPS = 16;
+export function curveBrackets({ low, top, start, end, shape }) {
+  const b = [[start, low]];
+  for (let k = 1; k <= CURVE_STEPS; k++)
+    b.push([Math.round(start * Math.pow(end / start, k / CURVE_STEPS)), +(low + (top - low) * Math.pow((k - 0.5) / CURVE_STEPS, shape)).toFixed(4)]);
+  return [...b, [Infinity, top]];
+}
+const logRange = (u, a, b) => a * Math.pow(b / a, u);
+export function curveDesignFromUnit(u) {
+  const base = designFromUnit(u);
+  const curve = {
+    low: +(0.10 + 0.15 * u[1]).toFixed(4), top: +(0.40 + 0.20 * u[2]).toFixed(4),
+    start: Math.round(logRange(u[0], 100e3, 300e3) / 5e3) * 5e3,
+    shape: +logRange(u[4], 0.33, 1.5).toFixed(3),
+  };
+  curve.end = Math.round(curve.start * logRange(u[3], 1.5, 10) / 10e3) * 10e3;
+  const brackets = curveBrackets(curve);
+  return { ...base, incomeTaxBrackets: brackets, incomeTaxLow: curve.low, incomeTaxHigh: curve.top,
+    incomeTaxThreshold: brackets[brackets.length - 2][0], curve };
+}
+
 const giniAt = (fn, y) => computeGini(DEMO_KEYS.map(k => ({ v: Math.max(fn(k, y), 0), w: POP[k] })));
 
 export function evaluate(design) {
@@ -94,4 +119,38 @@ export function groupGains(design, k, years) {
     income: getInc(k, y, ALL, fx).total - getInc(k, y, BASE_ONLY, fx).total,
     netWorth: getNW(k, y, ALL, fx).total - getNW(k, y, BASE_ONLY, fx).total,
   }));
+}
+
+// Zero-start curve (Brayden, 2026-10-18): no standard deduction. The marginal rate is 0% up to
+// zeroEnd, then rises to the top rate at `end`, following top · t^shape with t running 0 → 1 in log
+// income, stepped in ZERO_CURVE_STEPS brackets. u[0], u[2], u[3] and u[4] set zeroEnd, top, end
+// and shape; the top rate runs 40-62% (62% accepted 2026-10-18).
+export const ZERO_CURVE_STEPS = 24;
+export function zeroCurveBrackets({ zeroEnd, end, top, shape }) {
+  const b = [[zeroEnd, 0]];
+  for (let k = 1; k <= ZERO_CURVE_STEPS; k++)
+    b.push([Math.round(zeroEnd * Math.pow(end / zeroEnd, k / ZERO_CURVE_STEPS)), +(top * Math.pow((k - 0.5) / ZERO_CURVE_STEPS, shape)).toFixed(4)]);
+  return [...b, [Infinity, top]];
+}
+export function zeroCurveDesignFromUnit(u) {
+  const base = designFromUnit(u);
+  const zc = {
+    zeroEnd: Math.round(logRange(u[0], 15e3, 150e3) / 1e3) * 1e3,
+    top: +(0.40 + 0.22 * u[2]).toFixed(4),
+    shape: +logRange(u[4], 0.5, 3).toFixed(3),
+  };
+  zc.end = Math.round(zc.zeroEnd * logRange(u[3], 3, 60) / 10e3) * 10e3;
+  const brackets = zeroCurveBrackets(zc);
+  return { ...base, incomeTaxBrackets: brackets, incomeTaxLow: 0, incomeTaxHigh: zc.top,
+    incomeTaxThreshold: brackets[brackets.length - 2][0], incomeTaxExemptJoint: 0, incomeTaxExemptSingle: 0, zeroCurve: zc };
+}
+
+// Income and net-worth gains over current law for each group and year, from one household run.
+export function gainsTable(design, groups, years) {
+  const p = { ...BASE_PARAMS, ...design };
+  const fx = { ...p, grants: realGrantSeries(p), hh: householdFiscalSeries(p) };
+  return Object.fromEntries(groups.map(k => [k, years.map(y => ({
+    income: getInc(k, y, ALL, fx).total - getInc(k, y, BASE_ONLY, fx).total,
+    netWorth: getNW(k, y, ALL, fx).total - getNW(k, y, BASE_ONLY, fx).total,
+  }))]));
 }

@@ -17,16 +17,28 @@ import {
 import { CHART_GRID, CHART_AXIS } from '@/lib/chart-config';
 import { useUrlValue } from '@/lib/url-state';
 import DATA from '@/data/design-search.json';
+import CURVE from '@/data/curve-search.json';
+import ZERO from '@/data/zero-curve-search.json';
 import VARIANTS from '@/data/design-variants.json';
 import { DesignCompare } from '@/pages/lab/DesignCompare';
 
-// Every design the page can show: searched designs plus named variants of them
+// Every design the page can show: bracket designs, curve designs (ids from 10000), zero-start
+// curves (ids from 20000; same seed, so design 10000 + i and 20000 + i share their other levers with
+// bracket design i) and named variants
 // (scripts/design-variants.mjs).
-const ALL_DESIGNS = [...DATA.passing, ...VARIANTS];
+const ALL_DESIGNS = [...DATA.passing, ...CURVE.passing, ...ZERO.passing, ...VARIANTS];
+const FAMILIES = [
+  { key: 'both', label: 'All shapes' },
+  { key: 'brackets', label: 'Brackets' },
+  { key: 'curve', label: 'Curves' },
+  { key: 'zero', label: 'Curves from zero' },
+];
+const familyData = f => (f === 'brackets' ? [DATA] : f === 'curve' ? [CURVE] : f === 'zero' ? [ZERO] : [DATA, CURVE, ZERO]);
+const sumCounts = sets => Object.fromEntries(Object.keys(DATA.counts).map(k => [k, sets.reduce((a, x) => a + x.counts[k], 0)]));
 const designName = d => d.name ?? `Design ${d.id}`;
 // Designs compared by default: the two robust designs that keep P80 furthest ahead in Years 1-10
 // while raising the bottom half most, and the refined variant of design 1321.
-const COMPARE_IDS = [4148, 1976, '1321-balanced'];
+const COMPARE_IDS = ['21877-opt', '13610-opt', '1976-opt', '4148-opt'];
 
 const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
@@ -36,6 +48,18 @@ const money = v => `$${Math.round(v).toLocaleString()}`;
 const threshold = t => (t >= 1e6 ? `$${t / 1e6}M` : `$${t / 1e3}K`);
 const yr = v => (v == null ? 'Never' : `Yr ${v}`);
 const indexLabel = v => (v === 0 ? 'CPI only' : `CPI + ${v * 100}% of real GDP/person growth`);
+
+function scheduleText(d) {
+  if (d.zeroCurve) {
+    const { zeroEnd, end, top, shape } = d.zeroCurve;
+    const pace = shape < 0.8 ? 'rising fastest near the start' : shape > 1.2 ? 'rising fastest near the end' : 'rising evenly';
+    return `0% to ${threshold(zeroEnd)} with no standard deduction, then a smooth rise to ${pct(top)} at ${threshold(end)} (${pace})`;
+  }
+  if (!d.curve) return bracketText(d.brackets);
+  const { low, top, start, end, shape } = d.curve;
+  const pace = shape < 0.8 ? 'rising fastest near the start' : shape > 1.2 ? 'rising fastest near the end' : 'rising evenly';
+  return `${pct(low)} to ${threshold(start)}, then a smooth rise to ${pct(top)} at ${threshold(end)} (${pace})`;
+}
 
 function bracketText(brackets) {
   let lo = 0;
@@ -68,7 +92,11 @@ function inView(d, view) {
 export default function DesignSearch() {
   const [view, setView] = useUrlValue('dsview', 'robust');
   const [sortKey, setSortKey] = useUrlValue('dssort', 'incomeGiniY30');
-  const defaultId = 4148;
+  const [family, setFamily] = useUrlValue('dsfam', 'both');
+  const sets = familyData(family);
+  const counts = sumCounts(sets);
+  const tested = sets.reduce((a, x) => a + x.designs, 0);
+  const defaultId = '21877-opt';
   const [selectedId, setSelectedId] = useState(defaultId);
   const [compareIds, setCompareIds] = useState(COMPARE_IDS);
   const addCompare = id => setCompareIds(c => (c.includes(id) || c.length >= 5 ? c : [...c, id]));
@@ -76,18 +104,18 @@ export default function DesignSearch() {
 
   const scatter = useMemo(() => {
     const out = { fail: [], pass15: [], pass10: [], robust: [] };
-    DATA.points.forEach(([x, y, s], id) => {
+    for (const set of familyData(family)) set.points.forEach(([x, y, s], i) => {
       const key = ['fail', 'pass15', 'pass10', 'robust'][s];
-      out[key].push({ x, y, id });
+      out[key].push({ x, y, id: (set.idStart ?? 0) + i });
     });
     return out;
-  }, []);
+  }, [family]);
 
   const rows = useMemo(() => {
     const { dir } = SORTS[sortKey];
-    return DATA.passing.filter(d => inView(d, view))
+    return familyData(family).flatMap(x => x.passing).filter(d => inView(d, view))
       .sort((a, b) => dir * ((a[sortKey] ?? 99) - (b[sortKey] ?? 99)));
-  }, [view, sortKey]);
+  }, [view, sortKey, family]);
 
   const selected = ALL_DESIGNS.find(d => d.id === selectedId) ?? rows[0];
   const onPoint = p => { if (p?.payload?.id != null && ALL_DESIGNS.some(d => d.id === p.payload.id)) setSelectedId(p.payload.id); };
@@ -98,7 +126,7 @@ export default function DesignSearch() {
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Policy Lab</p>
         <h1 className="text-2xl font-bold tracking-tight">Design Search</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {DATA.designs.toLocaleString()} combinations of income tax, VAT, LVT, carbon tax, prebate and
+          {(DATA.designs + CURVE.designs + ZERO.designs).toLocaleString()} combinations of income tax, VAT, LVT, carbon tax, prebate and
           financial transaction tax, each run through the fiscal engine and the household model. A design
           passes when net interest stays under 10% of federal revenue with debt falling as a share of GDP,
           and every household from the bottom 10% through the 70th–80th percentile is better off than
@@ -106,11 +134,15 @@ export default function DesignSearch() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-3 text-[11px] text-muted-foreground">
+        <span>Income tax shape</span>
+        <PresetSelector presets={FAMILIES} value={family} onChange={setFamily} />
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <MilestoneCard label="Designs tested" value={DATA.designs.toLocaleString()} sub={`Seeded sample, seed ${DATA.seed}`} />
-        <MilestoneCard label="Pass, goal by Year 10" value={DATA.counts.pass10} sub={`${DATA.counts.fiscal10.toLocaleString()} meet the fiscal goal alone`} />
-        <MilestoneCard label="Pass, goal by Year 15" value={DATA.counts.pass15} sub={`${DATA.counts.bottom80.toLocaleString()} keep the bottom 80% ahead alone`} />
-        <MilestoneCard label="Robust to recessions" value={DATA.counts.robust} sub="Still pass after a severe recession or low growth" />
+        <MilestoneCard label="Designs tested" value={tested.toLocaleString()} sub={`Seeded sample, seed ${DATA.seed}`} />
+        <MilestoneCard label="Pass, goal by Year 10" value={counts.pass10} sub={`${counts.fiscal10.toLocaleString()} meet the fiscal goal alone`} />
+        <MilestoneCard label="Pass, goal by Year 15" value={counts.pass15} sub={`${counts.bottom80.toLocaleString()} keep the bottom 80% ahead alone`} />
+        <MilestoneCard label="Robust to recessions" value={counts.robust} sub="Still pass after a severe recession or low growth" />
       </div>
 
       <ChartContainer
@@ -138,7 +170,7 @@ export default function DesignSearch() {
           <Scatter name="Passes, goal by Year 15" data={scatter.pass15} fill={COLORS.pass15} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Passes, goal by Year 10" data={scatter.pass10} fill={COLORS.pass10} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Robust to recessions" data={scatter.robust} fill={COLORS.robust} onClick={onPoint} isAnimationActive={false} />
-          <Scatter name="Variants of design 1321" zAxisId="ref" data={VARIANTS.map(v => ({ x: v.incomeGiniY30, y: v.nwGiniY30, id: v.id }))}
+          <Scatter name="Named variants" zAxisId="ref" data={VARIANTS.map(v => ({ x: v.incomeGiniY30, y: v.nwGiniY30, id: v.id }))}
                    fill={COLORS.variant} shape="star" onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Current law" zAxisId="ref" data={[{ x: DATA.currentLaw.incomeGiniY30, y: DATA.currentLaw.nwGiniY30 }]}
                    fill={COLORS.law} shape="diamond" isAnimationActive={false} />
@@ -156,7 +188,7 @@ export default function DesignSearch() {
 
       <Card className="mt-6">
         <CardContent className="pt-4">
-          <h3 className="text-sm font-semibold mb-2">Variants of design 1321</h3>
+          <h3 className="text-sm font-semibold mb-2">Named variants</h3>
           <div className="space-y-2">
             {VARIANTS.map(v => (
               <button key={v.id} onClick={() => setSelectedId(v.id)}
@@ -196,7 +228,7 @@ export default function DesignSearch() {
                   <TableRow key={d.id} onClick={() => setSelectedId(d.id)}
                             className={`cursor-pointer ${d.id === selected?.id ? 'bg-[#d4940a]/10' : ''}`}>
                     <TableCell className="text-right font-semibold">{d.id}{d.frontierRobust ? ' ★' : ''}</TableCell>
-                    <TableCell className="text-[11px] min-w-[180px]">{bracketText(d.brackets)}</TableCell>
+                    <TableCell className="text-[11px] min-w-[180px]">{scheduleText(d)}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">{pct(d.vatRate)} / {pct(d.lvtRate)}</TableCell>
                     <TableCell className="text-right">${d.carbonRate}</TableCell>
                     <TableCell className="text-right">{money(d.prebate)}</TableCell>
@@ -221,7 +253,11 @@ export default function DesignSearch() {
         <p className="font-semibold text-foreground mb-1">How the search works</p>
         <p>
           Each design draws its levers from these ranges: an income tax with two to four brackets
-          (lowest rate 10–25%, top rate 40–60%, thresholds between $100K and $5M), a joint standard
+          (lowest rate 10–25%, top rate 40–60%, thresholds between $100K and $5M) or a curve (the same
+          lowest and top rates, with the marginal rate rising smoothly from a start income of
+          $100K–$300K to an end income 1.5 to 10 times higher, in steps of a few points) or a curve from
+          zero (no standard deduction: 0% up to $15K–$150K, then a smooth rise to a top rate of
+          40–62%), a joint standard
           deduction of $30,000–$80,000 (half for single filers), VAT 0–15%, LVT 0–15% of land value a
           year, a carbon tax of $0–$190 a ton with 80% returned as a dividend, a prebate of
           $3,000–$10,000 a person indexed to CPI plus up to all of real GDP-per-person growth, and a
@@ -247,8 +283,8 @@ const stress = (d, v) => (d.stressTested ? yr(v) : 'Not tested: margin under $1,
 
 function DesignDetail({ d, compared, full, onAdd }) {
   const items = [
-    ['Income tax', bracketText(d.brackets)],
-    ['Standard deduction', `${money(d.exemptJoint)} joint, ${money(d.exemptJoint / 2)} single`],
+    ['Income tax', scheduleText(d)],
+    ['Standard deduction', d.zeroCurve ? 'None (the 0% band replaces it)' : `${money(d.exemptJoint)} joint, ${money(d.exemptJoint / 2)} single`],
     ['VAT', pct(d.vatRate)],
     ['LVT', `${pct(d.lvtRate)} of land value a year`],
     ['Carbon tax', `$${d.carbonRate} a ton, 80% returned as a dividend`],

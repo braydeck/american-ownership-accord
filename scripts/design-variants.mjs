@@ -1,6 +1,7 @@
 // Named variants of searched designs, evaluated like the search's passing designs and written to
 // src/data/design-variants.json for the Design Search page. Variants come from
-// scripts/bracket-test-1321.mjs, scripts/p80-local-search.mjs and scripts/refine-1321.mjs (2026-10-16).
+// scripts/bracket-test-1321.mjs, scripts/p80-local-search.mjs and scripts/refine-1321.mjs (2026-10-16) and
+// scripts/bracket-shape-test.mjs (2026-10-18).
 // Run: node scripts/design-variants.mjs
 import { createServer } from 'vite';
 import { writeFileSync, readFileSync } from 'node:fs';
@@ -10,7 +11,29 @@ const E = await server.ssrLoadModule('/scripts/lib/design-search-eval.js');
 const { paramsFromDesign } = await server.ssrLoadModule('/src/lib/design-params.js');
 const { BASE_PARAMS } = await server.ssrLoadModule('/src/lib/fiscal-engine.js');
 const DATA = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
-const d1321 = DATA.passing.find(d => d.id === 1321);
+const CURVE = JSON.parse(readFileSync('src/data/curve-search.json', 'utf8'));
+const ZERO = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'));
+const OPT = [0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-${i}.json`, 'utf8')));
+const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
+// Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
+// from Year 10), by start design.
+const pctTxt = v => `${+(v * 100).toFixed(1)}%`;
+const kTxt = v => (v >= 1e6 ? `$${+(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1e3)}K`);
+function optimizedNote(start) {
+  const r = OPT.find(o => o.from === start);
+  const sched = r.fam === 'zero' ? `0% to ${kTxt(r.zeroEnd)} with no standard deduction, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.zeroEnd * r.zeroEndRatio)}`
+    : r.fam === 'curve' ? `${pctTxt(r.low)} to ${kTxt(r.start)}, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.start * r.endRatio)}, ${kTxt(r.exemptJoint)} joint deduction`
+    : `${pctTxt(r.low)} to ${kTxt(r.threshold)}, ${pctTxt(r.top)} above, ${kTxt(r.exemptJoint)} joint deduction`;
+  return `Optimized for the largest income gains from B10 through P70, with P80 ahead on income every year and back to even on net worth by Year 10: ${sched}; VAT ${pctTxt(r.vatRate)}, LVT ${pctTxt(r.lvtRate)}, carbon $${r.carbonRate}, prebate $${r.prebate.toLocaleString()}.`;
+}
+const optimized = start => {
+  const r = OPT.find(o => o.from === start);
+  const curve = r.fam === 'curve' ? { low: r.low, top: r.top, start: r.start, end: Math.round(r.start * r.endRatio), shape: r.shape } : undefined;
+  const zeroCurve = r.fam === 'zero' ? { zeroEnd: r.zeroEnd, end: Math.round(r.zeroEnd * r.zeroEndRatio), top: r.top, shape: r.zeroShape } : undefined;
+  return { brackets: r.brackets, curve, zeroCurve, exemptJoint: r.exemptJoint, vatRate: r.vatRate, lvtRate: r.lvtRate, carbonRate: r.carbonRate,
+    prebate: r.prebate, prebateIndex: r.prebateIndex, floorIndex: r.floorIndex, fttPct: r.fttPct };
+};
+const d1321 = byId(1321);
 
 const VARIANTS = [
   { id: '1321-lvt8', name: '1321, LVT 8%', note: 'Design 1321 with LVT raised from 5.5% to 8%.', changes: { lvtRate: 0.08 } },
@@ -22,12 +45,18 @@ const VARIANTS = [
     changes: { lvtRate: 0.10, brackets: [[400e3, 0.125], [null, d1321.brackets[1][1]]], exemptJoint: 50e3, vatRate: 0.15, prebate: 8500, carbonRate: 137 } },
   { id: '1321-bottom', name: '1321, refined for the bottom half', note: 'After wage indexing: 14% to $400K, $38K joint deduction, 15% VAT, 10% LVT, $9,200 prebate and $110 carbon. The largest bottom-half gain with P80 never behind.',
     changes: { lvtRate: 0.10, brackets: [[400e3, 0.14], [null, d1321.brackets[1][1]]], exemptJoint: 38e3, vatRate: 0.15, prebate: 9200, carbonRate: 110 } },
+  { id: '1976-3rate', base: 1976, name: '1976, three rates', note: 'Adds a 40% bracket from $200K to $500K and raises the top rate to 45.8%.',
+    changes: { brackets: [[200e3, 0.1113], [500e3, 0.40], [null, 0.458]] } },
+  { id: '4148-3rate', base: 4148, name: '4148, three rates', note: 'Adds a 40% bracket from $200K to $500K and raises the top rate to 58.95%.',
+    changes: { brackets: [[200e3, 0.1171], [500e3, 0.40], [null, 0.5895]] } },
+  ...[13610, 21877, 1976, 4148].map(start => ({ id: `${start}-opt`, base: start, name: `${start}, optimized below P80`,
+    note: optimizedNote(start), changes: optimized(start) })),
 ];
 const delta = p => Object.fromEntries(Object.keys(p).filter(k => p[k] !== BASE_PARAMS[k]).map(k => [k, p[k]]));
 const out = [];
 for (const v of VARIANTS) {
-  const { lvtRate, ...rest } = v.changes;
-  const rec = { ...d1321, ...rest, lvtRate: lvtRate ?? d1321.lvtRate };
+  const src = byId(v.base ?? 1321);
+  const rec = { ...src, ...v.changes };
   const design = delta(paramsFromDesign(rec));
   const r = E.evaluate(design);
   const rec5 = E.evaluate({ ...design, recessionYear: 5 }), rec12 = E.evaluate({ ...design, recessionYear: 12 }), low = E.evaluate({ ...design, growthCase: 'low' });

@@ -5,17 +5,18 @@
 // threshold, and an upper rate above it. The deduction comes off the bottom, so income
 // above the threshold is taxed at the upper rate in full (standard marginal structure).
 //
-// Approximation: each bracket's filers are treated as earning the bracket's mean AGI
-// (agi/filers). The $1M default upper-rate threshold sits exactly on a bracket boundary,
-// so the marginal kink lands cleanly; within-bracket dispersion is not modeled (a
-// first-order simplification, conservative for the top bracket whose mean is well above
-// the threshold anyway).
+// Within-bracket spread: each bracket's filers are spread over its income range as
+// POINTS_PER_BRACKET equal-weight income levels (bracketPoints), so a threshold or a rising
+// rate inside a bracket taxes the filers above it. Bounded brackets use a truncated exponential
+// density fitted to the bracket mean; the open top bracket uses a Pareto tail fitted to its mean.
 //
 // Behavioral response: an elasticity-of-taxable-income (ETI) damping factor shrinks each
 // bracket's base as its combined marginal rate rises above current law, per
 //   bFactor = ((1 − m_new) / (1 − m_currentLaw)) ^ eti
 // where m_new is the Accord's marginal income tax rate plus the 12.4% Social Security
-// contribution above the cap (canonical gaps item 5). etiTop applies in the top bracket.
+// contribution above the cap (canonical gaps item 5). etiTop applies to filers above ETI_TOP_INCOME
+// ($200K, about the top 6% of filers) under any schedule shape: the larger avoidance response is a
+// feature of high incomes, not of where a schedule's brackets fall.
 //
 // Sources: AGI, filer counts, and joint-filer share (jFrac) per bracket from brackets.js
 // (IRS SOI, updated June 2026).
@@ -43,6 +44,39 @@ export const INCOME_TAX_DEFAULTS = {
   etiMid:       0,
   etiTop:       0.15,      // 0.15 Accord (gains unified, realization backstops) / 0.30 conventional
 };
+
+// Income bounds of the BRACKETS rows, in order.
+const BRACKET_BOUNDS = [[0, 10e3], [10e3, 15e3], [15e3, 25e3], [25e3, 40e3], [40e3, 55e3], [55e3, 75e3],
+  [75e3, 100e3], [100e3, 150e3], [150e3, 200e3], [200e3, 500e3], [500e3, 1e6], [1e6, 2e6], [2e6, 5e6],
+  [5e6, 15e6], [15e6, Infinity]];
+export const POINTS_PER_BRACKET = 12;
+
+function truncExpQuantile(u, lo, hi, beta) {
+  if (Math.abs(beta) < 1e-12) return lo + u * (hi - lo);
+  return lo + Math.log(1 + u * Math.expm1(beta * (hi - lo))) / beta;
+}
+function truncExpMean(lo, hi, beta) {
+  const w = hi - lo;
+  if (Math.abs(beta * w) < 1e-9) return lo + w / 2;
+  return lo + w / -Math.expm1(-beta * w) - 1 / beta;
+}
+// Equal-weight income levels for one bracket, rescaled so their mean is the bracket mean.
+function spreadPoints(lo, hi, mean, n) {
+  let xs;
+  if (hi === Infinity) {
+    const alpha = mean / (mean - lo);
+    xs = Array.from({ length: n }, (_, i) => lo * Math.pow(1 - (i + 0.5) / n, -1 / alpha));
+  } else {
+    let a = -50 / (hi - lo), b = 50 / (hi - lo);
+    for (let k = 0; k < 100; k++) { const m = (a + b) / 2; if (truncExpMean(lo, hi, m) < mean) a = m; else b = m; }
+    const beta = (a + b) / 2;
+    xs = Array.from({ length: n }, (_, i) => truncExpQuantile((i + 0.5) / n, lo, hi, beta));
+  }
+  const scale = mean / (xs.reduce((s, x) => s + x, 0) / n);
+  return xs.map(x => x * scale);
+}
+const POINTS = BRACKETS.map((b, i) => spreadPoints(BRACKET_BOUNDS[i][0], BRACKET_BOUNDS[i][1], b.agi / b.filers, POINTS_PER_BRACKET));
+export const bracketPoints = bi => POINTS[bi];
 
 // Per-bracket blended standard deduction: joint filers (jFrac of the bracket) get the
 // larger joint deduction; the rest get the single deduction.
@@ -83,6 +117,8 @@ export function accordScheduleTax(income, ded, sched) {
   }
   return t;
 }
+export const ETI_TOP_INCOME = 200_000;
+export const etiTopFloor = () => ETI_TOP_INCOME;
 export function accordMarginalRate(income, ded, sched) {
   if (income <= ded) return 0;
   return sched.find(([hi]) => income <= hi)[1];
@@ -117,18 +153,21 @@ export function bracketIncomeTax(b, {
   const meanAgi = b.agi / b.filers;
   const sd = bracketDeduction(b, exemptSingle, exemptJoint);
   const sched = accordSchedule({ brackets, lowRate, highRate, threshold });
-  const rawPerFiler = accordScheduleTax(meanAgi, sd, sched);
-  const eff = rawPerFiler / Math.max(meanAgi, 1);
-  const ssBase = ssUncapOn ? ssAboveCapBase(meanAgi, b.jFrac) : 0;
-  const ssMarginal = ssBase > 0 ? SS_RATE : 0;
-  const mNew = accordMarginalRate(meanAgi, sd, sched) + ssMarginal;
-  const mCL = clMarginalRate(meanAgi, b.jFrac);
-  const topFloor = sched.length > 1 ? sched[sched.length - 2][0] : Infinity;
-  const eti = meanAgi > topFloor ? etiTop : etiMid;
-  const bFactor = Math.pow(Math.max(0.05, 1 - mNew) / Math.max(0.05, 1 - mCL), eti);
-  const perFiler = rawPerFiler * bFactor;
-  const ssPerFiler = SS_RATE * ssBase * bFactor;
-  return { meanAgi, sd, rawPerFiler, eff, mNew, mCL, bFactor, perFiler, ssPerFiler };
+  const floor = etiTopFloor(sched);
+  const pts = POINTS[BRACKETS.indexOf(b)] ?? [meanAgi];
+  let raw = 0, perFiler = 0, ssPerFiler = 0, mNew = 0, mCL = 0;
+  for (const agi of pts) {
+    const r = accordScheduleTax(agi, sd, sched);
+    const ssBase = ssUncapOn ? ssAboveCapBase(agi, b.jFrac) : 0;
+    const m = accordMarginalRate(agi, sd, sched) + (ssBase > 0 ? SS_RATE : 0);
+    const mc = clMarginalRate(agi, b.jFrac);
+    const f = Math.pow(Math.max(0.05, 1 - m) / Math.max(0.05, 1 - mc), agi > floor ? etiTop : etiMid);
+    raw += r; perFiler += r * f; ssPerFiler += SS_RATE * ssBase * f; mNew += m; mCL += mc;
+  }
+  const n = pts.length;
+  raw /= n; perFiler /= n; ssPerFiler /= n; mNew /= n; mCL /= n;
+  return { meanAgi, sd, rawPerFiler: raw, eff: raw / Math.max(meanAgi, 1), mNew, mCL,
+    bFactor: raw > 0 ? perFiler / raw : 1, perFiler, ssPerFiler };
 }
 
 // Total individual income tax and Social Security contribution revenue, with a per-bracket
