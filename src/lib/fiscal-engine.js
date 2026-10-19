@@ -25,6 +25,15 @@ const BASE_PARAMS = {
   // same payout yield as nonfinancial corporations.
   financialGrowthTaxOn:   true,
   financialEquityGdp:     0.295,
+  // Pass-through entities (partnerships, LLCs) in the Growth Tax and worker trusts on the same
+  // terms as corporations (decided 2026-10-19), paying in new nonvoting ownership interests.
+  // Base: nonfinancial noncorporate net worth at market value, $15.96T at 2025:Q4 (Fed Z.1
+  // B.104), times the share held by multi-owner entities. Sole proprietorships and individual
+  // landlords have no separate equity and stay out. Assumption: entities hold 70%. They paid no
+  // corporate tax, so repeal does not revalue them. Same payout yield as corporations.
+  passThroughGrowthTaxOn: true,
+  passThroughEquityGdp:   0.368,  // 0.70 × $15.96T / $30.36T
+  passThroughSmallShare:  0.20,   // share of pass-through value in entities under $10M, outside the worker trust (assumption)
   revaluationOn:          true,   // one-time rise in corporate value from repealing the corporate tax
   revaluationPct:         0.18,   // central of +13% to +27% (1/(1−t), capital share of incidence)
   entrantShare:           0.015,  // new firms + net issuance as a share of EV per year (Bernstein & Arnott)
@@ -62,13 +71,14 @@ const BASE_PARAMS = {
   lvtGroundRentYield:     0.04,
   lvtLandElasticity:      LAND_GROWTH_ELASTICITY,
   lvtAssessmentBasis:     'capitalized',
-  // Income tax: 0% up to $69K with no standard deduction, then a smooth rise to 59.85% at $248K
-  // (thresholds rise with average wages). riseEnd at or below the threshold gives two rates.
+  // Income tax (design "21877, re-optimized", 2026-10-19): 0% up to $69K with no standard
+  // deduction, then a smooth rise to 62% at $265K (thresholds rise with average wages). riseEnd at
+  // or below the threshold gives two rates.
   incomeTaxLow:           0,
-  incomeTaxHigh:          0.5985,
+  incomeTaxHigh:          0.62,
   incomeTaxThreshold:     69_000,
-  incomeTaxRiseEnd:       248_055,
-  incomeTaxRiseShape:     2.452,
+  incomeTaxRiseEnd:       264_753,
+  incomeTaxRiseShape:     2.567,
   incomeTaxExemptSingle:  0,
   incomeTaxExemptJoint:   0,
   incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop,
@@ -80,7 +90,7 @@ const BASE_PARAMS = {
   stableTaxFrac:          STABLE_RENT_FRAC,
   publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
   // ── Spending ──
-  prebatePerCapita:       7150,
+  prebatePerCapita:       7450,
   prebateIndex:           0.5,      // share of real GDP-per-person growth the prebate follows on top of CPI (0, 0.5, 1)
   citizenFloorIndex:      0.5,    // same, for the $500 citizen grant floor
   spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
@@ -332,8 +342,12 @@ function runFiscalSimulation(p, horizon = 35) {
 
   // Corporate value. Fundamental values grow with nominal GDP; market value = fundamental ×
   // valuation gap (recession shocks, recovering toward 1). Incumbents and entrants are pools.
-  const ev0 = (p.startingEvRatio + (p.financialGrowthTaxOn ? p.financialEquityGdp : 0)) * p.startingGdp
+  const corpEv0 = (p.startingEvRatio + (p.financialGrowthTaxOn ? p.financialEquityGdp : 0)) * p.startingGdp
     * (p.revaluationOn ? 1 + p.revaluationPct : 1);
+  const passEv0 = p.passThroughGrowthTaxOn ? p.passThroughEquityGdp * p.startingGdp : 0;
+  const ev0 = corpEv0 + passEv0;
+  // Share of value in firms under $10M, outside the worker trust, blended across the two bases.
+  const smallShare = (corpEv0 * p.smallFirmEvShare + passEv0 * p.passThroughSmallShare) / ev0;
   let fundInc = ev0, fundEnt = 0;
   let valGap = 1;
   let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
@@ -413,7 +427,7 @@ function runFiscalSimulation(p, horizon = 35) {
 
     // Equity Excise and codetermination credits
     // Tier 2 and larger firms ($10M+ EV) fund a worker trust; Tier 1 firms pay into the Sectoral Fund instead.
-    const trustEV = totalEV * (1 - p.smallFirmEvShare);
+    const trustEV = totalEV * (1 - smallShare);
     const carriedWorker = workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1);
     // The excise stops at the cap within the year it is reached, so the trust never overshoots 21%.
     const equityExcise = workerAtCap ? 0 : Math.min(trustEV * p.equityExciseRate, Math.max(0, trustEV * WORKER_EQUITY_CAP - carriedWorker));

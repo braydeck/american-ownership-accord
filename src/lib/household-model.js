@@ -131,6 +131,14 @@ const dilutableShare = k => {
   const d = DEMOS[k];
   return 0.6 * d.k401Pct + 0.7 * d.finPct + d.bizPct * (LARGE_BIZ_SHARE[k] ?? 0);
 };
+// Business equity under $10M held through partnerships, LLCs and small corporations. The Growth
+// Tax applies to it (no size line, pass-throughs included) but the Equity Excise does not, and
+// most of it never paid the corporate tax, so it is diluted by the AMCF's stake only, with no
+// revaluation. Sole proprietorships stay out: 70% of the rest is held through entities, the
+// engine's pass-through assumption.
+const SMALL_BIZ_ENTITY_SHARE = 0.7;
+const smallBizShare = k => DEMOS[k].bizPct * (1 - (LARGE_BIZ_SHARE[k] ?? 0)) * SMALL_BIZ_ENTITY_SHARE;
+const smallBizFactor = (y, P, fx) => 1 - (P.has('AMCF') ? hhAt(fx, y).fundOwn : 0);
 // Private holders' value relative to current law: the corporate-tax revaluation (TAX), less
 // the AMCF's stake (AMCF) and the worker pool (PSU) on the engine's ownership paths.
 export function dilutionFactor(y, P, fx = FISCAL_DEFAULTS) {
@@ -150,10 +158,12 @@ const holdingsIncomeShare = k => {
   return held > 0 ? prefShare(k) * (0.7 * d.finPct + d.bizPct * (LARGE_BIZ_SHARE[k] ?? 0)) / held : 0;
 };
 // Pre-tax income under the active provisions: holdings income is revalued and diluted with the
-// household's stakes.
+// household's stakes. Small business payouts (at the engine's payout yield on current-law
+// holdings) lose the AMCF's share.
 export function accordIncomeAt(k, y, P, fx = FISCAL_DEFAULTS) {
   const s = holdingsIncomeShare(k);
-  return incomeAt(k, y) * (1 - s + s * dilutionFactor(y, P, fx));
+  const smallBizPayout = clBaseNW(k, y) * smallBizShare(k) * hhAt(fx, y).wefYield;
+  return incomeAt(k, y) * (1 - s + s * dilutionFactor(y, P, fx)) - smallBizPayout * (1 - smallBizFactor(y, P, fx));
 }
 
 // ─── REVENUE ASSIGNED BY HOLDINGS ────────────────────────────────────────────
@@ -296,8 +306,8 @@ function baseNW(k, y, P, fx) {
   const d = DEMOS[k];
   if (d.nw < 0) return Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  const ds = dilutableShare(k);
-  return d.nw * Math.pow(1 + nwGr, y) * (1 - ds + ds * dilutionFactor(y, P, fx));
+  const ds = dilutableShare(k), sb = smallBizShare(k);
+  return d.nw * Math.pow(1 + nwGr, y) * (1 - ds - sb + ds * dilutionFactor(y, P, fx) + sb * smallBizFactor(y, P, fx));
 }
 
 export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {

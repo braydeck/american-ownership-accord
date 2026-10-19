@@ -22,6 +22,9 @@ const bestByStart = runs => Object.values(runs.reduce((best, r) => ((!best[r.fro
 const OPT = bestByStart(OPT_RUNS);
 // Curves only, LVT held at 10% or above (Brayden, 2026-10-18).
 const OPT_LVT10 = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-curve-zero-lvt10-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
+// Curves with LVT at 10% or above, the rise spread over at least a 2.5× income range, after the
+// pass-through and small-business changes (2026-10-19); seeded with the then-default 21877 design.
+const OPT_RISE = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-curve-zero-lvt10-rise2.5-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
 const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
 // Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
 // from Year 10), by start design.
@@ -62,6 +65,8 @@ const VARIANTS = [
   // scripts/lvt-sweep.mjs: the optimized 21877 with only the LVT raised to 10%.
   { id: '21877-lvt10', base: 21877, name: '21877 optimized, LVT 10%', note: 'The optimized 21877 design (0% band, no standard deduction) with only the LVT raised to 10%.',
     changes: { ...optimized(21877), lvtRate: 0.10 } },
+  { id: '21877-r', base: 21877, name: '21877, re-optimized', note: optimizedNote(21877, OPT_RISE), changes: optimized(21877, OPT_RISE) },
+  { id: '12053-r', base: 12053, name: '12053, optimized, smooth rise', note: optimizedNote(12053, OPT_RISE), changes: optimized(12053, OPT_RISE) },
   { id: '14007-lvt10', base: 14007, name: '14007, optimized, LVT 10%', note: optimizedNote(14007, OPT_LVT10), changes: optimized(14007, OPT_LVT10) },
   // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
 // only base rate that stayed robust).

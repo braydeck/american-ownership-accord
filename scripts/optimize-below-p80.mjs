@@ -9,7 +9,7 @@
 // Three schedule families: two rates (low rate to a threshold, top rate above), the curve, and the
 // zero-start curve with no standard deduction (both from scripts/lib/design-search-eval.js). Hill climbing from the best robust designs of both searches,
 // moving one or two levers at a time; seeded (42), deterministic.
-// Run: node scripts/optimize-below-p80.mjs [iterations=250] [p80NetWorthFloor=0] [recoverBy=1] [shard=0/1] [families=two,curve,zero] [lvtMin=0]
+// Run: node scripts/optimize-below-p80.mjs [iterations=250] [p80NetWorthFloor=0] [recoverBy=1] [shard=0/1] [families=two,curve,zero] [lvtMin=0] [minRise=1.2]; SEEDS=file adds starts
 //   → scripts/output/optimize-below-p80[-floor][-recover{Y}][-shard].json
 // P80's net-worth gain must be at or above the floor from Year recoverBy on (Brayden, 2026-10-18:
 // a dip in Years 5-9 is acceptable if net worth is back to even by Year 10, so floor 0, recoverBy
@@ -31,6 +31,12 @@ const Z = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'));
 const FAMS = (process.argv[6] ?? 'two,curve,zero').split(',');
 // Lowest LVT allowed (Brayden, 2026-10-18: ideally 10% or above). Starts below it are raised to it.
 const LVT_MIN = Number(process.argv[7] ?? 0);
+// Narrowest rise allowed for the curve, as end income ÷ start income (Brayden, 2026-10-19: no
+// near-jumps like 4148's; 2.5 spreads the rise over at least a 2.5× income range).
+const MIN_RISE = Number(process.argv[8] ?? 1.2);
+// Optional extra starts in this script's design format (SEEDS=path to a JSON array), e.g. the
+// current default, which the searches' robust pool may not contain.
+const SEEDS = process.env.SEEDS ? JSON.parse(readFileSync(process.env.SEEDS, 'utf8')) : [];
 const rng = makeRng(42);
 const normal = () => Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next());
 
@@ -38,7 +44,7 @@ const BELOW = ['B10', 'P10', 'P20', 'P30', 'P40', 'P50', 'P60', 'P70'];
 const YEARS = Array.from({ length: 35 }, (_, i) => i + 1);
 const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
 const BOUNDS = {
-  low: [0.10, 0.25], top: [0.40, 0.62], threshold: [100e3, 400e3], start: [100e3, 300e3], endRatio: [1.2, 10], shape: [0.33, 1.5],
+  low: [0.10, 0.25], top: [0.40, 0.62], threshold: [100e3, 400e3], start: [100e3, 300e3], endRatio: [MIN_RISE, 10], shape: [0.33, 1.5],
   baseRate: [0, 0.08], zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, 3],
   exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [LVT_MIN, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, 0.5],
 };
@@ -128,9 +134,9 @@ const better = (s, c) => s.p80NeverBehind && !c.p80NeverBehind ? true
   : !s.p80NeverBehind && !c.p80NeverBehind ? s.p80MinNetWorth > c.p80MinNetWorth : false;
 
 // Starts per family: the 5 robust designs with the highest P80 net-worth floor and the 3 with the
-// largest gain below P80, plus 4148, 1976 and 14007.
-const pool = [...B.passing, ...C.passing, ...Z.passing].filter(d => d.robust).map(d => fromRecord(d)).filter(Boolean)
-  .filter(x => FAMS.includes(x.fam)).map(x => ({ ...x, lvtRate: Math.max(x.lvtRate, LVT_MIN) }));
+// largest gain below P80, plus the named designs (4148, 1976, 14007, 13610, 21877) when their family runs.
+const pool = [...[...B.passing, ...C.passing, ...Z.passing].filter(d => d.robust).map(d => fromRecord(d)).filter(Boolean), ...SEEDS]
+  .filter(x => FAMS.includes(x.fam)).map(x => ({ ...x, lvtRate: Math.max(x.lvtRate, LVT_MIN), ...(x.endRatio ? { endRatio: Math.max(x.endRatio, MIN_RISE) } : {}) }));
 const scored = pool.map(x => ({ x, s: score(x) })).filter(o => o.s);
 const starts = [];
 for (const fam of FAMS) {
@@ -138,7 +144,9 @@ for (const fam of FAMS) {
   for (const o of [...[...f].sort((a, b) => b.s.p80MinNetWorth - a.s.p80MinNetWorth).slice(0, 5), ...[...f].sort((a, b) => b.s.objective - a.s.objective).slice(0, 3)])
     if (!starts.includes(o)) starts.push(o);
 }
-for (const id of FAMS.includes('two') ? [4148, 1976, 14007] : []) if (!starts.some(o => o.x.from === id)) { const o = scored.find(o => o.x.from === id); if (o) starts.push(o); }
+const NAMED_STARTS = [...(FAMS.includes('two') ? [4148, 1976, 14007] : []), ...(FAMS.includes('curve') ? [13610] : []), ...(FAMS.includes('zero') ? [21877] : [])];
+for (const sd of SEEDS) { const o = scored.find(o => o.x === pool.find(p => p.from === sd.from && p.zeroEnd === sd.zeroEnd && p.top === sd.top)); if (o && !starts.includes(o)) starts.push(o); }
+for (const id of NAMED_STARTS) if (!starts.some(o => o.x.from === id)) { const o = scored.find(o => o.x.from === id); if (o) starts.push(o); }
 console.log(`robust designs ${pool.length}, meet P80 condition ${scored.length}, starts ${starts.length}`);
 
 const results = [];
@@ -154,6 +162,6 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
   console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
 results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();

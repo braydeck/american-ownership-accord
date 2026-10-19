@@ -8,43 +8,44 @@
   "currentDefault": {
     "fiscalGoalYear": 7,
     "debtFreeYear": null,
-    "netCreditorYear": 35,
-    "intToRevY30": 4.7,
-    "debtToGdpY30": 35.9,
+    "netCreditorYear": 30,
+    "intToRevY30": 4.5,
+    "debtToGdpY30": 35,
     "laborLevelY10": 0.9893,
-    "minIncomeGain": 9713,
+    "minIncomeGain": 10013,
     "worstIncome": "B10 Yr 5",
-    "minNwGain": 11531,
+    "minNwGain": 12040,
     "worstNw": "B10 Yr 5",
     "bottom80Pass": true,
-    "incomeGiniY30": 0.5241,
-    "nwGiniY30": 0.6818,
-    "P50Y30": 26993,
-    "P70Y30": 35964,
-    "P80Y30": 12772,
-    "T10Y30": -232149
+    "incomeGiniY30": 0.5221,
+    "nwGiniY30": 0.6707,
+    "P50Y30": 27584,
+    "P70Y30": 36003,
+    "P80Y30": 12074,
+    "T10Y30": -234895
   },
   "runs": {
     "10": {
-      "fiscalPass": 1144,
-      "bottom80Pass": 3796,
-      "bothPass": 218,
+      "fiscalPass": 1165,
+      "bottom80Pass": 3800,
+      "bothPass": 234,
       "frontier": [
-        23281,
+        20803,
         21192
       ]
     },
     "15": {
-      "fiscalPass": 1333,
-      "bottom80Pass": 3796,
-      "bothPass": 358,
+      "fiscalPass": 1355,
+      "bottom80Pass": 3800,
+      "bothPass": 374,
       "frontier": [
-        20803
+        20803,
+        21192
       ]
     }
   },
   "robust": {
-    "count": 139,
+    "count": 146,
     "frontier": [
       23281
     ]

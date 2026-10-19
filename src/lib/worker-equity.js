@@ -2,7 +2,7 @@
 // Distributional Impact and Income Tax Design so the tables and formulas cannot drift between
 // pages. Every value is in 2024 real dollars.
 //
-//   Tier 1 ($0–10M EV):  $1K/yr into the portable Sectoral Wealth Fund (6% gross, 3.5% paid out)
+//   Tier 1 ($0–10M EV):  1.2% of payroll into the portable Sectoral Wealth Fund (6% gross, 3.5% paid out)
 //   Tier 2+ ($10M+ EV):  the Equity Excise builds a 21% stake held permanently in each company's
 //                        worker trust. Its dividends are split: cash profit-sharing to the
 //                        company's current workers, and new Worker Equity Fund units issued to all
@@ -14,6 +14,7 @@ import {
   BASE_PARAMS, householdFiscalSeries, CEOC_DEPOSIT, CEOC_FTE, CEOC_EXTRA_GRANTS, PUBLIC_EMPLOYEES,
 } from '@/lib/fiscal-engine';
 import { BRACKETS } from '@/lib/brackets';
+import { earnersPerFiler, SS_CAP_SNAPSHOT } from '@/lib/income-tax';
 
 // [Tier 1, Tier 2, Tier 3] share of filers by bracket (BLS firm-size data), parallel to BRACKETS
 export const TIER_DIST = [
@@ -102,10 +103,21 @@ export function profitSharePerFiler(bi, y, hh = DEFAULT_HH) {
   return y <= 0 ? 0 : r.profitShare / (TOTAL_TRUST_FTE * r.popScale) * TRUST_FTE[bi];
 }
 
+// Tier 1 employers pay 1.2% of each worker's wages, up to the Social Security wage cap, into the
+// Sectoral Fund (decided 2026-10-19). The rate raises the same total as $1,000 per FTE worker
+// ($25.7B on a $2.1T Tier 1 wage base). Wages per filer are AGI less the bracket's gains share
+// (assumption), held at Year-0 real levels.
+export const SECTORAL_PAYROLL_RATE = 0.012;
+const tier1Contribution = bi => {
+  const b = BRACKETS[bi], e = earnersPerFiler(b.jFrac);
+  const wage = b.agi / b.filers * (1 - b.cgShare);
+  return TIER_DIST[bi][0] * SECTORAL_PAYROLL_RATE * Math.min(wage / e, SS_CAP_SNAPSHOT) * e;
+};
+
 // Sectoral Wealth Fund balance per filer at year y: Tier 1 employer contributions plus
 // care-credit deposits.
 export function sectoralBalancePerFiler(bi, y, hh = DEFAULT_HH) {
-  const employer = TIER_DIST[bi][0] * sectoralFundBalance(1000, y) * PARTTIME_FTE[bi];
+  const employer = sectoralFundBalance(tier1Contribution(bi), y);
   const ceoc = hhRow(hh, y).ceocOn ? sectoralFundBalance(CEOC_DEPOSIT * ceocFtePerFiler(bi), y) : 0;
   return employer + ceoc;
 }
