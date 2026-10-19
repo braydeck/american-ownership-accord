@@ -37,17 +37,19 @@ const YEARS = Array.from({ length: 35 }, (_, i) => i + 1);
 const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
 const BOUNDS = {
   low: [0.10, 0.25], top: [0.40, 0.62], threshold: [100e3, 400e3], start: [100e3, 300e3], endRatio: [1.2, 10], shape: [0.33, 1.5],
-  zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, 3],
+  baseRate: [0, 0.08], zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, 3],
   exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [0, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, 0.5],
 };
 const LOG = new Set(['threshold', 'start', 'endRatio', 'shape', 'zeroEnd', 'zeroEndRatio', 'zeroShape']);
 const INDEX = { prebateIndex: E.PREBATE_INDEX_OPTIONS, floorIndex: E.FLOOR_INDEX_OPTIONS };
-const keysFor = fam => [...(fam === 'two' ? ['low', 'top', 'threshold'] : fam === 'zero' ? ['top', 'zeroEnd', 'zeroEndRatio', 'zeroShape']
+const keysFor = fam => [...(fam === 'two' ? ['low', 'top', 'threshold'] : fam === 'zero' ? ['top', 'baseRate', 'zeroEnd', 'zeroEndRatio', 'zeroShape']
   : ['low', 'top', 'start', 'endRatio', 'shape']), ...(fam === 'zero' ? [] : ['exemptJoint']), 'vatRate', 'lvtRate', 'carbonRate', 'prebate', 'fttPct', 'prebateIndex', 'floorIndex'];
 
 function schedule(x) {
   if (x.fam === 'two') return [[x.threshold, x.low], [Infinity, x.top]];
-  if (x.fam === 'zero') return E.zeroCurveBrackets({ zeroEnd: x.zeroEnd, end: x.zeroEnd * x.zeroEndRatio, top: x.top, shape: x.zeroShape });
+  // baseRate (Brayden, 2026-10-18): a rate on the bottom band in place of 0%; no later rate falls below it.
+  if (x.fam === 'zero') return E.zeroCurveBrackets({ zeroEnd: x.zeroEnd, end: x.zeroEnd * x.zeroEndRatio, top: x.top, shape: x.zeroShape })
+    .map(([t, r]) => [t, Math.max(r, x.baseRate ?? 0)]);
   return E.curveBrackets({ low: x.low, top: x.top, start: x.start, end: x.start * x.endRatio, shape: x.shape });
 }
 function toDesign(x) {
@@ -62,7 +64,7 @@ function toDesign(x) {
 function fromRecord(d) {
   const shared = { exemptJoint: d.exemptJoint, vatRate: d.vatRate, lvtRate: d.lvtRate, carbonRate: d.carbonRate, prebate: d.prebate,
     fttPct: d.fttPct, prebateIndex: d.prebateIndex, floorIndex: d.floorIndex, from: d.id };
-  if (d.zeroCurve) return { fam: 'zero', ...shared, exemptJoint: 0, low: 0, top: d.zeroCurve.top, zeroEnd: d.zeroCurve.zeroEnd,
+  if (d.zeroCurve) return { fam: 'zero', ...shared, exemptJoint: 0, low: 0, baseRate: d.zeroCurve.baseRate ?? 0, top: d.zeroCurve.top, zeroEnd: d.zeroCurve.zeroEnd,
     zeroEndRatio: d.zeroCurve.end / d.zeroCurve.zeroEnd, zeroShape: d.zeroCurve.shape };
   if (d.curve) return { fam: 'curve', ...shared, low: d.curve.low, top: d.curve.top, start: d.curve.start, endRatio: d.curve.end / d.curve.start, shape: d.curve.shape };
   if (d.brackets.length !== 2) return null;
@@ -109,6 +111,7 @@ function mutate(x) {
     if (LOG.has(k)) y[k] = Math.min(b, Math.max(a, y[k] * Math.exp(0.15 * normal())));
     else y[k] = Math.min(b, Math.max(a, y[k] + 0.08 * (b - a) * normal()));
   }
+  if (y.baseRate != null) y.baseRate = +y.baseRate.toFixed(3);
   if (y.zeroEnd) { y.zeroEnd = Math.round(y.zeroEnd / 1e3) * 1e3; y.zeroShape = +y.zeroShape.toFixed(3); y.zeroEndRatio = +y.zeroEndRatio.toFixed(3); }
   y.low = +y.low.toFixed(4); y.top = +y.top.toFixed(4); y.vatRate = +y.vatRate.toFixed(4); y.lvtRate = +y.lvtRate.toFixed(4); y.fttPct = +y.fttPct.toFixed(3);
   y.carbonRate = Math.round(y.carbonRate); y.prebate = Math.round(y.prebate / 50) * 50; y.exemptJoint = Math.round(y.exemptJoint / 1000) * 1000;

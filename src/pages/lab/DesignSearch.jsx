@@ -1,7 +1,7 @@
 // Design Search: the tax-and-transfer designs that meet the fiscal goal and leave the bottom 80%
 // better off. Data comes from scripts/design-search.mjs (5,000 Latin hypercube designs, seed 42),
 // written to src/data/design-search.json. Rerun the script after any engine change.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ZAxis,
 } from 'recharts';
@@ -11,6 +11,7 @@ import { PresetSelector } from '@/components/controls/PresetSelector';
 import { MilestoneCard } from '@/components/shared/MilestoneCard';
 import { InfoBox } from '@/components/shared/InfoBox';
 import { Card, CardContent } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -45,15 +46,15 @@ const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10:
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 const usd = v => `${v < 0 ? '−' : '+'}$${Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(1)}K` : Math.round(Math.abs(v))}`;
 const money = v => `$${Math.round(v).toLocaleString()}`;
-const threshold = t => (t >= 1e6 ? `$${t / 1e6}M` : `$${t / 1e3}K`);
+const threshold = t => (t >= 1e6 ? `$${+(t / 1e6).toFixed(2)}M` : `$${Math.round(t / 1e3)}K`);
 const yr = v => (v == null ? 'Never' : `Yr ${v}`);
 const indexLabel = v => (v === 0 ? 'CPI only' : `CPI + ${v * 100}% of real GDP/person growth`);
 
 function scheduleText(d) {
   if (d.zeroCurve) {
-    const { zeroEnd, end, top, shape } = d.zeroCurve;
+    const { zeroEnd, end, top, shape, baseRate = 0 } = d.zeroCurve;
     const pace = shape < 0.8 ? 'rising fastest near the start' : shape > 1.2 ? 'rising fastest near the end' : 'rising evenly';
-    return `0% to ${threshold(zeroEnd)} with no standard deduction, then a smooth rise to ${pct(top)} at ${threshold(end)} (${pace})`;
+    return `${pct(baseRate, 0)} to ${threshold(zeroEnd)} with no standard deduction, then a smooth rise to ${pct(top)} at ${threshold(end)} (${pace})`;
   }
   if (!d.curve) return bracketText(d.brackets);
   const { low, top, start, end, shape } = d.curve;
@@ -79,10 +80,52 @@ const VIEWS = [
 const SORTS = {
   incomeGiniY30: { label: 'Income Gini', dir: 1 },
   nwGiniY30: { label: 'Net-worth Gini', dir: 1 },
+  bottomHalf: { label: 'Bottom-half gain', dir: -1 },
+  belowP80: { label: 'B10–P70 gain', dir: -1 },
+  p80MinIncome: { label: 'P80 worst year', dir: -1 },
   fiscalGoalYear: { label: 'Goal year', dir: 1 },
-  P70Y30: { label: 'P70 gain', dir: -1 },
-  P80Y30: { label: 'P80 change', dir: -1 },
 };
+
+// Summary measures the filters and table use, from each design's average income gain by group
+// over Years 1-30 (gains: B10, P10, ... P80).
+const avgOf = a => a.reduce((s, x) => s + x, 0) / a.length;
+function measures(d) {
+  const g = d.gains;
+  return {
+    bottomHalf: g ? avgOf(g.slice(0, 5)) : null,
+    middle: g ? avgOf(g.slice(5, 8)) : null,
+    belowP80: g ? avgOf(g.slice(0, 8)) : null,
+    p80MinIncome: d.p80MinIncome ?? null,
+    topRate: d.brackets[d.brackets.length - 1][1],
+  };
+}
+
+// kind: 'min' keeps designs at or above the value, 'max' at or below, 'range' between the two.
+const FILTERS = [
+  { k: 'bottomHalf', label: 'Bottom half (B10–P40) gain', kind: 'min', min: 0, max: 25000, step: 250, fmt: v => usd(v) },
+  { k: 'middle', label: 'P50–P70 gain', kind: 'min', min: 0, max: 30000, step: 250, fmt: v => usd(v) },
+  { k: 'p80MinIncome', label: 'P80 income, worst year', kind: 'min', min: -15000, max: 10000, step: 250, fmt: v => usd(v) },
+  { k: 'incomeGiniY30', label: 'Income Gini, Year 30', kind: 'max', min: 0.48, max: 0.66, step: 0.005, fmt: v => v.toFixed(3) },
+  { k: 'nwGiniY30', label: 'Net-worth Gini, Year 30', kind: 'max', min: 0.60, max: 0.88, step: 0.005, fmt: v => v.toFixed(3) },
+  { k: 'lvtRate', label: 'LVT', kind: 'range', min: 0, max: 0.15, step: 0.005, fmt: v => pct(v) },
+  { k: 'vatRate', label: 'VAT', kind: 'range', min: 0, max: 0.15, step: 0.005, fmt: v => pct(v) },
+  { k: 'prebate', label: 'Prebate per person', kind: 'range', min: 3000, max: 10000, step: 250, fmt: v => money(v) },
+  { k: 'topRate', label: 'Top income tax rate', kind: 'range', min: 0.40, max: 0.62, step: 0.01, fmt: v => pct(v, 0) },
+];
+const filterDefaults = () => Object.fromEntries(FILTERS.map(f => [f.k,
+  f.kind === 'range' ? [f.min, f.max] : f.kind === 'min' ? f.min : f.max]));
+function passesFilters(d, filters, p80Recovers) {
+  const m = { ...d, ...measures(d) };
+  if (p80Recovers && !(d.p80NwMinFrom10 >= 0)) return false;
+  return FILTERS.every(f => {
+    const v = m[f.k], x = filters[f.k];
+    const untouched = f.kind === 'range' ? x[0] === f.min && x[1] === f.max : x === (f.kind === 'min' ? f.min : f.max);
+    if (v == null) return untouched;
+    if (f.kind === 'min') return untouched || v >= x;
+    if (f.kind === 'max') return untouched || v <= x;
+    return v >= x[0] - 1e-9 && v <= x[1] + 1e-9;
+  });
+}
 
 function inView(d, view) {
   if (view === 'robust') return d.robust;
@@ -98,6 +141,15 @@ export default function DesignSearch() {
   const tested = sets.reduce((a, x) => a + x.designs, 0);
   const defaultId = '21877-opt';
   const [selectedId, setSelectedId] = useState(defaultId);
+  // Filters persist for this browser session so they survive reloads while reviewing.
+  const [filters, setFilters] = useState(() => {
+    try { return { ...filterDefaults(), ...JSON.parse(sessionStorage.getItem('dsFilters') ?? '{}') }; } catch { return filterDefaults(); }
+  });
+  const [p80Recovers, setP80Recovers] = useState(() => { try { return sessionStorage.getItem('dsP80Recovers') === '1'; } catch { return false; } });
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  useEffect(() => { try { sessionStorage.setItem('dsFilters', JSON.stringify(filters)); sessionStorage.setItem('dsP80Recovers', p80Recovers ? '1' : '0'); } catch { /* storage unavailable */ } }, [filters, p80Recovers]);
+  const setFilter = (k, v) => setFilters(f => ({ ...f, [k]: v }));
+  const activeFilters = FILTERS.filter(f => JSON.stringify(filters[f.k]) !== JSON.stringify(filterDefaults()[f.k])).length + (p80Recovers ? 1 : 0);
   const [compareIds, setCompareIds] = useState(COMPARE_IDS);
   const addCompare = id => setCompareIds(c => (c.includes(id) || c.length >= 5 ? c : [...c, id]));
   const removeCompare = id => setCompareIds(c => c.filter(x => x !== id));
@@ -113,9 +165,12 @@ export default function DesignSearch() {
 
   const rows = useMemo(() => {
     const { dir } = SORTS[sortKey];
-    return familyData(family).flatMap(x => x.passing).filter(d => inView(d, view))
-      .sort((a, b) => dir * ((a[sortKey] ?? 99) - (b[sortKey] ?? 99)));
-  }, [view, sortKey, family]);
+    const key = d => d[sortKey] ?? measures(d)[sortKey] ?? (dir > 0 ? Infinity : -Infinity);
+    return [...familyData(family).flatMap(x => x.passing), ...VARIANTS]
+      .filter(d => inView(d, view) && passesFilters(d, filters, p80Recovers))
+      .sort((a, b) => dir * (key(a) - key(b)));
+  }, [view, sortKey, family, filters, p80Recovers]);
+  const matchIds = useMemo(() => new Set(rows.map(d => d.id)), [rows]);
 
   const selected = ALL_DESIGNS.find(d => d.id === selectedId) ?? rows[0];
   const onPoint = p => { if (p?.payload?.id != null && ALL_DESIGNS.some(d => d.id === p.payload.id)) setSelectedId(p.payload.id); };
@@ -170,6 +225,8 @@ export default function DesignSearch() {
           <Scatter name="Passes, goal by Year 15" data={scatter.pass15} fill={COLORS.pass15} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Passes, goal by Year 10" data={scatter.pass10} fill={COLORS.pass10} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Robust to recessions" data={scatter.robust} fill={COLORS.robust} onClick={onPoint} isAnimationActive={false} />
+          <Scatter name="Matches the filters below" data={[...scatter.pass15, ...scatter.pass10, ...scatter.robust].filter(p => matchIds.has(p.id))}
+                   fill="none" stroke="#18181b" strokeWidth={1} onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Named variants" zAxisId="ref" data={VARIANTS.map(v => ({ x: v.incomeGiniY30, y: v.nwGiniY30, id: v.id }))}
                    fill={COLORS.variant} shape="star" onClick={onPoint} isAnimationActive={false} />
           <Scatter name="Current law" zAxisId="ref" data={[{ x: DATA.currentLaw.incomeGiniY30, y: DATA.currentLaw.nwGiniY30 }]}
@@ -209,16 +266,45 @@ export default function DesignSearch() {
             <h3 className="text-sm font-semibold">Passing designs ({rows.length})</h3>
             <PresetSelector presets={VIEWS} value={view} onChange={setView} />
           </div>
-          <div className="flex flex-wrap items-center gap-2 mb-3 text-[11px] text-muted-foreground">
-            <span>Sort by</span>
-            <PresetSelector presets={Object.entries(SORTS).map(([key, s]) => ({ key, label: s.label }))}
-                            value={sortKey} onChange={setSortKey} />
+          <div className="sticky top-14 z-20 -mx-4 px-4 py-2 mb-3 bg-card/95 backdrop-blur border-b border-border">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold">Filters · {rows.length} designs match{activeFilters ? ` (${activeFilters} active)` : ''}
+                <span className="font-normal text-muted-foreground"> · gains are each group's average annual income gain over Years 1–30</span></p>
+              <div className="flex gap-3">
+                <button className="text-[11px] underline text-muted-foreground" onClick={() => { setFilters(filterDefaults()); setP80Recovers(false); }}>Reset</button>
+                <button className="text-[11px] underline text-muted-foreground" onClick={() => setFiltersOpen(o => !o)}>{filtersOpen ? 'Collapse' : 'Expand'}</button>
+              </div>
+            </div>
+            {filtersOpen && <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 mt-2">
+              {FILTERS.map(f => {
+                const v = filters[f.k];
+                const text = f.kind === 'range' ? `${f.fmt(v[0])} to ${f.fmt(v[1])}` : `${f.kind === 'min' ? 'at least' : 'at most'} ${f.fmt(v)}`;
+                return (
+                  <div key={f.k}>
+                    <p className="text-[11px] mb-1"><span className="font-medium">{f.label}</span> <span className="text-muted-foreground">{text}</span></p>
+                    <Slider min={f.min} max={f.max} step={f.step} value={f.kind === 'range' ? v : [v]}
+                            onValueChange={x => setFilter(f.k, f.kind === 'range' ? x : x[0])} />
+                  </div>
+                );
+              })}
+              <label className="flex items-center gap-2 text-[11px]">
+                <input type="checkbox" checked={p80Recovers} onChange={e => setP80Recovers(e.target.checked)} />
+                P80 net worth back to even by Year 10
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-muted-foreground">
+              <span>Sort by</span>
+              <PresetSelector presets={Object.entries(SORTS).map(([key, s]) => ({ key, label: s.label }))}
+                              value={sortKey} onChange={setSortKey} />
+            </div>
+            </>}
           </div>
           <div className="rounded-lg border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {['Design', 'Income tax', 'VAT / LVT', 'Carbon', 'Prebate', 'Goal', 'Income Gini', 'NW Gini', 'P70, Yr 30', 'P80, Yr 30'].map(h => (
+                  {['Design', 'Income tax', 'VAT / LVT', 'Carbon', 'Prebate', 'Goal', 'Income Gini', 'NW Gini', 'Bottom half', 'P50–P70', 'P80 worst yr'].map(h => (
                     <TableHead key={h} className={h === 'Income tax' ? 'whitespace-nowrap' : 'text-right whitespace-nowrap'}>{h}</TableHead>
                   ))}
                 </TableRow>
@@ -227,7 +313,7 @@ export default function DesignSearch() {
                 {rows.map(d => (
                   <TableRow key={d.id} onClick={() => setSelectedId(d.id)}
                             className={`cursor-pointer ${d.id === selected?.id ? 'bg-[#d4940a]/10' : ''}`}>
-                    <TableCell className="text-right font-semibold">{d.id}{d.frontierRobust ? ' ★' : ''}</TableCell>
+                    <TableCell className="text-right font-semibold whitespace-nowrap">{d.name ?? d.id}{d.frontierRobust ? ' ★' : ''}</TableCell>
                     <TableCell className="text-[11px] min-w-[180px]">{scheduleText(d)}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">{pct(d.vatRate)} / {pct(d.lvtRate)}</TableCell>
                     <TableCell className="text-right">${d.carbonRate}</TableCell>
@@ -235,16 +321,17 @@ export default function DesignSearch() {
                     <TableCell className="text-right">{yr(d.fiscalGoalYear)}</TableCell>
                     <TableCell className="text-right">{d.incomeGiniY30.toFixed(3)}</TableCell>
                     <TableCell className="text-right">{d.nwGiniY30.toFixed(3)}</TableCell>
-                    <TableCell className="text-right">{usd(d.P70Y30)}</TableCell>
-                    <TableCell className="text-right">{usd(d.P80Y30)}</TableCell>
+                    {(() => { const m = measures(d); return [m.bottomHalf, m.middle, m.p80MinIncome].map((v, i) => (
+                      <TableCell key={i} className="text-right">{v == null ? '–' : usd(v)}</TableCell>)); })()}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">
-            ★ No other robust design is more equal on both Ginis. Gains are annual household income
-            against current law, in 2024 dollars.
+            ★ No other robust design is more equal on both Ginis. Bottom half and P50–P70 are average
+            annual household income gains over Years 1–30; P80 worst yr is P80's smallest income gain in
+            any year. All against current law, in 2024 dollars.
           </p>
         </CardContent>
       </Card>
@@ -284,7 +371,7 @@ const stress = (d, v) => (d.stressTested ? yr(v) : 'Not tested: margin under $1,
 function DesignDetail({ d, compared, full, onAdd }) {
   const items = [
     ['Income tax', scheduleText(d)],
-    ['Standard deduction', d.zeroCurve ? 'None (the 0% band replaces it)' : `${money(d.exemptJoint)} joint, ${money(d.exemptJoint / 2)} single`],
+    ['Standard deduction', d.zeroCurve ? 'None' : `${money(d.exemptJoint)} joint, ${money(d.exemptJoint / 2)} single`],
     ['VAT', pct(d.vatRate)],
     ['LVT', `${pct(d.lvtRate)} of land value a year`],
     ['Carbon tax', `$${d.carbonRate} a ton, 80% returned as a dividend`],

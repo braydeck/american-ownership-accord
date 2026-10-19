@@ -60,6 +60,22 @@ for (const r of results) {
     && rec5.bottom80Pass && rec12.bottom80Pass && low.bottom80Pass;
 }
 
+// Group gains for every design that passes by Year 15, for the page's filters: each group's
+// average income gain over Years 1-30, P80's average over Years 1-10, P80's worst income year,
+// and P80's lowest net-worth gain from Year 10 on (at or above zero means it has recovered).
+const GROUPS = ['B10', 'P10', 'P20', 'P30', 'P40', 'P50', 'P60', 'P70', 'P80'];
+const YEARS = Array.from({ length: 35 }, (_, i) => i + 1);
+const avg = a => a.reduce((x, v) => x + v, 0) / a.length;
+for (const r of results) {
+  if (!(r.bottom80Pass && r.fiscalGoalYear != null && r.fiscalGoalYear <= 15)) continue;
+  const { curve, zeroCurve, ...d } = fromUnit(cols.map(c => c[r.idx]));
+  const g = E.gainsTable(d, GROUPS, YEARS);
+  r.gains = GROUPS.map(k => Math.round(avg(g[k].slice(0, 30).map(v => v.income))));
+  r.p80Avg1to10 = Math.round(avg(g.P80.slice(0, 10).map(v => v.income)));
+  r.p80MinIncome = Math.round(Math.min(...g.P80.map(v => v.income)));
+  r.p80NwMinFrom10 = Math.round(Math.min(...g.P80.slice(9).map(v => v.netWorth)));
+}
+
 const summary = { designs: N, seed: SEED, currentLaw: E.currentLawGinis(), currentDefault: E.evaluate({}), runs: {} };
 for (const deadline of [10, 15]) {
   const pass = results.filter(r => r.bottom80Pass && r.fiscalGoalYear != null && r.fiscalGoalYear <= deadline);
@@ -75,7 +91,7 @@ const robust = results.filter(r => r.robust);
 const robustFront = frontier(robust).sort((a, b) => a.incomeGiniY30 - b.incomeGiniY30);
 robustFront.forEach(r => { r.frontierRobust = true; });
 summary.robust = { count: robust.length, frontier: robustFront.map(r => r.id) };
-const flat = ({ curve, zeroCurve, ...r }) => ({ ...r, ...(curve ? { curveShape: `${curve.start}-${curve.end}-${curve.shape}` } : {}),
+const flat = ({ curve, zeroCurve, gains, ...r }) => ({ ...r, ...(curve ? { curveShape: `${curve.start}-${curve.end}-${curve.shape}` } : {}),
   ...(zeroCurve ? { curveShape: `0-${zeroCurve.zeroEnd}-${zeroCurve.end}-${zeroCurve.shape}` } : {}), incomeTaxBrackets: r.incomeTaxBrackets.map(([t, x]) => `${t === Infinity ? 'inf' : t}:${x}`).join(' ') });
 const rowsOut = results.map(flat);
 const keys = Object.keys(rowsOut.reduce((a, r) => ({ ...a, ...r }), {}));
@@ -103,6 +119,7 @@ const pageData = {
     incomeGiniY30: r.incomeGiniY30, nwGiniY30: r.nwGiniY30, P50Y30: r.P50Y30, P70Y30: r.P70Y30, P80Y30: r.P80Y30, T10Y30: r.T10Y30,
     goalRecession5: r.goalRecession5 ?? null, goalRecession12: r.goalRecession12 ?? null, goalLowGrowth: r.goalLowGrowth ?? null,
     stressTested: 'goalRecession5' in r, robust: !!r.robust, frontierRobust: !!r.frontierRobust,
+    gains: r.gains, p80Avg1to10: r.p80Avg1to10, p80MinIncome: r.p80MinIncome, p80NwMinFrom10: r.p80NwMinFrom10,
   })),
 };
 writeFileSync(`src/data/${NAME}.json`, JSON.stringify(pageData));

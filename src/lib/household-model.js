@@ -264,22 +264,38 @@ export function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
 }
 
 // Layered net worth, compounded.
+// Pre-reform wealth carried forward under the active provisions (growth, then dilution).
+function baseNW(k, y, P, fx) {
+  const d = DEMOS[k];
+  if (d.nw < 0) return Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
+  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
+  const ds = dilutableShare(k);
+  return d.nw * Math.pow(1 + nwGr, y) * (1 - ds + ds * dilutionFactor(y, P, fx));
+}
+
 export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k], r = d.ret;
-  const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
-  let base;
-  if (d.nw >= 0) {
-    const grown = d.nw * Math.pow(1 + nwGr, y);
-    const ds = dilutableShare(k);
-    base = grown * (1 - ds + ds * dilutionFactor(y, P, fx));
-  } else {
-    base = Math.max(d.nw, d.nw + d.income * d.save * Math.min(y, 30));
-  }
+  const base = baseNW(k, y, P, fx);
 
   let tax = 0, pre = 0, ag = 0, pd = 0, pc = 0;
   if (P.has('TAX')) {
+    // Taxes assigned by holdings (business-land LVT, the smaller rent taxes, realization) are set
+    // on current-law holdings. When the reform has drawn a household's wealth below its
+    // current-law path, its holdings and so these taxes shrink in proportion, the year after.
+    // Households whose wealth is over 10× their income pay the reform out of their portfolio, so
+    // the cost compounds at the portfolio's growth rate, and the tax on their investment income
+    // (the bracket's gains share of income) shrinks with their holdings too.
+    const portfolioPaid = d.nw > 10 * d.income;
+    const rc = portfolioPaid ? Math.min(r, computeAccordNWG(k)) : r;
+    const capShare = portfolioPaid ? BRACKETS[DEMO_BRACKET[k]].cgShare : 0;
     let c = 0;
-    for (let t = 1; t <= y; t++) c = c * (1 + r) - sumCosts(reformCosts(k, t, P, fx)) * d.save;
+    for (let t = 1; t <= y; t++) {
+      const costs = reformCosts(k, t, P, fx);
+      const clW = clBaseNW(k, t - 1);
+      const held = clW > 0 ? Math.min(1, Math.max(0, (baseNW(k, t - 1, P, fx) + c) / clW)) : 1;
+      const shrink = (1 - held) * (costs.assigned + capShare * (costs.incomeTax + costs.payrollFix));
+      c = c * (1 + rc) - (sumCosts(costs) - shrink) * d.save;
+    }
     tax = c;
   }
   if (P.has('PRE')) {

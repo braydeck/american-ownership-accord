@@ -13,7 +13,12 @@ const { BASE_PARAMS } = await server.ssrLoadModule('/src/lib/fiscal-engine.js');
 const DATA = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
 const CURVE = JSON.parse(readFileSync('src/data/curve-search.json', 'utf8'));
 const ZERO = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'));
-const OPT = [0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-${i}.json`, 'utf8')));
+// Hill climbing is path-dependent, so for each start design keep the better of this run and the
+// previous one (scripts/output/optimize-below-p80-recover10-previous.json); income gains below P80
+// did not change between them, and every variant is re-scored below.
+const OPT_RUNS = [...[0, 1, 2, 3, 4, 5].map(i => `scripts/output/optimize-below-p80-recover10-${i}.json`), 'scripts/output/optimize-below-p80-recover10-previous.json']
+  .flatMap(f => JSON.parse(readFileSync(f, 'utf8'))).filter(r => r.p80NeverBehind);
+const OPT = Object.values(OPT_RUNS.reduce((best, r) => ((!best[r.from] || r.objective > best[r.from].objective) && (best[r.from] = r), best), {}));
 const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
 // Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
 // from Year 10), by start design.
@@ -21,7 +26,7 @@ const pctTxt = v => `${+(v * 100).toFixed(1)}%`;
 const kTxt = v => (v >= 1e6 ? `$${+(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1e3)}K`);
 function optimizedNote(start) {
   const r = OPT.find(o => o.from === start);
-  const sched = r.fam === 'zero' ? `0% to ${kTxt(r.zeroEnd)} with no standard deduction, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.zeroEnd * r.zeroEndRatio)}`
+  const sched = r.fam === 'zero' ? `${pctTxt(r.baseRate ?? 0)} to ${kTxt(r.zeroEnd)} with no standard deduction, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.zeroEnd * r.zeroEndRatio)}`
     : r.fam === 'curve' ? `${pctTxt(r.low)} to ${kTxt(r.start)}, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.start * r.endRatio)}, ${kTxt(r.exemptJoint)} joint deduction`
     : `${pctTxt(r.low)} to ${kTxt(r.threshold)}, ${pctTxt(r.top)} above, ${kTxt(r.exemptJoint)} joint deduction`;
   return `Optimized for the largest income gains from B10 through P70, with P80 ahead on income every year and back to even on net worth by Year 10: ${sched}; VAT ${pctTxt(r.vatRate)}, LVT ${pctTxt(r.lvtRate)}, carbon $${r.carbonRate}, prebate $${r.prebate.toLocaleString()}.`;
@@ -29,7 +34,7 @@ function optimizedNote(start) {
 const optimized = start => {
   const r = OPT.find(o => o.from === start);
   const curve = r.fam === 'curve' ? { low: r.low, top: r.top, start: r.start, end: Math.round(r.start * r.endRatio), shape: r.shape } : undefined;
-  const zeroCurve = r.fam === 'zero' ? { zeroEnd: r.zeroEnd, end: Math.round(r.zeroEnd * r.zeroEndRatio), top: r.top, shape: r.zeroShape } : undefined;
+  const zeroCurve = r.fam === 'zero' ? { zeroEnd: r.zeroEnd, end: Math.round(r.zeroEnd * r.zeroEndRatio), top: r.top, shape: r.zeroShape, baseRate: r.baseRate ?? 0 } : undefined;
   return { brackets: r.brackets, curve, zeroCurve, exemptJoint: r.exemptJoint, vatRate: r.vatRate, lvtRate: r.lvtRate, carbonRate: r.carbonRate,
     prebate: r.prebate, prebateIndex: r.prebateIndex, floorIndex: r.floorIndex, fttPct: r.fttPct };
 };
@@ -51,6 +56,10 @@ const VARIANTS = [
     changes: { brackets: [[200e3, 0.1171], [500e3, 0.40], [null, 0.5895]] } },
   ...[13610, 21877, 1976, 4148].map(start => ({ id: `${start}-opt`, base: start, name: `${start}, optimized below P80`,
     note: optimizedNote(start), changes: optimized(start) })),
+  // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
+// only base rate that stayed robust).
+  { id: '21877-base2', base: 21877, name: '21877 optimized, 2% base rate', note: 'The optimized 21877 design with a 2% rate in place of the 0% band (no later rate below 2%) and the prebate raised $500 a person. Moves gains from P50-P70 toward B10-P20.',
+    changes: (() => { const o = optimized(21877); return { ...o, zeroCurve: { ...o.zeroCurve, baseRate: 0.02 }, brackets: [[o.brackets[0][0], 0.02], ...o.brackets.slice(1)].map(([t, r]) => [t, Math.max(r, 0.02)]), prebate: o.prebate + 500 }; })() },
 ];
 const delta = p => Object.fromEntries(Object.keys(p).filter(k => p[k] !== BASE_PARAMS[k]).map(k => [k, p[k]]));
 const out = [];
@@ -63,7 +72,13 @@ for (const v of VARIANTS) {
   const robust = r.minIncomeGain >= 1000 && r.minNwGain >= 1000
     && rec5.fiscalGoalYear != null && rec5.fiscalGoalYear <= 15 && rec12.fiscalGoalYear != null && rec12.fiscalGoalYear <= 22
     && low.fiscalGoalYear != null && low.fiscalGoalYear <= 20 && rec5.bottom80Pass && rec12.bottom80Pass && low.bottom80Pass;
-  out.push({ ...rec, id: v.id, name: v.name, note: v.note, ...r, goalRecession5: rec5.fiscalGoalYear, goalRecession12: rec12.fiscalGoalYear,
+  const GROUPS = ['B10', 'P10', 'P20', 'P30', 'P40', 'P50', 'P60', 'P70', 'P80'];
+  const g = E.gainsTable(design, GROUPS, Array.from({ length: 35 }, (_, i) => i + 1));
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const groupFields = { gains: GROUPS.map(k => Math.round(avg(g[k].slice(0, 30).map(x => x.income)))),
+    p80Avg1to10: Math.round(avg(g.P80.slice(0, 10).map(x => x.income))), p80MinIncome: Math.round(Math.min(...g.P80.map(x => x.income))),
+    p80NwMinFrom10: Math.round(Math.min(...g.P80.slice(9).map(x => x.netWorth))) };
+  out.push({ ...rec, id: v.id, name: v.name, note: v.note, ...r, ...groupFields, goalRecession5: rec5.fiscalGoalYear, goalRecession12: rec12.fiscalGoalYear,
     goalLowGrowth: low.fiscalGoalYear, stressTested: true, robust, frontierRobust: false, variant: true });
   console.log(v.name, '| goal', r.fiscalGoalYear, 'rec5', rec5.fiscalGoalYear, 'robust', robust, '| Gini', r.incomeGiniY30, r.nwGiniY30, '| P80 Y30', r.P80Y30);
 }

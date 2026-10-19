@@ -4,180 +4,181 @@
   "startObjective": 16817,
   "fam": "zero",
   "exemptJoint": 0,
-  "vatRate": 0.1478,
-  "lvtRate": 0.0699,
-  "carbonRate": 106,
-  "prebate": 7150,
-  "fttPct": 0.131,
+  "vatRate": 0.15,
+  "lvtRate": 0.0626,
+  "carbonRate": 130,
+  "prebate": 6800,
+  "fttPct": 0.093,
   "prebateIndex": 0.5,
   "floorIndex": 0.5,
   "from": 21877,
   "low": 0,
-  "top": 0.5985,
-  "zeroEnd": 69000,
-  "zeroEndRatio": 3.595,
-  "zeroShape": 2.452,
+  "baseRate": 0,
+  "top": 0.5632,
+  "zeroEnd": 67000,
+  "zeroEndRatio": 4.063,
+  "zeroShape": 2.106,
   "brackets": [
    [
-    69000,
+    67000,
     0
    ],
    [
-    72779,
-    0
+    71030,
+    0.0002
    ],
    [
-    76764,
-    0.0007
+    75303,
+    0.0016
    ],
    [
-    80968,
-    0.0023
+    79833,
+    0.0048
    ],
    [
-    85402,
-    0.0053
+    84635,
+    0.0098
    ],
    [
-    90078,
-    0.0099
+    89726,
+    0.0166
    ],
    [
-    95011,
-    0.0161
+    95123,
+    0.0253
    ],
    [
-    100214,
-    0.0243
+    100845,
+    0.036
    ],
    [
-    105702,
-    0.0345
+    106911,
+    0.0486
    ],
    [
-    111490,
-    0.047
+    113342,
+    0.0633
    ],
    [
-    117595,
-    0.0617
+    120160,
+    0.08
    ],
    [
-    124035,
-    0.0788
+    127388,
+    0.0988
    ],
    [
-    130827,
-    0.0985
+    135051,
+    0.1196
    ],
    [
-    137992,
-    0.1209
+    143175,
+    0.1426
    ],
    [
-    145548,
-    0.146
+    151787,
+    0.1677
    ],
    [
-    153519,
-    0.174
+    160918,
+    0.1949
    ],
    [
-    161925,
-    0.2049
+    170598,
+    0.2243
    ],
    [
-    170793,
-    0.2388
+    180859,
+    0.2558
    ],
    [
-    180145,
-    0.2759
+    191739,
+    0.2896
    ],
    [
-    190010,
-    0.3161
+    203272,
+    0.3255
    ],
    [
-    200416,
-    0.3597
+    215500,
+    0.3637
    ],
    [
-    211391,
-    0.4066
+    228463,
+    0.4041
    ],
    [
-    222967,
-    0.457
+    242206,
+    0.4467
    ],
    [
-    235176,
-    0.5109
+    256775,
+    0.4916
    ],
    [
-    248055,
-    0.5684
+    272221,
+    0.5388
    ],
    [
     null,
-    0.5985
+    0.5632
    ]
   ],
-  "objective": 18802,
-  "belowAvg1to10": 13949,
-  "bottomHalfAvg1to30": 16828,
+  "objective": 17664,
+  "belowAvg1to10": 12948,
+  "bottomHalfAvg1to30": 15881,
   "byGroupAvg1to30": {
-   "B10": 12458,
-   "P10": 15119,
-   "P20": 17593,
-   "P30": 19003,
-   "P40": 19967,
-   "P50": 20519,
-   "P60": 21831,
-   "P70": 23923
+   "B10": 11711,
+   "P10": 14222,
+   "P20": 16624,
+   "P30": 17972,
+   "P40": 18876,
+   "P50": 19372,
+   "P60": 20505,
+   "P70": 22033
   },
-  "p80MinIncome": 5535,
-  "p80MinNetWorth": 3102,
-  "p80LowestNetWorthAnyYear": -7657,
+  "p80MinIncome": 4533,
+  "p80MinNetWorth": 743,
+  "p80LowestNetWorthAnyYear": -8909,
   "p80NeverBehind": true,
   "p80NetWorth": [
    [
     1,
-    35129
+    34881
    ],
    [
     3,
-    15433
+    14664
    ],
    [
     5,
-    -7657
+    -8909
    ],
    [
     7,
-    -3430
+    -5125
    ],
    [
     10,
-    3102
+    743
    ],
    [
     20,
-    29160
+    25269
    ],
    [
     30,
-    42580
+    40386
    ]
   ],
-  "p80AvgIncome1to10": 7719,
-  "fiscalGoalYear": 8,
+  "p80AvgIncome1to10": 6883,
+  "fiscalGoalYear": 9,
   "goalRecession5": 15,
   "goalRecession12": 18,
   "goalLowGrowth": 10,
-  "incomeGiniY30": 0.5208,
-  "nwGiniY30": 0.6256,
-  "laborLevelY10": 0.9893
+  "incomeGiniY30": 0.5317,
+  "nwGiniY30": 0.6878,
+  "laborLevelY10": 0.9898
  },
  {
   "start": 180000,
@@ -284,8 +285,8 @@
    "P70": 18289
   },
   "p80MinIncome": 6977,
-  "p80MinNetWorth": 11420,
-  "p80LowestNetWorthAnyYear": -4687,
+  "p80MinNetWorth": 11757,
+  "p80LowestNetWorthAnyYear": -4653,
   "p80NeverBehind": true,
   "p80NetWorth": [
    [
@@ -298,23 +299,23 @@
    ],
    [
     5,
-    -4687
+    -4653
    ],
    [
     7,
-    1048
+    1178
    ],
    [
     10,
-    11420
+    11757
    ],
    [
     20,
-    63915
+    65608
    ],
    [
     30,
-    138338
+    142919
    ]
   ],
   "p80AvgIncome1to10": 10424,
@@ -323,7 +324,7 @@
   "goalRecession12": 18,
   "goalLowGrowth": 10,
   "incomeGiniY30": 0.5422,
-  "nwGiniY30": 0.6598,
+  "nwGiniY30": 0.7022,
   "laborLevelY10": 0.9924
  },
  {
@@ -431,8 +432,8 @@
    "P70": 16654
   },
   "p80MinIncome": 4783,
-  "p80MinNetWorth": 5225,
-  "p80LowestNetWorthAnyYear": -7866,
+  "p80MinNetWorth": 5626,
+  "p80LowestNetWorthAnyYear": -7824,
   "p80NeverBehind": true,
   "p80NetWorth": [
    [
@@ -445,23 +446,23 @@
    ],
    [
     5,
-    -7866
+    -7824
    ],
    [
     7,
-    -3027
+    -2870
    ],
    [
     10,
-    5225
+    5626
    ],
    [
     20,
-    48741
+    50703
    ],
    [
     30,
-    108768
+    113974
    ]
   ],
   "p80AvgIncome1to10": 8497,
@@ -470,7 +471,7 @@
   "goalRecession12": 18,
   "goalLowGrowth": 9,
   "incomeGiniY30": 0.5379,
-  "nwGiniY30": 0.6452,
+  "nwGiniY30": 0.6935,
   "laborLevelY10": 0.9947
  },
  {
@@ -513,8 +514,8 @@
    "P70": 17665
   },
   "p80MinIncome": 6557,
-  "p80MinNetWorth": 13148,
-  "p80LowestNetWorthAnyYear": -4887,
+  "p80MinNetWorth": 13601,
+  "p80LowestNetWorthAnyYear": -4841,
   "p80NeverBehind": true,
   "p80NetWorth": [
    [
@@ -527,23 +528,23 @@
    ],
    [
     5,
-    -4887
+    -4841
    ],
    [
     7,
-    1633
+    1810
    ],
    [
     10,
-    13148
+    13601
    ],
    [
     20,
-    74304
+    76487
    ],
    [
     30,
-    160031
+    165769
    ]
   ],
   "p80AvgIncome1to10": 10878,
@@ -552,7 +553,7 @@
   "goalRecession12": 18,
   "goalLowGrowth": 10,
   "incomeGiniY30": 0.5498,
-  "nwGiniY30": 0.6552,
+  "nwGiniY30": 0.7001,
   "laborLevelY10": 0.9977
  }
 ]
