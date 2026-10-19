@@ -97,16 +97,16 @@ export const PAYROLL_RATE = Object.fromEntries(DEMO_KEYS.map(k => {
 export const incomeAt = (k, y) => DEMOS[k].income * Math.pow(1 + DEMOS[k].incG, y);
 export const clTaxAt = (k, y) => clIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, prefShare(k));
 // Income tax reform delta at year y: Accord minus current law on the same income.
-export const taxAt = (k, y, fx = FISCAL_DEFAULTS) =>
-  accordIncomeTax(incomeAt(k, y), DEMOS[k].hhSz, fx, y) - clTaxAt(k, y);
+export const taxAt = (k, y, fx = FISCAL_DEFAULTS, inc = incomeAt(k, y)) =>
+  accordIncomeTax(inc, DEMOS[k].hhSz, fx, y) - clTaxAt(k, y);
 // Social Security contribution above the cap: 12.4% on all income above the per-worker cap,
 // with no benefit credit. The cap follows average wages (wageIndex).
-export function payrollFix(k, y, fx = FISCAL_DEFAULTS) {
+export function payrollFix(k, y, fx = FISCAL_DEFAULTS, inc = incomeAt(k, y)) {
   if (fx.ssUncapOn === false) return 0;
   const jFrac = BRACKETS[DEMO_BRACKET[k]].jFrac;
   const e = earnersPerFiler(jFrac);
   const cap = SS_CAP_SNAPSHOT * wageIndex(fx, y);
-  return SS_RATE * Math.max(0, incomeAt(k, y) / e - cap) * e;
+  return SS_RATE * Math.max(0, inc / e - cap) * e;
 }
 
 // ─── ACCORD NW GROWTH ────────────────────────────────────────────────────────
@@ -139,6 +139,21 @@ export function dilutionFactor(y, P, fx = FISCAL_DEFAULTS) {
   const fund = P.has('AMCF') ? h.fundOwn : 0;
   const worker = (P.has('PSU_D') || P.has('PSU_C')) ? h.workerOwn : 0;
   return reval * (1 - fund - worker);
+}
+
+// Share of income that is the return on dilutable holdings: the preferential share (gains and
+// qualified dividends) times the dilutable share of financial and business assets. Payouts per
+// dollar of company value are unchanged by the reform (the engine holds the payout yield on
+// revalued value), so this income moves with dilutionFactor. Assumption.
+const holdingsIncomeShare = k => {
+  const d = DEMOS[k], held = d.finPct + d.bizPct;
+  return held > 0 ? prefShare(k) * (0.7 * d.finPct + d.bizPct * (LARGE_BIZ_SHARE[k] ?? 0)) / held : 0;
+};
+// Pre-tax income under the active provisions: holdings income is revalued and diluted with the
+// household's stakes.
+export function accordIncomeAt(k, y, P, fx = FISCAL_DEFAULTS) {
+  const s = holdingsIncomeShare(k);
+  return incomeAt(k, y) * (1 - s + s * dilutionFactor(y, P, fx));
 }
 
 // ─── REVENUE ASSIGNED BY HOLDINGS ────────────────────────────────────────────
@@ -217,7 +232,7 @@ function extraIncome(k, y, P, fx) {
 export function extraIncomeTax(k, y, P, fx = FISCAL_DEFAULTS) {
   const x = extraIncome(k, y, P, fx);
   if (x <= 0) return 0;
-  const d = DEMOS[k], inc = incomeAt(k, y);
+  const d = DEMOS[k], inc = accordIncomeAt(k, y, P, fx);
   return P.has('TAX')
     ? accordIncomeTax(inc + x, d.hhSz, fx, y) - accordIncomeTax(inc, d.hhSz, fx, y)
     : clIncomeTax(inc + x, d.hhSz, prefShare(k)) - clIncomeTax(inc, d.hhSz, prefShare(k));
@@ -234,15 +249,15 @@ export const psuNetShare = extraNetShare;
 // All tax-reform cash costs for one persona in year y (positive = cost): income tax delta,
 // VAT, residential LVT, carbon, the payroll fix and assigned rent taxes.
 function reformCosts(k, y, P, fx) {
-  const bi = DEMO_BRACKET[k], inc = incomeAt(k, y);
+  const bi = DEMO_BRACKET[k], inc = accordIncomeAt(k, y, P, fx);
   return {
-    incomeTax: taxAt(k, y, fx),
+    incomeTax: taxAt(k, y, fx, inc),
     // The VAT, the VAT on new homes and the FAT reach this share of consumption. Assumption:
     // each is the same share of every bracket's consumption.
     vat: fx.vatRate * BRACKETS[bi].cRat * inc * consumptionTaxCoverage(fx),
     lvt: lvtNetBr(k, y, P, fx),
     carbon: carbonCostAt(bi, y, fx),
-    payrollFix: payrollFix(k, y, fx),
+    payrollFix: payrollFix(k, y, fx, inc),
     assigned: assignedRentTax(k, y, fx),
   };
 }
@@ -260,7 +275,7 @@ const portfolioPaid = k => DEMOS[k].nw > 10 * DEMOS[k].income;
 
 export function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
-  const base = incomeAt(k, y);
+  const base = accordIncomeAt(k, y, P, fx);
   const costs = P.has('TAX') ? reformCosts(k, y, P, fx) : null;
   const tax = costs ? -(sumCosts(costs) - (portfolioPaid(k) ? costs.assigned : 0)) : 0;
   const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
@@ -296,15 +311,19 @@ export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
     // current-law path, its holdings and so these taxes shrink in proportion, the year after.
     // Households whose wealth is over 10× their income pay the reform out of their portfolio, so
     // the cost compounds at the portfolio's growth rate, and the tax on their investment income
-    // (the bracket's gains share of income) shrinks with their holdings too.
+    // (the bracket's gains share of income) shrinks as the taxes draw their holdings down.
+    // Dilution already lowers that income (accordIncomeAt), so only the tax drawdown counts here.
     const rc = portfolioPaid(k) ? Math.min(r, computeAccordNWG(k)) : r;
     const capShare = portfolioPaid(k) ? BRACKETS[DEMO_BRACKET[k]].cgShare : 0;
     let c = 0;
     for (let t = 1; t <= y; t++) {
       const costs = reformCosts(k, t, P, fx);
       const clW = clBaseNW(k, t - 1);
-      const held = clW > 0 ? Math.min(1, Math.max(0, (baseNW(k, t - 1, P, fx) + c) / clW)) : 1;
-      const shrink = (1 - held) * (costs.assigned + capShare * (costs.incomeTax + costs.payrollFix));
+      const bW = baseNW(k, t - 1, P, fx);
+      const held = clW > 0 ? Math.min(1, Math.max(0, (bW + c) / clW)) : 1;
+      const heldAfterTax = bW > 0 ? Math.min(1, Math.max(0, (bW + c) / bW)) : 1;
+      const shrink = (1 - held) * costs.assigned
+        + (1 - heldAfterTax) * capShare * (costs.incomeTax + costs.payrollFix);
       c = c * (1 + rc) - (sumCosts(costs) - shrink) * d.save;
     }
     tax = c;
@@ -358,11 +377,11 @@ export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const d    = DEMOS[k];
   const nwGr = P.has('TAX') ? computeAccordNWG(k) : d.nwG;
   const nwY  = d.nw * Math.pow(1 + nwGr, y);
-  const incY = incomeAt(k, y);
+  const incY = accordIncomeAt(k, y, P, fx);
   const unrealBiz = nwY * d.bizPct * d.nwG;
   const unrealFin = nwY * d.finPct * d.ret * 0.80;
   const econInc   = incY + unrealBiz + unrealFin;
-  let taxes = clTaxAt(k, y) + incY * PAYROLL_RATE[k];
+  let taxes = clTaxAt(k, y) + incomeAt(k, y) * PAYROLL_RATE[k];
   if (P.has('TAX')) {
     taxes += sumCosts(reformCosts(k, y, P, fx));
   }
@@ -376,8 +395,8 @@ export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
 export function getETR(k, y, P, fx = FISCAL_DEFAULTS) {
   if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P, fx);
   const d = DEMOS[k];
-  const g = incomeAt(k, y);
-  let taxes = clTaxAt(k, y) + g * PAYROLL_RATE[k], bens = 0;
+  const g = accordIncomeAt(k, y, P, fx);
+  let taxes = clTaxAt(k, y) + incomeAt(k, y) * PAYROLL_RATE[k], bens = 0;
   if (P.has('TAX')) taxes += sumCosts(reformCosts(k, y, P, fx));
   if (P.has('PRE')) bens += prebatePC(P, fx, y) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k];
   return g > 0 ? (taxes - bens) / g * 100 : 0;
@@ -402,15 +421,15 @@ export function computeGini(pts) {
 // Cash-flow decomposition. Matches getInc: net − current-law net equals the Accord delta.
 export function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
-  const gross = incomeAt(k, y);
-  const clTax = -(clTaxAt(k, y) + gross * PAYROLL_RATE[k]);
+  const gross = accordIncomeAt(k, y, P, fx);
+  const clTax = -(clTaxAt(k, y) + incomeAt(k, y) * PAYROLL_RATE[k]);
   const c = P.has('TAX') ? reformCosts(k, y, P, fx) : null;
   const taxRef = c ? -c.incomeTax : 0;
   const vat  = c ? -c.vat : 0;
   const lvt  = c ? -c.lvt : 0;
   const carb = c ? -c.carbon : 0;
   const payFix = c ? -c.payrollFix : 0;
-  const assigned = c ? -c.assigned : 0;
+  const assigned = c && !portfolioPaid(k) ? -c.assigned : 0;
   const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;
   const pre  = P.has('PRE') ? prebatePC(P, fx, y) * d.hhSz : 0;
   const cdiv = P.has('PRE') ? carbonDivPC(fx.carbonRate, y) * d.hhSz : 0;

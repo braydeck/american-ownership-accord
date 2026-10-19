@@ -17,37 +17,36 @@
     "minNwGain": 11531,
     "worstNw": "B10 Yr 5",
     "bottom80Pass": true,
-    "incomeGiniY30": 0.5277,
-    "nwGiniY30": 0.6752,
-    "P50Y30": 27603,
-    "P70Y30": 37129,
-    "P80Y30": 14286,
-    "T10Y30": -229229
+    "incomeGiniY30": 0.5241,
+    "nwGiniY30": 0.6818,
+    "P50Y30": 26993,
+    "P70Y30": 35964,
+    "P80Y30": 12772,
+    "T10Y30": -232149
   },
   "runs": {
     "10": {
       "fiscalPass": 1323,
-      "bottom80Pass": 4095,
-      "bothPass": 556,
+      "bottom80Pass": 4054,
+      "bothPass": 530,
       "frontier": [
         13485
       ]
     },
     "15": {
       "fiscalPass": 1626,
-      "bottom80Pass": 4095,
-      "bothPass": 810,
+      "bottom80Pass": 4054,
+      "bothPass": 778,
       "frontier": [
         13485
       ]
     }
   },
   "robust": {
-    "count": 276,
+    "count": 257,
     "frontier": [
       14098,
       13693,
-      12206,
       10368
     ]
   }
