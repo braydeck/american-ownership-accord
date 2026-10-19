@@ -17,7 +17,7 @@
     "minNwGain": 11531,
     "worstNw": "B10 Yr 5",
     "bottom80Pass": true,
-    "incomeGiniY30": 0.5203,
+    "incomeGiniY30": 0.5277,
     "nwGiniY30": 0.6752,
     "P50Y30": 27603,
     "P70Y30": 37129,
@@ -46,7 +46,6 @@
     "count": 276,
     "frontier": [
       14098,
-      13702,
       13693,
       12206,
       10368

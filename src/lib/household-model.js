@@ -155,6 +155,10 @@ const clBaseNW = (k, y) => {
 // Taxes on gains realized at death and on gifts fall on estates above the $5M exclusion, so
 // they are assigned to the top 1% personas by the same holdings weights.
 const REALIZATION_PAYERS = ['T1', 'BILL', 'ELON'];
+// Musk is one living person, so no tax on gains at death falls on him inside the 35-year window;
+// his holdings stay in the denominator and his share goes unassigned. T1 and Billionaires are
+// groups (about 1.25 million and 800 households) in which some die or give assets away each year.
+const REALIZATION_EXEMPT_INDIVIDUALS = ['ELON'];
 export function assignedRentTax(k, y, fx = FISCAL_DEFAULTS) {
   const h = hhAt(fx, y);
   const wt = j => clBaseNW(j, y) * dilutableShare(j);
@@ -162,7 +166,8 @@ export function assignedRentTax(k, y, fx = FISCAL_DEFAULTS) {
   const denom = DEMO_KEYS.reduce((s, j) => s + wt(j) * hh(j), 0);
   const rent = denom > 0 ? (h.nonResLvt + h.stableTax) * US_HOUSEHOLD_SHARE * wt(k) / denom : 0;
   const denomTop = REALIZATION_PAYERS.reduce((s, j) => s + wt(j) * hh(j), 0);
-  const realization = REALIZATION_PAYERS.includes(k) && denomTop > 0 ? (h.realization ?? 0) * wt(k) / denomTop : 0;
+  const realization = REALIZATION_PAYERS.includes(k) && !REALIZATION_EXEMPT_INDIVIDUALS.includes(k) && denomTop > 0
+    ? (h.realization ?? 0) * wt(k) / denomTop : 0;
   return rent + realization;
 }
 
@@ -248,10 +253,16 @@ const sumCosts = c => c.incomeTax + c.vat + c.lvt + c.carbon + c.payrollFix + c.
 // ╚═══════════════════════════════════════╝
 
 // Layered income for (persona, year, active provisions). tax: negative = net cost.
+// Households whose wealth is over 10× their income (T1, Billionaires, Musk) pay the taxes assigned
+// by holdings out of their portfolios (the companies they own pay them), so those taxes reduce
+// net worth (getNW) and not income.
+const portfolioPaid = k => DEMOS[k].nw > 10 * DEMOS[k].income;
+
 export function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
   const base = incomeAt(k, y);
-  const tax = P.has('TAX') ? -sumCosts(reformCosts(k, y, P, fx)) : 0;
+  const costs = P.has('TAX') ? reformCosts(k, y, P, fx) : null;
+  const tax = costs ? -(sumCosts(costs) - (portfolioPaid(k) ? costs.assigned : 0)) : 0;
   const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
   const pre = P.has('PRE') ? (prebatePC(P, fx, y) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF and PSU layers are after the income tax on their taxable part.
@@ -286,9 +297,8 @@ export function getNW(k, y, P, fx = FISCAL_DEFAULTS) {
     // Households whose wealth is over 10× their income pay the reform out of their portfolio, so
     // the cost compounds at the portfolio's growth rate, and the tax on their investment income
     // (the bracket's gains share of income) shrinks with their holdings too.
-    const portfolioPaid = d.nw > 10 * d.income;
-    const rc = portfolioPaid ? Math.min(r, computeAccordNWG(k)) : r;
-    const capShare = portfolioPaid ? BRACKETS[DEMO_BRACKET[k]].cgShare : 0;
+    const rc = portfolioPaid(k) ? Math.min(r, computeAccordNWG(k)) : r;
+    const capShare = portfolioPaid(k) ? BRACKETS[DEMO_BRACKET[k]].cgShare : 0;
     let c = 0;
     for (let t = 1; t <= y; t++) {
       const costs = reformCosts(k, t, P, fx);
