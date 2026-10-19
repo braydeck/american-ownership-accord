@@ -14,7 +14,7 @@ export const FISCAL_KEYS = [
   'growthTaxRate', 'startingEvRatio', 'revaluationOn', 'citizenScripShare', 'citizenFloor',
   'unitSalesOn', 'unitSaleRate', 'bankPostBrake', 'assetRateCreditBp', 'ceocOn', 'pseuOn',
   'abundanceFloorOn', 'growthCase', 'recessionYear', 'recessionSeverity',
-  'incomeTaxLow', 'incomeTaxHigh', 'incomeTaxThreshold',
+  'incomeTaxLow', 'incomeTaxHigh', 'incomeTaxThreshold', 'incomeTaxRiseEnd', 'incomeTaxRiseShape',
   'incomeTaxExemptSingle', 'incomeTaxExemptJoint',
   'vatRate', 'lvtRate', 'carbonRate', 'prebatePerCapita',
 ];

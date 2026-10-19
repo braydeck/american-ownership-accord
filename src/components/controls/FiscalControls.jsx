@@ -11,9 +11,11 @@ const usd = v => `$${Math.round(v).toLocaleString()}`;
 
 const GROUPS = [
   { title: 'Income tax', items: [
-    { k: 'incomeTaxLow',          label: v => `Lower rate: ${pct(v, 0)}`,        min: 0.10, max: 0.40, step: 0.01 },
-    { k: 'incomeTaxHigh',         label: v => `Upper rate: ${pct(v, 0)}`,        min: 0.30, max: 0.70, step: 0.01 },
-    { k: 'incomeTaxThreshold',    label: v => `Upper-rate threshold: $${(v / 1e6).toFixed(2)}M`, min: 0.25e6, max: 5e6, step: 0.25e6 },
+    { k: 'incomeTaxLow',          label: v => `Starting rate: ${pct(v, 0)}`,     min: 0, max: 0.40, step: 0.01 },
+    { k: 'incomeTaxThreshold',    label: v => `Rate starts rising at: ${usd(v)}`, min: 10000, max: 1000000, step: 1000 },
+    { k: 'incomeTaxRiseEnd',      label: v => `Top rate reached at: ${usd(v)} (at or below the start = two rates)`, min: 10000, max: 5000000, step: 1000 },
+    { k: 'incomeTaxRiseShape',    label: v => `Rise shape: ${v.toFixed(2)} (above 1 rises late, below 1 rises early)`, min: 0.3, max: 3, step: 0.01 },
+    { k: 'incomeTaxHigh',         label: v => `Top rate: ${pct(v, 1)}`,           min: 0.30, max: 0.70, step: 0.005 },
     { k: 'incomeTaxExemptSingle', label: v => `Deduction, single: ${usd(v)}`,    min: 0, max: 100000, step: 5000 },
     { k: 'incomeTaxExemptJoint',  label: v => `Deduction, joint: ${usd(v)}`,     min: 0, max: 200000, step: 5000 },
   ]},

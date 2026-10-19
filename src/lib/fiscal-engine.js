@@ -4,7 +4,7 @@
 // UNITS: everything this module returns is NOMINAL. Year 0 is FY2025 and rows carry
 // `priceLevel`, so pages that present real dollars deflate at the boundary:
 // realValue = nominalValue / row.priceLevel. See realGrantSeries and householdFiscalSeries.
-import { lvtRevForFiscal, PREBATE_REDIRECTED, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/land';
+import { lvtRevForFiscal, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/land';
 import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS, accordSchedule, accordScheduleTax, accordMarginalRate,
   clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE, etiTopFloor, bracketPoints } from '@/lib/income-tax';
 import { BRACKETS } from '@/lib/brackets';
@@ -47,7 +47,9 @@ const BASE_PARAMS = {
   saleProceedsToDebt:     true,   // true: unit-sale proceeds (net of Treasury buybacks) always retire debt
   assetRateCreditBp:      1,      // bp off the Treasury's rate per point of GDP held in the Treasury tranche
   // ── Revenue ──
-  vatRate:                0.10,
+  // Default tax and transfer settings: design "21877 optimized, LVT 10%" (decided 2026-10-18,
+  // docs/engine-spec-2026-10-07.md, "Income tax shape and the distributional goal").
+  vatRate:                0.1478,
   // VAT base (decided 2026-10-16): personal consumption (~68% of GDP) less housing services
   // (owner-occupied imputed rent $2.50T and tenant rent $0.77T, 15.9% of PCE in 2025) and less
   // financial services and insurance ($1.69T), which the FAT taxes instead (BEA via FRED).
@@ -60,23 +62,27 @@ const BASE_PARAMS = {
   lvtGroundRentYield:     0.04,
   lvtLandElasticity:      LAND_GROWTH_ELASTICITY,
   lvtAssessmentBasis:     'capitalized',
-  incomeTaxLow:           INCOME_TAX_DEFAULTS.lowRate,
-  incomeTaxHigh:          INCOME_TAX_DEFAULTS.highRate,
-  incomeTaxThreshold:     INCOME_TAX_DEFAULTS.threshold,
-  incomeTaxExemptSingle:  INCOME_TAX_DEFAULTS.exemptSingle,
-  incomeTaxExemptJoint:   INCOME_TAX_DEFAULTS.exemptJoint,
+  // Income tax: 0% up to $69K with no standard deduction, then a smooth rise to 59.85% at $248K
+  // (thresholds rise with average wages). riseEnd at or below the threshold gives two rates.
+  incomeTaxLow:           0,
+  incomeTaxHigh:          0.5985,
+  incomeTaxThreshold:     69_000,
+  incomeTaxRiseEnd:       248_055,
+  incomeTaxRiseShape:     2.452,
+  incomeTaxExemptSingle:  0,
+  incomeTaxExemptJoint:   0,
   incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop,
   incomeTaxBrackets:      null,   // [[upper income bound, rate], ...]; null = the two-rate low/high/threshold form
   realizationOn:          true,   // gains realized at death and on gifts (incl. charitable), pledged-asset backstop (gaps item 3)
   ssUncapOn:              true,
   ssBackstopOn:           true,   // general revenue tops the OASDI trust funds up to 100% of a year's cost (decided 2026-10-16)   // 12.4% Social Security contribution on all income above the cap, no benefit credit (gaps item 1)
-  carbonRate:             100,
+  carbonRate:             106,
   stableTaxFrac:          STABLE_RENT_FRAC,
   publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
   // ── Spending ──
-  prebatePerCapita:       PREBATE_REDIRECTED,
-  prebateIndex:           0,      // share of real GDP-per-person growth the prebate follows on top of CPI (0, 0.5, 1)
-  citizenFloorIndex:      0,      // same, for the $500 citizen grant floor
+  prebatePerCapita:       7150,
+  prebateIndex:           0.5,      // share of real GDP-per-person growth the prebate follows on top of CPI (0, 0.5, 1)
+  citizenFloorIndex:      0.5,    // same, for the $500 citizen grant floor
   spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
   rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled)
   drugSavings:            0.001,  // % of GDP by Yr 5 (doc §12: $25–40B)
@@ -239,7 +245,8 @@ const CL_PROGRAM_MARGINAL = [-0.05, -0.02, 0.06, 0.08, 0.05, 0.02, 0, 0, 0, 0, 0
 function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
   const i = GROWTH_CASE_INDEX[p.growthCase] ?? 1;
   const sched = accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
-    lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold });
+    lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
+    riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape });
   const vatEff = p.vatRate * 0.9 * consumptionTaxCoverage(p);
   const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (PCE_GDP_SHARE * p.startingGdp * realIdx);
   const tc = vatEff + carbonEff;
@@ -527,6 +534,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const incomeTaxSplit = incomeTaxSplitForFiscal({
       nominalGdp, brackets: p.incomeTaxBrackets ?? undefined,
       lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
+      riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape,
       exemptSingle: p.incomeTaxExemptSingle, exemptJoint: p.incomeTaxExemptJoint, etiTop: p.incomeTaxEtiTop,
       ssUncapOn: p.ssUncapOn,
     });

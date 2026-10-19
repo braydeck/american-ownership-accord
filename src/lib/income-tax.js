@@ -102,12 +102,25 @@ export function clMarginalRate(income, jFrac) {
   return jFrac * clOrdinaryMarginalOne(income, CL_SCHED.joint) + (1 - jFrac) * clOrdinaryMarginalOne(income, CL_SCHED.single);
 }
 
+// Rising schedule: the low rate up to `start`, then a rise to the top rate at `end` following
+// low + (top − low) · t^shape, with t running 0 → 1 in log income, stepped in `steps` brackets.
+export const RISE_STEPS = 24;
+export function risingSchedule({ low, top, start, end, shape = 1, steps = RISE_STEPS }) {
+  const b = [[start, low]];
+  for (let k = 1; k <= steps; k++)
+    b.push([Math.round(start * Math.pow(end / start, k / steps)), +(low + (top - low) * Math.pow((k - 0.5) / steps, shape)).toFixed(4)]);
+  return [...b, [Infinity, top]];
+}
+
 // The Accord schedule as [[upper AGI bound, rate], ...], last bound Infinity. Thresholds are on
-// income; the standard deduction comes off the bottom. `brackets` overrides the two-rate
-// low/high/threshold form so the design search can test more brackets.
+// income; the standard deduction comes off the bottom. `brackets` overrides everything (the design
+// search's bracket and curve designs). Otherwise, with riseEnd above the threshold the rate rises
+// smoothly from lowRate at the threshold to highRate at riseEnd; without it, the two-rate form.
 export function accordSchedule({ brackets, lowRate = INCOME_TAX_DEFAULTS.lowRate,
-  highRate = INCOME_TAX_DEFAULTS.highRate, threshold = INCOME_TAX_DEFAULTS.threshold } = {}) {
-  return brackets ?? [[threshold, lowRate], [Infinity, highRate]];
+  highRate = INCOME_TAX_DEFAULTS.highRate, threshold = INCOME_TAX_DEFAULTS.threshold, riseEnd, riseShape = 1 } = {}) {
+  if (brackets) return brackets;
+  if (riseEnd > threshold) return risingSchedule({ low: lowRate, top: highRate, start: threshold, end: riseEnd, shape: riseShape });
+  return [[threshold, lowRate], [Infinity, highRate]];
 }
 export function accordScheduleTax(income, ded, sched) {
   let t = 0, lo = 0;
@@ -149,10 +162,12 @@ export function bracketIncomeTax(b, {
   etiMid       = INCOME_TAX_DEFAULTS.etiMid,
   etiTop       = INCOME_TAX_DEFAULTS.etiTop,
   ssUncapOn    = true,
+  riseEnd,
+  riseShape,
 } = {}) {
   const meanAgi = b.agi / b.filers;
   const sd = bracketDeduction(b, exemptSingle, exemptJoint);
-  const sched = accordSchedule({ brackets, lowRate, highRate, threshold });
+  const sched = accordSchedule({ brackets, lowRate, highRate, threshold, riseEnd, riseShape });
   const floor = etiTopFloor(sched);
   const pts = POINTS[BRACKETS.indexOf(b)] ?? [meanAgi];
   let raw = 0, perFiler = 0, ssPerFiler = 0, mNew = 0, mCL = 0;

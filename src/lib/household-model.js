@@ -80,7 +80,8 @@ export function accordIncomeTax(income, hhSz, fx, y = 0) {
   const jFrac = Math.min(1, Math.max(0, hhSz - 1));
   const ded   = (jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle) * w;
   const sched = accordSchedule({ brackets: fx.incomeTaxBrackets ?? undefined,
-    lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold })
+    lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold,
+    riseEnd: fx.incomeTaxRiseEnd, riseShape: fx.incomeTaxRiseShape })
     .map(([hi, r]) => [hi * w, r]);
   return accordScheduleTax(income, ded, sched);
 }

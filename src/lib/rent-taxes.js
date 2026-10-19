@@ -3,7 +3,7 @@
 // response; the fiscal engine scales their Year-1 total with nominal GDP thereafter.
 
 export const RENT_TAX_DEFAULTS = {
-  fttPct: 0.50, fslBps: 25, royaltyExtraPct: 8, spectrumPct: 2, waterFeeAF: 25,
+  fttPct: 0.131, fslBps: 25, royaltyExtraPct: 8, spectrumPct: 2, waterFeeAF: 25,
 };
 
 export const YR1_NOM_GDP = 28.7e12; // $28T real × 1.025 price level (Year 1)
