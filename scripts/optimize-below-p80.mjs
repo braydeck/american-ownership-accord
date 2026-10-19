@@ -9,7 +9,7 @@
 // Three schedule families: two rates (low rate to a threshold, top rate above), the curve, and the
 // zero-start curve with no standard deduction (both from scripts/lib/design-search-eval.js). Hill climbing from the best robust designs of both searches,
 // moving one or two levers at a time; seeded (42), deterministic.
-// Run: node scripts/optimize-below-p80.mjs [iterations=250] [p80NetWorthFloor=0] [recoverBy=1] [shard=0/1] [families=two,curve,zero]
+// Run: node scripts/optimize-below-p80.mjs [iterations=250] [p80NetWorthFloor=0] [recoverBy=1] [shard=0/1] [families=two,curve,zero] [lvtMin=0]
 //   → scripts/output/optimize-below-p80[-floor][-recover{Y}][-shard].json
 // P80's net-worth gain must be at or above the floor from Year recoverBy on (Brayden, 2026-10-18:
 // a dip in Years 5-9 is acceptable if net worth is back to even by Year 10, so floor 0, recoverBy
@@ -29,6 +29,8 @@ const B = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
 const C = JSON.parse(readFileSync('src/data/curve-search.json', 'utf8'));
 const Z = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'));
 const FAMS = (process.argv[6] ?? 'two,curve,zero').split(',');
+// Lowest LVT allowed (Brayden, 2026-10-18: ideally 10% or above). Starts below it are raised to it.
+const LVT_MIN = Number(process.argv[7] ?? 0);
 const rng = makeRng(42);
 const normal = () => Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next());
 
@@ -38,7 +40,7 @@ const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
 const BOUNDS = {
   low: [0.10, 0.25], top: [0.40, 0.62], threshold: [100e3, 400e3], start: [100e3, 300e3], endRatio: [1.2, 10], shape: [0.33, 1.5],
   baseRate: [0, 0.08], zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, 3],
-  exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [0, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, 0.5],
+  exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [LVT_MIN, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, 0.5],
 };
 const LOG = new Set(['threshold', 'start', 'endRatio', 'shape', 'zeroEnd', 'zeroEndRatio', 'zeroShape']);
 const INDEX = { prebateIndex: E.PREBATE_INDEX_OPTIONS, floorIndex: E.FLOOR_INDEX_OPTIONS };
@@ -127,7 +129,8 @@ const better = (s, c) => s.p80NeverBehind && !c.p80NeverBehind ? true
 
 // Starts per family: the 5 robust designs with the highest P80 net-worth floor and the 3 with the
 // largest gain below P80, plus 4148, 1976 and 14007.
-const pool = [...B.passing, ...C.passing, ...Z.passing].filter(d => d.robust).map(d => fromRecord(d)).filter(Boolean);
+const pool = [...B.passing, ...C.passing, ...Z.passing].filter(d => d.robust).map(d => fromRecord(d)).filter(Boolean)
+  .filter(x => FAMS.includes(x.fam)).map(x => ({ ...x, lvtRate: Math.max(x.lvtRate, LVT_MIN) }));
 const scored = pool.map(x => ({ x, s: score(x) })).filter(o => o.s);
 const starts = [];
 for (const fam of FAMS) {
@@ -151,6 +154,6 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
   console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
 results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();

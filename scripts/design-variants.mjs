@@ -18,21 +18,24 @@ const ZERO = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'))
 // did not change between them, and every variant is re-scored below.
 const OPT_RUNS = [...[0, 1, 2, 3, 4, 5].map(i => `scripts/output/optimize-below-p80-recover10-${i}.json`), 'scripts/output/optimize-below-p80-recover10-previous.json']
   .flatMap(f => JSON.parse(readFileSync(f, 'utf8'))).filter(r => r.p80NeverBehind);
-const OPT = Object.values(OPT_RUNS.reduce((best, r) => ((!best[r.from] || r.objective > best[r.from].objective) && (best[r.from] = r), best), {}));
+const bestByStart = runs => Object.values(runs.reduce((best, r) => ((!best[r.from] || r.objective > best[r.from].objective) && (best[r.from] = r), best), {}));
+const OPT = bestByStart(OPT_RUNS);
+// Curves only, LVT held at 10% or above (Brayden, 2026-10-18).
+const OPT_LVT10 = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-curve-zero-lvt10-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
 const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
 // Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
 // from Year 10), by start design.
 const pctTxt = v => `${+(v * 100).toFixed(1)}%`;
 const kTxt = v => (v >= 1e6 ? `$${+(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1e3)}K`);
-function optimizedNote(start) {
-  const r = OPT.find(o => o.from === start);
+function optimizedNote(start, pool = OPT) {
+  const r = pool.find(o => o.from === start);
   const sched = r.fam === 'zero' ? `${pctTxt(r.baseRate ?? 0)} to ${kTxt(r.zeroEnd)} with no standard deduction, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.zeroEnd * r.zeroEndRatio)}`
     : r.fam === 'curve' ? `${pctTxt(r.low)} to ${kTxt(r.start)}, rising smoothly to ${pctTxt(r.top)} at ${kTxt(r.start * r.endRatio)}, ${kTxt(r.exemptJoint)} joint deduction`
     : `${pctTxt(r.low)} to ${kTxt(r.threshold)}, ${pctTxt(r.top)} above, ${kTxt(r.exemptJoint)} joint deduction`;
   return `Optimized for the largest income gains from B10 through P70, with P80 ahead on income every year and back to even on net worth by Year 10: ${sched}; VAT ${pctTxt(r.vatRate)}, LVT ${pctTxt(r.lvtRate)}, carbon $${r.carbonRate}, prebate $${r.prebate.toLocaleString()}.`;
 }
-const optimized = start => {
-  const r = OPT.find(o => o.from === start);
+const optimized = (start, pool = OPT) => {
+  const r = pool.find(o => o.from === start);
   const curve = r.fam === 'curve' ? { low: r.low, top: r.top, start: r.start, end: Math.round(r.start * r.endRatio), shape: r.shape } : undefined;
   const zeroCurve = r.fam === 'zero' ? { zeroEnd: r.zeroEnd, end: Math.round(r.zeroEnd * r.zeroEndRatio), top: r.top, shape: r.zeroShape, baseRate: r.baseRate ?? 0 } : undefined;
   return { brackets: r.brackets, curve, zeroCurve, exemptJoint: r.exemptJoint, vatRate: r.vatRate, lvtRate: r.lvtRate, carbonRate: r.carbonRate,
@@ -56,6 +59,7 @@ const VARIANTS = [
     changes: { brackets: [[200e3, 0.1171], [500e3, 0.40], [null, 0.5895]] } },
   ...[13610, 21877, 1976, 4148].map(start => ({ id: `${start}-opt`, base: start, name: `${start}, optimized below P80`,
     note: optimizedNote(start), changes: optimized(start) })),
+  { id: '14007-lvt10', base: 14007, name: '14007, optimized, LVT 10%', note: optimizedNote(14007, OPT_LVT10), changes: optimized(14007, OPT_LVT10) },
   // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
 // only base rate that stayed robust).
   { id: '21877-base2', base: 21877, name: '21877 optimized, 2% base rate', note: 'The optimized 21877 design with a 2% rate in place of the 0% band (no later rate below 2%) and the prebate raised $500 a person. Moves gains from P50-P70 toward B10-P20.',

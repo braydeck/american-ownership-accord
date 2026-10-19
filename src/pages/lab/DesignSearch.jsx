@@ -39,7 +39,7 @@ const sumCounts = sets => Object.fromEntries(Object.keys(DATA.counts).map(k => [
 const designName = d => d.name ?? `Design ${d.id}`;
 // Designs compared by default: the two robust designs that keep P80 furthest ahead in Years 1-10
 // while raising the bottom half most, and the refined variant of design 1321.
-const COMPARE_IDS = ['21877-opt', '13610-opt', '1976-opt', '4148-opt'];
+const COMPARE_IDS = ['14007-lvt10', '4148-opt', '13610-opt', '21877-opt'];
 
 const COLORS = { variant: '#18181b', fail: '#d4d4d8', pass15: '#9cc3e8', pass10: '#2563C9', robust: '#d4940a', law: '#18181b', accord: '#c27040' };
 
@@ -139,7 +139,7 @@ export default function DesignSearch() {
   const sets = familyData(family);
   const counts = sumCounts(sets);
   const tested = sets.reduce((a, x) => a + x.designs, 0);
-  const defaultId = '21877-opt';
+  const defaultId = '14007-lvt10';
   const [selectedId, setSelectedId] = useState(defaultId);
   // Filters persist for this browser session so they survive reloads while reviewing.
   const [filters, setFilters] = useState(() => {
