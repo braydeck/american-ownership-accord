@@ -59,6 +59,9 @@ const VARIANTS = [
     changes: { brackets: [[200e3, 0.1171], [500e3, 0.40], [null, 0.5895]] } },
   ...[13610, 21877, 1976, 4148].map(start => ({ id: `${start}-opt`, base: start, name: `${start}, optimized below P80`,
     note: optimizedNote(start), changes: optimized(start) })),
+  // scripts/lvt-sweep.mjs: the optimized 21877 with only the LVT raised to 10%.
+  { id: '21877-lvt10', base: 21877, name: '21877 optimized, LVT 10%', note: 'The optimized 21877 design (0% band, no standard deduction) with only the LVT raised to 10%.',
+    changes: { ...optimized(21877), lvtRate: 0.10 } },
   { id: '14007-lvt10', base: 14007, name: '14007, optimized, LVT 10%', note: optimizedNote(14007, OPT_LVT10), changes: optimized(14007, OPT_LVT10) },
   // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
 // only base rate that stayed robust).
