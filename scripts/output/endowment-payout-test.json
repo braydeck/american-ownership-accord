@@ -1,0 +1,442 @@
+[
+  {
+    "label": "Direct grants (current)",
+    "grantReal": {
+      "1": 1248,
+      "5": 1212,
+      "10": 1417,
+      "20": 1383,
+      "30": 701,
+      "40": 814,
+      "60": 1282
+    },
+    "accountAt18": {
+      "bornYear0": 37815,
+      "bornYear20": 32808,
+      "bornYear40": 27820
+    },
+    "accountAt60": {
+      "bornYear0": 446946,
+      "bornYear20": 406514
+    },
+    "endowmentPerPersonReal": {
+      "10": 0,
+      "30": 0,
+      "60": 0
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 13942,
+      "30": 66414,
+      "60": 249664
+    },
+    "advancePerPersonReal": {
+      "10": 0,
+      "20": 0,
+      "30": 0,
+      "40": 0,
+      "60": 0
+    },
+    "advanceRepaidYear": 6,
+    "treasuryTranchePerPersonReal": {
+      "10": 22662,
+      "30": 61896,
+      "60": 83675
+    },
+    "fiscalGoalYear": 8,
+    "netCreditorYear": 39,
+    "debtFreeYear": 61,
+    "fiscalGoalAfterYear5Recession": 15,
+    "p80NetWorthGainY10": 9326,
+    "bottom80MinNwGain": 12208,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17824,
+    "nwGiniY30": 0.668,
+    "incomeGiniY30": 0.5189
+  },
+  {
+    "label": "Endowment 3%",
+    "grantReal": {
+      "1": 505,
+      "5": 529,
+      "10": 561,
+      "20": 781,
+      "30": 1351,
+      "40": 1853,
+      "60": 3549
+    },
+    "accountAt18": {
+      "bornYear0": 15576,
+      "bornYear20": 34631,
+      "bornYear40": 68763
+    },
+    "accountAt60": {
+      "bornYear0": 325998,
+      "bornYear20": 676100
+    },
+    "endowmentPerPersonReal": {
+      "10": 14805,
+      "30": 51765,
+      "60": 133414
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 5135,
+      "30": 28958,
+      "60": 159317
+    },
+    "advancePerPersonReal": {
+      "10": 0,
+      "20": 0,
+      "30": 0,
+      "40": 0,
+      "60": 0
+    },
+    "advanceRepaidYear": 6,
+    "treasuryTranchePerPersonReal": {
+      "10": 19011,
+      "30": 60471,
+      "60": 86912
+    },
+    "fiscalGoalYear": 8,
+    "netCreditorYear": 41,
+    "debtFreeYear": 63,
+    "fiscalGoalAfterYear5Recession": 15,
+    "p80NetWorthGainY10": -16821,
+    "bottom80MinNwGain": 9929,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 16928,
+    "nwGiniY30": 0.6862,
+    "incomeGiniY30": 0.5172
+  },
+  {
+    "label": "Endowment 4%",
+    "grantReal": {
+      "1": 505,
+      "5": 529,
+      "10": 561,
+      "20": 972,
+      "30": 1614,
+      "40": 2106,
+      "60": 3828
+    },
+    "accountAt18": {
+      "bornYear0": 16298,
+      "bornYear20": 41395,
+      "bornYear40": 75934
+    },
+    "accountAt60": {
+      "bornYear0": 363932,
+      "bornYear20": 765799
+    },
+    "endowmentPerPersonReal": {
+      "10": 14238,
+      "30": 45546,
+      "60": 106649
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 5135,
+      "30": 32928,
+      "60": 179358
+    },
+    "advancePerPersonReal": {
+      "10": 0,
+      "20": 0,
+      "30": 0,
+      "40": 0,
+      "60": 0
+    },
+    "advanceRepaidYear": 6,
+    "treasuryTranchePerPersonReal": {
+      "10": 19486,
+      "30": 60657,
+      "60": 83995
+    },
+    "fiscalGoalYear": 8,
+    "netCreditorYear": 41,
+    "debtFreeYear": 63,
+    "fiscalGoalAfterYear5Recession": 15,
+    "p80NetWorthGainY10": -16821,
+    "bottom80MinNwGain": 9929,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17064,
+    "nwGiniY30": 0.6841,
+    "incomeGiniY30": 0.5165
+  },
+  {
+    "label": "Endowment 5%",
+    "grantReal": {
+      "1": 505,
+      "5": 529,
+      "10": 561,
+      "20": 1134,
+      "30": 1814,
+      "40": 2260,
+      "60": 3956
+    },
+    "accountAt18": {
+      "bornYear0": 17350,
+      "bornYear20": 46572,
+      "bornYear40": 79686
+    },
+    "accountAt60": {
+      "bornYear0": 394797,
+      "bornYear20": 825239
+    },
+    "endowmentPerPersonReal": {
+      "10": 13687,
+      "30": 40241,
+      "60": 87271
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 5135,
+      "30": 36678,
+      "60": 194071
+    },
+    "advancePerPersonReal": {
+      "10": 0,
+      "20": 0,
+      "30": 0,
+      "40": 0,
+      "60": 0
+    },
+    "advanceRepaidYear": 6,
+    "treasuryTranchePerPersonReal": {
+      "10": 19946,
+      "30": 60602,
+      "60": 81880
+    },
+    "fiscalGoalYear": 8,
+    "netCreditorYear": 41,
+    "debtFreeYear": 63,
+    "fiscalGoalAfterYear5Recession": 15,
+    "p80NetWorthGainY10": -16821,
+    "bottom80MinNwGain": 9929,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17192,
+    "nwGiniY30": 0.682,
+    "incomeGiniY30": 0.516
+  },
+  {
+    "label": "Endowment 4%, no death returns",
+    "grantReal": {
+      "1": 505,
+      "5": 529,
+      "10": 561,
+      "20": 931,
+      "30": 1485,
+      "40": 1785,
+      "60": 2540
+    },
+    "accountAt18": {
+      "bornYear0": 16162,
+      "bornYear20": 38045,
+      "bornYear40": 58168
+    },
+    "accountAt60": {
+      "bornYear0": 328706,
+      "bornYear20": 603799
+    },
+    "endowmentPerPersonReal": {
+      "10": 13970,
+      "30": 41438,
+      "60": 68869
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 5423,
+      "30": 37160,
+      "60": 217300
+    },
+    "advancePerPersonReal": {
+      "10": 0,
+      "20": 0,
+      "30": 0,
+      "40": 0,
+      "60": 0
+    },
+    "advanceRepaidYear": 6,
+    "treasuryTranchePerPersonReal": {
+      "10": 19467,
+      "30": 60737,
+      "60": 84489
+    },
+    "fiscalGoalYear": 8,
+    "netCreditorYear": 40,
+    "debtFreeYear": 62,
+    "fiscalGoalAfterYear5Recession": 15,
+    "p80NetWorthGainY10": -16821,
+    "bottom80MinNwGain": 9929,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17023,
+    "nwGiniY30": 0.6847,
+    "incomeGiniY30": 0.5168
+  },
+  {
+    "label": "Endowment 3% + advance",
+    "grantReal": {
+      "1": 1248,
+      "5": 1212,
+      "10": 1417,
+      "20": 1383,
+      "30": 1062,
+      "40": 1452,
+      "60": 2681
+    },
+    "accountAt18": {
+      "bornYear0": 37815,
+      "bornYear20": 38131,
+      "bornYear40": 53215
+    },
+    "accountAt60": {
+      "bornYear0": 496731,
+      "bornYear20": 604208
+    },
+    "endowmentPerPersonReal": {
+      "10": 15246,
+      "30": 56893,
+      "60": 153238
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 13186,
+      "30": 55129,
+      "60": 192040
+    },
+    "advancePerPersonReal": {
+      "10": 14491,
+      "20": 29366,
+      "30": 45668,
+      "40": 59591,
+      "60": 95996
+    },
+    "advanceRepaidYear": null,
+    "treasuryTranchePerPersonReal": {
+      "10": 10091,
+      "30": 42695,
+      "60": 84785
+    },
+    "fiscalGoalYear": 9,
+    "netCreditorYear": 47,
+    "debtFreeYear": 63,
+    "fiscalGoalAfterYear5Recession": 22,
+    "p80NetWorthGainY10": 9326,
+    "bottom80MinNwGain": 12208,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17841,
+    "nwGiniY30": 0.6678,
+    "incomeGiniY30": 0.5179
+  },
+  {
+    "label": "Endowment 4% + advance",
+    "grantReal": {
+      "1": 1248,
+      "5": 1212,
+      "10": 1417,
+      "20": 1383,
+      "30": 1204,
+      "40": 1587,
+      "60": 2790
+    },
+    "accountAt18": {
+      "bornYear0": 37815,
+      "bornYear20": 39960,
+      "bornYear40": 56741
+    },
+    "accountAt60": {
+      "bornYear0": 506929,
+      "bornYear20": 634350
+    },
+    "endowmentPerPersonReal": {
+      "10": 14670,
+      "30": 49946,
+      "60": 119434
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 13186,
+      "30": 55450,
+      "60": 198629
+    },
+    "advancePerPersonReal": {
+      "10": 13914,
+      "20": 26644,
+      "30": 39046,
+      "40": 48293,
+      "60": 68772
+    },
+    "advanceRepaidYear": null,
+    "treasuryTranchePerPersonReal": {
+      "10": 10590,
+      "30": 46482,
+      "60": 90012
+    },
+    "fiscalGoalYear": 9,
+    "netCreditorYear": 45,
+    "debtFreeYear": 62,
+    "fiscalGoalAfterYear5Recession": 21,
+    "p80NetWorthGainY10": 9326,
+    "bottom80MinNwGain": 12208,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17853,
+    "nwGiniY30": 0.6677,
+    "incomeGiniY30": 0.5175
+  },
+  {
+    "label": "Endowment 5% + advance",
+    "grantReal": {
+      "1": 1248,
+      "5": 1212,
+      "10": 1417,
+      "20": 1383,
+      "30": 1311,
+      "40": 1663,
+      "60": 2808
+    },
+    "accountAt18": {
+      "bornYear0": 37815,
+      "bornYear20": 41801,
+      "bornYear40": 58185
+    },
+    "accountAt60": {
+      "bornYear0": 514371,
+      "bornYear20": 653878
+    },
+    "endowmentPerPersonReal": {
+      "10": 14112,
+      "30": 43958,
+      "60": 95166
+    },
+    "personalUnitsPerPersonReal": {
+      "10": 13186,
+      "30": 56045,
+      "60": 202855
+    },
+    "advancePerPersonReal": {
+      "10": 13356,
+      "20": 24148,
+      "30": 33664,
+      "40": 39376,
+      "60": 48759
+    },
+    "advanceRepaidYear": null,
+    "treasuryTranchePerPersonReal": {
+      "10": 11077,
+      "30": 49337,
+      "60": 93379
+    },
+    "fiscalGoalYear": 9,
+    "netCreditorYear": 44,
+    "debtFreeYear": 62,
+    "fiscalGoalAfterYear5Recession": 21,
+    "p80NetWorthGainY10": 9326,
+    "bottom80MinNwGain": 12208,
+    "bottom80MinNwAt": "B10 Yr 5",
+    "bottom80Pass": true,
+    "bottomHalfAvgIncomeGain1to30": 17874,
+    "nwGiniY30": 0.6675,
+    "incomeGiniY30": 0.5173
+  }
+]

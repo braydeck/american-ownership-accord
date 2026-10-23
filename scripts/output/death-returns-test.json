@@ -1,0 +1,137 @@
+[
+  {
+    "label": "Direct grants",
+    "grant": {
+      "1": 1248,
+      "10": 1417,
+      "20": 1383,
+      "30": 701,
+      "45": 912,
+      "60": 1282,
+      "75": 1784
+    },
+    "at18": {
+      "born0": 37815,
+      "born20": 32808,
+      "born40": 27820,
+      "born55": 38949
+    },
+    "fiscalGoal": 8,
+    "goalAfterRecession5": 15,
+    "goalAfterRecession12": 18,
+    "goalLowGrowth": 10,
+    "netCreditor": 39,
+    "debtFree": 61,
+    "p80NwY10": 9326,
+    "bottom80Pass": true,
+    "nwGiniY30": 0.668
+  },
+  {
+    "label": "Death returns to citizens",
+    "grant": {
+      "1": 1248,
+      "10": 1564,
+      "20": 1768,
+      "30": 1408,
+      "45": 2417,
+      "60": 4154,
+      "75": 7110
+    },
+    "at18": {
+      "born0": 41258,
+      "born20": 51852,
+      "born40": 77745,
+      "born55": 133289
+    },
+    "fiscalGoal": 8,
+    "goalAfterRecession5": 16,
+    "goalAfterRecession12": 18,
+    "goalLowGrowth": 10,
+    "netCreditor": 41,
+    "debtFree": 62,
+    "p80NwY10": 11258,
+    "bottom80Pass": true,
+    "nwGiniY30": 0.6622
+  },
+  {
+    "label": "Death returns to Treasury until goal",
+    "grant": {
+      "1": 1248,
+      "10": 1559,
+      "20": 1761,
+      "30": 1398,
+      "45": 2400,
+      "60": 4124,
+      "75": 7059
+    },
+    "at18": {
+      "born0": 40436,
+      "born20": 51596,
+      "born40": 77199,
+      "born55": 132340
+    },
+    "fiscalGoal": 8,
+    "goalAfterRecession5": 15,
+    "goalAfterRecession12": 18,
+    "goalLowGrowth": 10,
+    "netCreditor": 41,
+    "debtFree": 62,
+    "p80NwY10": 9975,
+    "bottom80Pass": true,
+    "nwGiniY30": 0.6627
+  },
+  {
+    "label": "Death returns to Treasury until goal, 0.8% rate",
+    "grant": {
+      "1": 1248,
+      "10": 1513,
+      "20": 1637,
+      "30": 1152,
+      "45": 1911,
+      "60": 3187,
+      "75": 5315
+    },
+    "at18": {
+      "born0": 39580,
+      "born20": 45336,
+      "born40": 60951,
+      "born55": 101516
+    },
+    "fiscalGoal": 8,
+    "goalAfterRecession5": 15,
+    "goalAfterRecession12": 18,
+    "goalLowGrowth": 10,
+    "netCreditor": 40,
+    "debtFree": 61,
+    "p80NwY10": 9764,
+    "bottom80Pass": true,
+    "nwGiniY30": 0.6645
+  },
+  {
+    "label": "Death returns to Treasury until goal, 1.6% rate",
+    "grant": {
+      "1": 1248,
+      "10": 1604,
+      "20": 1883,
+      "30": 1640,
+      "45": 2884,
+      "60": 5052,
+      "75": 8789
+    },
+    "at18": {
+      "born0": 41272,
+      "born20": 57754,
+      "born40": 93256,
+      "born55": 162863
+    },
+    "fiscalGoal": 8,
+    "goalAfterRecession5": 15,
+    "goalAfterRecession12": 18,
+    "goalLowGrowth": 10,
+    "netCreditor": 41,
+    "debtFree": 62,
+    "p80NwY10": 10181,
+    "bottom80Pass": true,
+    "nwGiniY30": 0.6611
+  }
+]

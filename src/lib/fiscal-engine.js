@@ -42,6 +42,30 @@ const BASE_PARAMS = {
   // ── The AMCF ──
   citizenScripShare:      0.35,   // share of each year's Growth Tax scrip issued to citizens as units
   citizenFloor:           500,    // $/person/yr in units, CPI-indexed; topped up from the Treasury tranche
+  citizenEndowmentOn:     false,  // citizen scrip goes to a permanent endowment that pays units to every citizen
+  citizenPayoutRate:      0.03,   // endowment payout, share of its 5-year average value per year
+  citizenAdvanceOn:       false,  // Treasury tranche advances units so endowment grants never fall below the scrip grant; repaid later
+  advanceRepayShare:      0.5,    // share of endowment payout above the scrip grant that repays the advance
+  advanceRepayRate:       0,      // if > 0, in years the payout covers the scrip grant the endowment repays this share of its own value instead
+  grantRatchetOn:         false,  // the real grant per person never falls: the Treasury tranche tops grants up to last year's level
+  grantRatchetIndex:      0,      // the ratchet also rises with real GDP per person to this power (0 = flat in real terms)
+  grantRatchetAfterGoal:  true,   // the ratchet applies only once net interest is below 10% of revenue
+  grantRatchetPauseInRecession: true, // the ratchet pauses while output is below potential, then restores the earlier level
+  incumbentPools:         10,     // established companies split into this many groups that grow at different rates
+  incumbentGrowthSpread:  0.04,   // the fastest group grows this much faster a year than average, the slowest this much slower (assumption)
+  scripReserveShare:      0,      // share of citizen scrip held in a citizen reserve instead of granted at once
+  scripReserveRelease:    0.10,   // share of the reserve released into grants each year
+  scripReserveStabilize:  false,  // release only what keeps the real grant per person from falling below last year's
+  scripReserveTargetIndex: 0,     // the stabilized grant also rises with real GDP per person to this power
+  grantPathOn:            true,   // grants follow a steady real path; a citizen reserve absorbs surpluses and fills shortfalls
+  grantPathStart:         1200,   // real grant per person in Year 1 (2024 dollars)
+  grantPathGrowth:        0.01,   // real growth of the grant path per year
+  grantPathRecessionBridge: true,  // while output is below potential, the Treasury tranche tops grants up to the path
+  grantPathReserveYears:  5,      // reserve above this many years of path grants is released, a fifth a year, on top of the path
+  scripReserveDrain:      0,      // stabilizing reserve: at least this share of the reserve is released each year
+  deathReturnsOn:         true,   // direct grants: units returned at death are added to the next grants, equal per person
+  deathReturnsToTreasuryUntilGoal: true, // while net interest exceeds 10% of revenue, returned units go to the Treasury tranche instead
+  deathReturnRate:        0.012,  // share of personal citizen units returned to the endowment each year (assumption: ~0.9% death rate, decedents hold ~1.3x the average)
   unitSalesOn:            true,   // statutory sale of Treasury-tranche units to private investors
   unitSaleRate:           0.02,   // share of the Treasury tranche sold per year
   unitSaleDiscount:       0.05,   // closed-end-fund discount to NAV on sales
@@ -352,6 +376,12 @@ function runFiscalSimulation(p, horizon = 35) {
   let valGap = 1;
   let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
   let histInc = [ev0], histEnt = [0];
+  // Incumbent groups: companies grow at different rates, so they reach the 21% cap in different
+  // years. Each group's share of incumbent value drifts with its relative growth; the total is unchanged.
+  const NP = Math.max(1, p.incumbentPools ?? 1);
+  const poolDelta = Array.from({ length: NP }, (_, i) => NP > 1 ? (p.incumbentGrowthSpread ?? 0) * (2 * i / (NP - 1) - 1) : 0);
+  let poolShare = Array(NP).fill(1 / NP);
+  const poolF = Array(NP).fill(0), poolHist = Array.from({ length: NP }, () => [ev0 / NP]);
   let fInc = 0, fEnt = 0;            // AMCF ownership fraction of each pool (per-company cap proxy)
   let workerEquity = 0, workerAtCap = false;
   let wefUnits = 0, wefPrice = 1; // Worker Equity Fund units outstanding (nominal) and unit price index
@@ -360,6 +390,8 @@ function runFiscalSimulation(p, horizon = 35) {
   // Claims on the AMCF: Treasury tranche, citizen units, private unit holders; plus a
   // diversified pool bought with reinvested citizen dividends.
   let tClaim = 0, cClaim = 0, pClaim = 0, diversified = 0;
+  let eClaim = 0, advanceBalance = 0, brakeLastYear = true;
+  let prevRealGrant = 0, prevGdpPcIdx = 1, scripReserve = 0, lastRealGrant = 0; const endowmentHistory = []; // citizen endowment (citizenEndowmentOn)
   const privateCohorts = []; // private purchases by year, for term repurchase
   let selfFundingYear = null;
 
@@ -406,6 +438,12 @@ function runFiscalSimulation(p, horizon = 35) {
     const fundTotalPrev = fundInc + fundEnt;
     const births = e * fundTotalPrev;
     fundInc = fundInc * (1 + nomGrowth - e);
+    if (NP > 1) {
+      poolShare = poolShare.map((s, i) => s * (1 + poolDelta[i]));
+      const sum = poolShare.reduce((a, s) => a + s, 0);
+      poolShare = poolShare.map(s => s / sum);
+      fInc = poolShare.reduce((a, s, i) => a + s * poolF[i], 0);
+    }
     const entSurvivors = fundEnt * (1 + nomGrowth - e);
     fundEnt = entSurvivors + births;
     if (shock?.ev) valGap *= (1 + shock.ev);
@@ -417,7 +455,11 @@ function runFiscalSimulation(p, horizon = 35) {
     // Growth Tax per pool: 21% of value above the rolling high-water mark, until the fund
     // holds 21% of the pool. Entrants keep arriving, so the entrant pool keeps paying.
     const hwmInc = Math.max(...histInc), hwmEnt = Math.max(...histEnt);
-    const taxInc = fInc < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, evInc - hwmInc) : 0;
+    const poolEv = poolShare.map(s => evInc * s);
+    const poolTax = poolEv.map((v, i) => poolF[i] < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, v - Math.max(...poolHist[i])) : 0);
+    poolEv.forEach((v, i) => { poolHist[i].push(v); if (poolHist[i].length > GROWTH_TAX_HWM_YEARS) poolHist[i].shift(); });
+    const taxInc = NP > 1 ? poolTax.reduce((a, v) => a + v, 0)
+      : (fInc < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, evInc - hwmInc) : 0);
     const taxEnt = fEnt < AMCF_OWNERSHIP_CAP ? p.growthTaxRate * Math.max(0, evEnt - hwmEnt) : 0;
     histInc.push(evInc); histEnt.push(evEnt);
     if (histInc.length > GROWTH_TAX_HWM_YEARS) histInc.shift();
@@ -439,7 +481,9 @@ function runFiscalSimulation(p, horizon = 35) {
     creditBalance = available - creditUsed;
     const netShare = growthTax > 0 ? (growthTax - creditUsed) / growthTax : 0;
     // Scrip raises the fund's fraction of each pool, never past the cap.
-    const scripInc = Math.min(taxInc * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - fInc) * evInc);
+    const poolScrip = poolEv.map((v, i) => Math.min(poolTax[i] * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - poolF[i]) * v));
+    const scripInc = NP > 1 ? poolScrip.reduce((a, v) => a + v, 0)
+      : Math.min(taxInc * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - fInc) * evInc);
     const scripEnt = Math.min(taxEnt * netShare, Math.max(0, AMCF_OWNERSHIP_CAP - fEnt) * evEnt);
     const amcfNetScrip = scripInc + scripEnt;
 
@@ -447,40 +491,109 @@ function runFiscalSimulation(p, horizon = 35) {
     const domesticBefore = fInc * evInc + fEnt * evEnt;
     diversified *= (1 + nomGrowth - e); // existing holdings are diluted by new issuance like the domestic stake
     const navBefore = domesticBefore + diversified;
-    const claimsPrev = tClaim + cClaim + pClaim;
+    const claimsPrev = tClaim + cClaim + pClaim + eClaim + scripReserve;
     if (claimsPrev > 0) {
       const k = navBefore / claimsPrev;
-      tClaim *= k; cClaim *= k; pClaim *= k;
+      tClaim *= k; cClaim *= k; pClaim *= k; eClaim *= k; advanceBalance *= k; scripReserve *= k;
       for (const c of privateCohorts) c.value *= k;
     }
-    fInc += evInc > 0 ? scripInc / evInc : 0;
+    if (NP > 1) {
+      poolEv.forEach((v, i) => { poolF[i] += v > 0 ? poolScrip[i] / v : 0; });
+      fInc = poolShare.reduce((a, s, i) => a + s * poolF[i], 0);
+    } else fInc += evInc > 0 ? scripInc / evInc : 0;
     fEnt += evEnt > 0 ? scripEnt / evEnt : 0;
     const citizenScrip = amcfNetScrip * p.citizenScripShare;
     tClaim += amcfNetScrip - citizenScrip;
-    cClaim += citizenScrip;
+    // Endowment: citizen scrip and units returned at death stay in a permanent trust, which pays
+    // citizenPayoutRate of its 5-year average value to every citizen as units each year.
+    let citizenIssue = citizenScrip, deathReturns = 0;
+    if (p.citizenEndowmentOn) {
+      deathReturns = cClaim * p.deathReturnRate;
+      cClaim -= deathReturns;
+      eClaim += citizenScrip + deathReturns;
+      endowmentHistory.push(eClaim);
+      const recent = endowmentHistory.slice(-5);
+      citizenIssue = Math.min(eClaim, p.citizenPayoutRate * recent.reduce((a, v) => a + v, 0) / recent.length);
+      eClaim -= citizenIssue;
+      // Advance: the Treasury tranche lends units to lift grants to the scrip grant; the endowment
+      // repays from payouts above it. The balance is in units and earns the fund's return.
+      if (p.citizenAdvanceOn) {
+        if (citizenIssue < citizenScrip) {
+          const adv = Math.min(citizenScrip - citizenIssue, tClaim);
+          tClaim -= adv; advanceBalance += adv; citizenIssue += adv;
+        } else if (advanceBalance > 0 && p.advanceRepayRate > 0) {
+          const repay = Math.min(advanceBalance, p.advanceRepayRate * eClaim);
+          eClaim -= repay; tClaim += repay; advanceBalance -= repay;
+        } else if (advanceBalance > 0) {
+          const repay = Math.min(advanceBalance, p.advanceRepayShare * (citizenIssue - citizenScrip));
+          citizenIssue -= repay; tClaim += repay; advanceBalance -= repay;
+        }
+      }
+    }
+    // Citizen reserve: part of citizen scrip is held back and released at a steady rate, so grants
+    // do not drop when established companies reach the 21% cap.
+    if (!p.citizenEndowmentOn && p.scripReserveShare > 0) {
+      const held = citizenScrip * p.scripReserveShare;
+      scripReserve += held;
+      const released = p.scripReserveStabilize ? 0 : scripReserve * p.scripReserveRelease;
+      scripReserve -= released;
+      citizenIssue += released - held;
+    }
+    if (!p.citizenEndowmentOn && p.deathReturnsOn) {
+      deathReturns = cClaim * p.deathReturnRate;
+      cClaim -= deathReturns;
+      if (p.deathReturnsToTreasuryUntilGoal && brakeLastYear) tClaim += deathReturns;
+      else citizenIssue += deathReturns;
+    }
+    if (!p.citizenEndowmentOn && p.grantPathOn) {
+      const target = p.grantPathStart * Math.pow(1 + p.grantPathGrowth, yr - 1) * priceLevel * pop;
+      if (citizenIssue > target) { scripReserve += citizenIssue - target; citizenIssue = target; }
+      else { const released = Math.min(scripReserve, target - citizenIssue); scripReserve -= released; citizenIssue += released; }
+      const excess = scripReserve - p.grantPathReserveYears * target;
+      if (excess > 0) { scripReserve -= excess / 5; citizenIssue += excess / 5; }
+    }
+    if (!p.citizenEndowmentOn && p.scripReserveShare > 0 && p.scripReserveStabilize) {
+      const target = lastRealGrant * Math.pow(gdpPcIdx / prevGdpPcIdx, p.scripReserveTargetIndex) * priceLevel * pop;
+      const released = Math.min(scripReserve, Math.max(target - citizenIssue, p.scripReserveDrain * scripReserve, 0));
+      scripReserve -= released; citizenIssue += released;
+    }
+    cClaim += citizenIssue;
     // Citizen floor in units, topped up from the Treasury tranche.
-    const floorTotal = citizenFloorPerCap(p, priceLevel) * Math.pow(gdpPcIdx, p.citizenFloorIndex ?? 0) * pop;
-    const topUp = Math.min(Math.max(0, floorTotal - citizenScrip), tClaim);
+    let floorTotal = citizenFloorPerCap(p, priceLevel) * Math.pow(gdpPcIdx, p.citizenFloorIndex ?? 0) * pop;
+    // Ratchet reference: the highest real grant reached, carried forward with real GDP per person.
+    const ratchetRef = prevRealGrant * Math.pow(gdpPcIdx / prevGdpPcIdx, p.grantRatchetIndex);
+    const ratchetPaused = (p.grantRatchetAfterGoal && brakeLastYear) || (p.grantRatchetPauseInRecession && cycGap > 0.005);
+    if (p.grantRatchetOn && !ratchetPaused) floorTotal = Math.max(floorTotal, ratchetRef * priceLevel * pop);
+    if (p.grantPathOn && p.grantPathRecessionBridge && cycGap > 0.005)
+      floorTotal = Math.max(floorTotal, p.grantPathStart * Math.pow(1 + p.grantPathGrowth, yr - 1) * priceLevel * pop);
+    const topUp = Math.min(Math.max(0, floorTotal - citizenIssue), tClaim);
     tClaim -= topUp; cClaim += topUp;
     // Enhanced grants (care credit, public-employee units) are issued from the Treasury tranche,
     // like the floor top-up, at the same per-person grant as every citizen receives.
-    const grantPerCap = (citizenScrip + topUp) / pop;
+    const grantPerCap = (citizenIssue + topUp) / pop;
+    prevRealGrant = Math.max(grantPerCap / priceLevel, ratchetRef); prevGdpPcIdx = gdpPcIdx;
+    lastRealGrant = grantPerCap / priceLevel;
     const ceocGrants = p.ceocOn ? CEOC_EXTRA_GRANTS * popScale : 0;
     const pseuGrants = p.pseuOn ? p.pseuMultiple * PUBLIC_EMPLOYEES * popScale : 0;
     const extraUnits = Math.min(grantPerCap * (ceocGrants + pseuGrants), tClaim);
     const ceocUnits = ceocGrants + pseuGrants > 0 ? extraUnits * ceocGrants / (ceocGrants + pseuGrants) : 0;
     const pseuUnits = extraUnits - ceocUnits;
     tClaim -= extraUnits; cClaim += extraUnits;
-    const citizenDeposit = citizenScrip + topUp + extraUnits;
-    if (selfFundingYear == null && citizenScrip >= floorTotal) selfFundingYear = yr;
+    const citizenDeposit = citizenIssue + topUp + extraUnits;
+    if (selfFundingYear == null && citizenIssue >= floorTotal) selfFundingYear = yr;
 
     // Cash: payouts are a share of GDP, paid as a yield on trend corporate value.
     const payoutGdp = p.payoutGdpStart + (p.payoutGdpMature - p.payoutGdpStart) * Math.min(yr / 20, 1);
     const combinedYield = payoutGdp / (p.startingEvRatio * (p.revaluationOn ? 1 + p.revaluationPct : 1));
-    const nav = tClaim + cClaim + pClaim;
+    const nav = tClaim + cClaim + pClaim + eClaim + scripReserve;
     const amcfCashFlow = nav * combinedYield;
     const cashT = nav > 0 ? amcfCashFlow * tClaim / nav : 0;
     const cashC = nav > 0 ? amcfCashFlow * cClaim / nav : 0;
+    const cashE = nav > 0 ? amcfCashFlow * eClaim / nav : 0;
+    eClaim += cashE; diversified += cashE;
+    const cashR = nav > 0 ? amcfCashFlow * scripReserve / nav : 0;
+    scripReserve += cashR; diversified += cashR;
+    advanceBalance *= 1 + combinedYield;
     // Worker trust: shares stay in trust permanently, so the 21% stake is a permanent endowment.
     // Its dividends go to current workers: part as cash profit-sharing from their own company,
     // the rest as new Worker Equity Fund units by hours worked. Units are portable property,
@@ -508,7 +621,7 @@ function runFiscalSimulation(p, horizon = 35) {
       expiryBuyback = Math.min(expiryBuyback, pClaim);
       pClaim -= expiryBuyback; tClaim += expiryBuyback;
     }
-    const navNow = tClaim + cClaim + pClaim + cashC;
+    const navNow = tClaim + cClaim + pClaim + eClaim + scripReserve + cashC;
     let privateRoom = Math.max(0, p.privateUnitCap * navNow - pClaim);
     const privateBuysW = Math.min(withdrawals - citizenBuysW, privateRoom);
     privateRoom -= privateBuysW;
@@ -589,6 +702,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const totalOutlays = totalSpend + interest;
     const intToRev = totalRev > 0 ? (interest / totalRev) * 100 : 0;
     const solventBrakeActive = intToRev > BRAKE_THRESHOLD_PCT;
+    brakeLastYear = solventBrakeActive;
 
     // Treasury-tranche cash (90%) and unit-sale proceeds retire debt while the brake is on;
     // afterwards they go to the general budget, spent unless banked.
@@ -651,7 +765,9 @@ function runFiscalSimulation(p, horizon = 35) {
       equityExcise: T(equityExcise), creditGenerated: T(creditGenerated), creditUsed: T(creditUsed), creditBalance: T(creditBalance),
       amcfNetScrip: T(amcfNetScrip), citizenScrip: T(citizenScrip), citizenTopUp: T(topUp),
       amcfEquity: T(tClaim), treasuryEquity: T(tClaim), citizenEquity: T(cClaim), privateUnitEquity: T(pClaim),
-      fundNav: T(tClaim + cClaim + pClaim), fundDomestic: T(fundDomestic),
+      endowmentEquity: T(eClaim), advanceBalance: T(advanceBalance), deathReturns: T(deathReturns),
+      scripReserve: T(scripReserve),
+      fundNav: T(tClaim + cClaim + pClaim + eClaim + scripReserve), fundDomestic: T(fundDomestic),
       amcfOwnershipPct: +(amcfOwnershipPct * 100).toFixed(1),
       workerEquity: T(workerEquity), workerDividends: T(workerDividends), workerProfitShare: T(workerProfitShare),
       workerUnitAccrual: T(workerUnitAccrual), wefUnits: T(wefUnits), wefPriceReal: +(wefPrice / priceLevel).toFixed(4), workerOwnershipPct: +((totalEV > 0 ? workerEquity / totalEV : 0) * 100).toFixed(1),
@@ -660,7 +776,7 @@ function runFiscalSimulation(p, horizon = 35) {
       healthcareAMCF: T(healthcareAMCF), ssGeneralTransfer: T(ssGeneralTransfer), ssTrustFund: T(ssTrustFund), ssIncome: T(ssIncome), ssCost: T(ssCost), ssTrustFundRatio: +(ssTrustFund / ssCost * 100).toFixed(0), debtReductionAMCF: T(debtReductionAMCF), discretionaryAMCF: T(discretionaryAMCF),
       unitSaleProceeds: T(unitSaleProceeds), citizenWithdrawals: T(withdrawals),
       citizenUnitPurchases: T(citizenBuysW + citizenBuysT), treasuryUnitPurchases: T(treasuryBuysW), expiryBuyback: T(expiryBuyback),
-      privateUnitPct: +((tClaim + cClaim + pClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim) * 100 : 0).toFixed(1),
+      privateUnitPct: +((tClaim + cClaim + pClaim + eClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim + eClaim) * 100 : 0).toFixed(1),
       solventBrakeActive,
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
       ceocSpend: T(ceocSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),

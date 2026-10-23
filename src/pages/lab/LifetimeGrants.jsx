@@ -221,9 +221,10 @@ export default function LifetimeGrants() {
           <InfoBox title="How to read this">
             <p>
               A child born in Year 0 reaches the custodial transfer at 18 with {fmtFull(bornYear0At18.balance)},
-              having been granted {fmtFull(bornYear0At18.paid)}. Later cohorts do far better, because the AMCF
-              reaches its 21% ownership cap in Year 19 and the annual grant then grows with enterprise value
-              rather than with the fund's acquisition of it.
+              having been granted {fmtFull(bornYear0At18.paid)}. Later cohorts do better, because the annual grant
+              follows a statutory path that rises 1% a year in real terms and never falls. A citizen reserve inside
+              the fund holds Growth Tax scrip and units returned at death above the path and pays out when they
+              fall short, and from about Year 45 the released reserve lifts grants above the path.
             </p>
             <p className="mt-2">
               Someone already {currentAge} when the Accord begins gets no custodial accumulation and fewer
