@@ -23,8 +23,8 @@ const fiscalAt = y => {
   const r = row(y);
   return {
     year: y, debtToGdp: r1(r.debtToGdp), clDebtToGdp: r1(r.clDebtToGdp), intToRev: r1(r.intToRev),
-    revenuePctGdp: r1(r.totalRev / r.nominalGdp * 100), clRevenuePctGdp: r1(r.clRev / r.nominalGdp * 100),
-    deficitPctGdp: r1(r.deficit / r.nominalGdp * 100), clDeficitPctGdp: r1(r.clDeficit / r.nominalGdp * 100),
+    revenuePctGdp: r1(r.totalRev / r.nominalGdp * 100), clRevenuePctGdp: r1(r.clRev / r.clNominalGdp * 100),
+    deficitPctGdp: r1(r.deficit / r.nominalGdp * 100), clDeficitPctGdp: r1(r.clDeficit / r.clNominalGdp * 100),
     grossDebtRealT: r1(r.grossDebt / r.priceLevel), amcfOwnershipPct: r.amcfOwnershipPct, workerOwnershipPct: r.workerOwnershipPct,
     gdpVsCurrentLawPct: r1((r.accordLevel - 1) * 100),
   };

@@ -238,6 +238,7 @@ export function lvtIncidenceByBracket({
   ownerScalar = LVT_OWNER_SCALAR,
   rentMax = LVT_RENT_MAX,
   rentRampYrs = LVT_RENT_RAMP_YRS,
+  rentGap = null, // real rents vs current law from the housing module (fraction); replaces the assumed rent relief
 } = {}) {
   const sector = LAND_SECTORS.find(s => s.key === 'ownerOcc');
   const rawGross = HOME_LAND_BY_BRACKET.reduce((s, land, i) => s + land * HOMES_BY_BRACKET[i], 0);
@@ -250,7 +251,8 @@ export function lvtIncidenceByBracket({
     const taxableLand = Math.max(perHome - exemption, 0);
     const ownerLvt = taxableLand * rate * capFactor * ownerScalar;
     const annualRent = BRACKET_INCOME[i] * RENT_INCOME_SHARE;
-    const renterRelief = annualRent * rentMax * LVT_RENT_SAVE_FRAC * rampFrac;
+    // With the housing module, renters gain (or lose) exactly the modeled change in rents.
+    const renterRelief = rentGap == null ? annualRent * rentMax * LVT_RENT_SAVE_FRAC * rampFrac : -annualRent * rentGap;
     const net = own * ownerLvt - (1 - own) * renterRelief;
     return {
       bracket: b.label,

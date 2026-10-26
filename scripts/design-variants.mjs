@@ -25,6 +25,9 @@ const OPT_LVT10 = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFil
 // Curves with LVT at 10% or above, the rise spread over at least a 2.5× income range, after the
 // pass-through and small-business changes (2026-10-19); seeded with the then-default 21877 design.
 const OPT_RISE = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-curve-zero-lvt10-rise2.5-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
+// Re-optimized 2026-10-25 under the permanent 1.2% Abundance Floor, the housing module, the grant
+// path and company dispersion (Year 16 after a Year-5 recession allowed); seeded with the then-default design.
+const OPT_HOUSING = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-housing-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
 const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
 // Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
 // from Year 10), by start design.
@@ -67,6 +70,8 @@ const VARIANTS = [
     changes: { ...optimized(21877), lvtRate: 0.10 } },
   { id: '21877-r', base: 21877, name: '21877, re-optimized', note: optimizedNote(21877, OPT_RISE), changes: optimized(21877, OPT_RISE) },
   { id: '12053-r', base: 12053, name: '12053, optimized, smooth rise', note: optimizedNote(12053, OPT_RISE), changes: optimized(12053, OPT_RISE) },
+  { id: '12053-h', base: 12053, name: '12053, optimized for the 1.2% floor and housing', note: optimizedNote(12053, OPT_HOUSING), changes: optimized(12053, OPT_HOUSING) },
+  { id: '21877-h', base: 21877, name: '21877, re-optimized for the 1.2% floor and housing', note: optimizedNote('current', OPT_HOUSING), changes: optimized('current', OPT_HOUSING) },
   { id: '14007-lvt10', base: 14007, name: '14007, optimized, LVT 10%', note: optimizedNote(14007, OPT_LVT10), changes: optimized(14007, OPT_LVT10) },
   // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
 // only base rate that stayed robust).

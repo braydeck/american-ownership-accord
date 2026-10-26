@@ -23,6 +23,10 @@ const RECOVER_BY = Number(process.argv[4] ?? 1);
 const [SHARD, SHARDS] = (process.argv[5] ?? '0/1').split('/').map(Number);
 const server = await createServer({ root: process.cwd(), logLevel: 'error', server: { middlewareMode: true }, appType: 'custom' });
 const E = await server.ssrLoadModule('/scripts/lib/design-search-eval.js');
+const F = await server.ssrLoadModule('/src/lib/fiscal-engine.js');
+// Optional long-run condition (2026-10-25): the government becomes a net creditor by this year in a
+// 75-year run. Without it, the optimizer traded the long-run debt path for household gains.
+const NET_CREDITOR_BY = process.env.NET_CREDITOR_BY ? Number(process.env.NET_CREDITOR_BY) : null;
 const { makeRng } = await server.ssrLoadModule('/src/lib/prng.js');
 const { stableRentRevYr1, RENT_TAX_DEFAULTS, YR1_NOM_GDP } = await server.ssrLoadModule('/src/lib/rent-taxes.js');
 const B = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
@@ -89,11 +93,16 @@ function score(x) {
   const p80NwMin = Math.min(...g.P80.slice(RECOVER_BY - 1).map(v => v.netWorth));
   if (p80IncMin < 0) return null;
   const rec5 = E.evaluate({ ...des, recessionYear: 5 });
-  if (!(rec5.fiscalGoalYear != null && rec5.fiscalGoalYear <= 15 && rec5.bottom80Pass)) return null;
+  if (!(rec5.fiscalGoalYear != null && rec5.fiscalGoalYear <= 16 && rec5.bottom80Pass)) return null; // Year 16 accepted 2026-10-23 with the grant bridge
   const rec12 = E.evaluate({ ...des, recessionYear: 12 });
   if (!(rec12.fiscalGoalYear != null && rec12.fiscalGoalYear <= 22 && rec12.bottom80Pass)) return null;
   const low = E.evaluate({ ...des, growthCase: 'low' });
   if (!(low.fiscalGoalYear != null && low.fiscalGoalYear <= 20 && low.bottom80Pass)) return null;
+  let netCreditorYear = null;
+  if (NET_CREDITOR_BY) {
+    netCreditorYear = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, 75).milestones.netCreditorYear;
+    if (!(netCreditorYear != null && netCreditorYear <= NET_CREDITOR_BY)) return null;
+  }
   const below = BELOW.map(k => g[k].map(v => v.income));
   return {
     objective: Math.round(avg(below.map(s => avg(s.slice(0, 30))))),
@@ -103,7 +112,7 @@ function score(x) {
     p80MinIncome: Math.round(p80IncMin), p80MinNetWorth: Math.round(p80NwMin), p80LowestNetWorthAnyYear: Math.round(Math.min(...g.P80.map(v => v.netWorth))), p80NeverBehind: p80NwMin >= NW_FLOOR,
     p80NetWorth: [1, 3, 5, 7, 10, 20, 30].map(y => [y, Math.round(g.P80[y - 1].netWorth)]),
     p80AvgIncome1to10: Math.round(avg(g.P80.slice(0, 10).map(v => v.income))),
-    fiscalGoalYear: r.fiscalGoalYear, goalRecession5: rec5.fiscalGoalYear, goalRecession12: rec12.fiscalGoalYear, goalLowGrowth: low.fiscalGoalYear,
+    netCreditorYear, fiscalGoalYear: r.fiscalGoalYear, goalRecession5: rec5.fiscalGoalYear, goalRecession12: rec12.fiscalGoalYear, goalLowGrowth: low.fiscalGoalYear,
     incomeGiniY30: r.incomeGiniY30, nwGiniY30: r.nwGiniY30, laborLevelY10: r.laborLevelY10,
   };
 }
@@ -162,6 +171,6 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
   console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
 results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();

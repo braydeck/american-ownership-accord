@@ -9,6 +9,7 @@ import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS, accordSchedule, accordSch
   clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE, etiTopFloor, bracketPoints } from '@/lib/income-tax';
 import { BRACKETS } from '@/lib/brackets';
 import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
+import { HOUSING_DEFAULTS, stepHousing, initialHousingState } from '@/lib/housing';
 import { cboFiscalShares, CBO_REV_MIX_2026 } from '@/lib/cbo-baseline';
 
 const BASE_PARAMS = {
@@ -127,6 +128,13 @@ const BASE_PARAMS = {
   abundanceFloorOn:       true,
   abundanceTarget:        2.8,    // covered workers per Social Security beneficiary
   abundanceRampYears:     4,      // admissions reach the requirement in equal steps
+  abundanceMaxAdmitRate:  0,      // if > 0, extra admissions are capped at this share of population a year instead of the ramp
+  abundanceAdmitRate:     0.012,  // statutory floor: extra admissions of this share of population every year (decided 2026-10-25); 0 = use the ramp
+  abundanceAdmitPhaseYears: 0,    // the floor rate phases in over this many years (0 = full from Year 1)
+  abundanceHousingEscalator: false, // admissions rise above the floor when housing is in surplus
+  abundanceEscalatorMax:  0.015,  // ceiling on the escalated admission rate
+  // ── Housing ──
+  ...HOUSING_DEFAULTS,
   // ── Macro and debt ──
   startingDebt:           30.17e12, // debt held by the public, end FY2025 (CBO)
   startingGdp:            30.36e12, // FY2025 nominal GDP (CBO); Year-0 dollars
@@ -345,6 +353,12 @@ function abundanceImmigrants(yr, p) {
   return required * Math.min(1, yr / Math.max(1, p.abundanceRampYears));
 }
 const GDP_PER_MILLION_IMMIGRANTS = 0.0033; // CBO 2024 immigration-surge analysis, real GDP level
+// Entrepreneurship and innovation premium on top of CBO's per-immigrant effect [low, central, high]
+// (decided 2026-10-25). Immigrants found firms at 0.83% a year against 0.46% for natives (Azoulay,
+// Jones, Kim & Miranda 2022), and immigrant-founded firms are 35% more likely to patent. The size of
+// the premium is an assumption; it phases in over 10 years as founders' firms grow.
+const IMMIGRANT_ENTREPRENEURSHIP_PREMIUM = [0, 0.10, 0.25];
+const IMMIGRANT_PREMIUM_PHASE_YEARS = 10;
 
 function citizenFloorPerCap(p, priceLevel) {
   return p.citizenFloor * priceLevel;
@@ -375,6 +389,8 @@ function runFiscalSimulation(p, horizon = 35) {
   let fundInc = ev0, fundEnt = 0;
   let valGap = 1;
   let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
+  let prevImmigrants = 0, prevPop = p.startingPopulation;
+  let housing = initialHousingState(p);
   let histInc = [ev0], histEnt = [0];
   // Incumbent groups: companies grow at different rates, so they reach the 21% cap in different
   // years. Each group's share of incumbent value drifts with its relative growth; the total is unchanged.
@@ -416,8 +432,20 @@ function runFiscalSimulation(p, horizon = 35) {
     realGdpBase = Math.min(realGdpBase, potentialBase);
     const cycGap = Math.max(0, 1 - realGdpBase / potentialBase);
 
-    const immigrants = abundanceImmigrants(yr, p); // millions, cumulative
-    const immLevel = 1 + GDP_PER_MILLION_IMMIGRANTS * immigrants;
+    let admitRate = p.abundanceMaxAdmitRate > 0 ? p.abundanceMaxAdmitRate
+      : p.abundanceAdmitRate * (p.abundanceAdmitPhaseYears > 0 ? Math.min(1, yr / p.abundanceAdmitPhaseYears) : 1);
+    if (p.abundanceAdmitRate > 0 && p.abundanceHousingEscalator && housing.shortage < 0)
+      admitRate = Math.min(p.abundanceEscalatorMax, admitRate + 0.5 * -housing.shortage * p.immigrantPersonsPerHousehold / prevPop);
+    const required = abundanceImmigrants(yr, { ...p, abundanceRampYears: 1 });
+    const immigrants = !p.abundanceFloorOn ? 0 : p.abundanceMaxAdmitRate > 0
+      ? Math.min(required, prevImmigrants + p.abundanceMaxAdmitRate * prevPop / 1e6)
+      : admitRate > 0
+        ? prevImmigrants + admitRate * prevPop / 1e6 // the floor rate every year; it meets the worker target by about Year 14 and exceeds it after
+        : abundanceImmigrants(yr, p); // millions, cumulative
+    const admitted = (immigrants - prevImmigrants) * 1e6, admitBase = prevPop;
+    housing = stepHousing(housing, yr, admitted, p);
+    const immPremium = p.immigrantPremiumOff ? 0 : IMMIGRANT_ENTREPRENEURSHIP_PREMIUM[GROWTH_CASE_INDEX[p.growthCase] ?? 1] * Math.min(1, yr / IMMIGRANT_PREMIUM_PHASE_YEARS);
+    const immLevel = 1 + GDP_PER_MILLION_IMMIGRANTS * immigrants * (1 + immPremium);
     const trendRealIdx = trendBase / p.startingGdp;
     const trendPcIdx = trendRealIdx * p.startingPopulation
       / (p.startingPopulation * Math.pow(1 + p.populationGrowthRate, yr) + immigrants * 1e6);
@@ -655,6 +683,10 @@ function runFiscalSimulation(p, horizon = 35) {
       groundRentYield: p.lvtGroundRentYield,
       landGrowthElasticity: p.lvtLandElasticity,
     }) * elLvt;
+    // NHC ownership-track land payments: 75% of the LVT the parcel would owe. They are NHC revenue,
+    // outside the federal budget; NHC land is assumed to come from land outside the LVT base.
+    const resLvtPerUnit = lvtRev * (1 - NONRES_LAND_SHARE) / housing.stock;
+    const nhcLandPayments = housing.nhcStock * p.nhcOwnershipShare * resLvtPerUnit * p.nhcLandPerUnitRatio * p.nhcLandPaymentShare;
     const carbonRev = carbonRevenueAtRate(p.carbonRate) * priceLevel
       * carbonDecayFactor(yr) * Math.max(0, 1 - cycGap);
     const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
@@ -688,9 +720,10 @@ function runFiscalSimulation(p, horizon = 35) {
     const childcareSpend = 100e9 * popScale * priceLevel;
     const familyLeaveSpend = 50e9 * popScale * priceLevel;
     const ceocSpend = p.ceocOn ? CEOC_DEPOSIT * CEOC_FTE * popScale * priceLevel : 0;
+    const zoningSpend = housing.zoningGrantUnits * p.zoningGrantPerUnit * priceLevel;
     const carbonDividendSpend = carbonRev * CARBON_DIVIDEND_SHARE;
     const healthcareAMCF = cashT * HEALTHCARE_RESERVE_SHARE; // spent on new health commitments
-    const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend;
+    const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend + zoningSpend;
 
     // ── Interest ──
     const debtToGdp = debt / nominalGdp;
@@ -754,13 +787,16 @@ function runFiscalSimulation(p, horizon = 35) {
 
     prevCycGap = cycGap;
     prevNomGdp = nominalGdp;
+    prevImmigrants = immigrants; prevPop = pop;
     prevEvTotal = totalEV;
 
     const T = v => +(v / 1e12).toFixed(3);
     rows.push({
       year: yr,
       nominalGdp: T(nominalGdp), priceLevel: +priceLevel.toFixed(4), population: Math.round(pop),
-      extraImmigrantsM: +immigrants.toFixed(2), growthLevel: +growthLevel.toFixed(4), accordLevel: +accordLevel.toFixed(4),
+      extraImmigrantsM: +immigrants.toFixed(2), admitRatePct: +(admitted / admitBase * 100).toFixed(2),
+      housingShortageM: +(housing.shortage / 1e6).toFixed(2), rentVsCurrentLawPct: +(housing.rentGap * 100).toFixed(1),
+      nhcUnitsK: Math.round(housing.nhc / 1e3), nhcStockM: +(housing.nhcStock / 1e6).toFixed(1), nhcLandPayments: T(nhcLandPayments), privateExtraUnitsK: Math.round((housing.lvtUnits + housing.responseUnits) / 1e3), growthLevel: +growthLevel.toFixed(4), accordLevel: +accordLevel.toFixed(4),
       totalEV: T(totalEV), evGrowth: T(evGrowth), growthTax: T(growthTax),
       equityExcise: T(equityExcise), creditGenerated: T(creditGenerated), creditUsed: T(creditUsed), creditBalance: T(creditBalance),
       amcfNetScrip: T(amcfNetScrip), citizenScrip: T(citizenScrip), citizenTopUp: T(topUp),
@@ -779,7 +815,7 @@ function runFiscalSimulation(p, horizon = 35) {
       privateUnitPct: +((tClaim + cClaim + pClaim + eClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim + eClaim) * 100 : 0).toFixed(1),
       solventBrakeActive,
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
-      ceocSpend: T(ceocSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
+      ceocSpend: T(ceocSpend), zoningSpend: T(zoningSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
       vatGross: T(vatGross), fatRev: T(fatRev), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
       payrollFix: T(payrollFix), realizationRev: T(realizationRev), gdpPerCapIdx: +gdpPcIdx.toFixed(4), laborLevel: +laborLevel.toFixed(4), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
       otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
@@ -789,7 +825,7 @@ function runFiscalSimulation(p, horizon = 35) {
       totalOutlays: T(totalOutlays), deficit: T(deficit),
       grossDebt: +(debt / 1e12).toFixed(2), debtToGdp: +(debt / nominalGdp * 100).toFixed(1),
       netSovPos: +(netSovPos / 1e12).toFixed(2), intToRev: +intToRev.toFixed(1),
-      clDeficit: T(clDeficit), clGrossDebt: +(clDebt / 1e12).toFixed(1), clDebtToGdp: +(clDtG * 100).toFixed(1),
+      clDeficit: T(clDeficit), clNominalGdp: T(clNomGdp), clGrossDebt: +(clDebt / 1e12).toFixed(1), clDebtToGdp: +(clDtG * 100).toFixed(1),
       clRev: T(clRev), clInterest: T(clInterest),
     });
   }
@@ -869,7 +905,7 @@ export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
   const { rows } = runFiscalSimulation(params, horizon);
   const reval = params.revaluationOn ? 1 + params.revaluationPct : 1;
   return [{ year: 0, grant: 0, fundOwn: 0, workerOwn: 0, reval: 1, nonResLvt: 0, stableTax: 0, payrollFix: 0, realization: 0, gdpPerCapIdx: 1, popScale: 1,
-    wefAccrual: 0, profitShare: 0, wefPrice: 1, wefYield: 0, ceocOn: params.ceocOn, pseuMultiple: 0 },
+    wefAccrual: 0, profitShare: 0, wefPrice: 1, wefYield: 0, ceocOn: params.ceocOn, pseuMultiple: 0, rentGap: 0 },
     ...rows.map(r => ({
       year: r.year,
       grant: r.grantsPerCapita / r.priceLevel,
@@ -888,5 +924,6 @@ export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
       wefYield: r.combinedYield / 100,
       ceocOn: params.ceocOn,
       pseuMultiple: params.pseuOn ? params.pseuMultiple : 0,
+      rentGap: r.rentVsCurrentLawPct / 100,
     }))];
 }

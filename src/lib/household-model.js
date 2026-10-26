@@ -31,7 +31,7 @@ const hhAt = (fx, y) => fx.hh[Math.min(Math.max(0, Math.round(y)), fx.hh.length 
 // (assignedRentTax below).
 export function lvtNetBr(k, y, P, fx = FISCAL_DEFAULTS) {
   const exemption = P.has('LVT_EX') ? EXEMPTION_AMOUNT : 0;
-  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y })[DEMO_BRACKET[k]];
+  return lvtNetIncidenceArray({ rate: fx.lvtRate, exemption, year: y, rentGap: hhAt(fx, y).rentGap ?? null })[DEMO_BRACKET[k]];
 }
 
 // Prebate per person. The slider sets the no-exemption (redirected) level; turning the
