@@ -24,9 +24,13 @@ const [SHARD, SHARDS] = (process.argv[5] ?? '0/1').split('/').map(Number);
 const server = await createServer({ root: process.cwd(), logLevel: 'error', server: { middlewareMode: true }, appType: 'custom' });
 const E = await server.ssrLoadModule('/scripts/lib/design-search-eval.js');
 const F = await server.ssrLoadModule('/src/lib/fiscal-engine.js');
-// Optional long-run condition (2026-10-25): the government becomes a net creditor by this year in a
-// 75-year run. Without it, the optimizer traded the long-run debt path for household gains.
+// Optional long-run condition (2026-10-25): the government becomes a net creditor by this year
+// (Brayden: judge designs on 35 years, so NET_CREDITOR_BY=35 runs 35 years). Without it, the optimizer traded the long-run debt path for household gains.
 const NET_CREDITOR_BY = process.env.NET_CREDITOR_BY ? Number(process.env.NET_CREDITOR_BY) : null;
+// Guard past the scoring window (Brayden, 2026-10-25: score on 35 years, but nothing may break after):
+// in a 75-year run, net interest stays below 10% of revenue every year from 35 to 75 and debt/GDP at
+// Year 75 is no more than 5 points above Year 35.
+const LONGRUN_GUARD = !!process.env.LONGRUN_GUARD;
 const { makeRng } = await server.ssrLoadModule('/src/lib/prng.js');
 const { stableRentRevYr1, RENT_TAX_DEFAULTS, YR1_NOM_GDP } = await server.ssrLoadModule('/src/lib/rent-taxes.js');
 const B = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
@@ -98,9 +102,13 @@ function score(x) {
   if (!(rec12.fiscalGoalYear != null && rec12.fiscalGoalYear <= 22 && rec12.bottom80Pass)) return null;
   const low = E.evaluate({ ...des, growthCase: 'low' });
   if (!(low.fiscalGoalYear != null && low.fiscalGoalYear <= 20 && low.bottom80Pass)) return null;
+  if (LONGRUN_GUARD) {
+    const lr = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, 75).rows;
+    if (lr.slice(34).some(r => r.intToRev >= 10) || lr[74].debtToGdp > lr[34].debtToGdp + 5) return null;
+  }
   let netCreditorYear = null;
   if (NET_CREDITOR_BY) {
-    netCreditorYear = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, 75).milestones.netCreditorYear;
+    netCreditorYear = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, Math.max(35, NET_CREDITOR_BY)).milestones.netCreditorYear;
     if (!(netCreditorYear != null && netCreditorYear <= NET_CREDITOR_BY)) return null;
   }
   const below = BELOW.map(k => g[k].map(v => v.income));
@@ -171,6 +179,6 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
   console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
 results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${LONGRUN_GUARD ? '-guard' : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();

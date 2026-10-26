@@ -698,26 +698,36 @@ export default function FiscalTrajectorySimulator() {
           value={fmtYr(m.fiscalGoalYear)}
           sub={cm ? `vs ${fmtYr(cm.fiscalGoalYear)}` : "Interest < 10% of revenue, debt/GDP falling, through Yr 75"}
         />
+        {params.debtFloorOn ? (
+          <MilestoneCard
+            label="Debt Floor Reached"
+            value={fmtYr(m.debtFloorYear)}
+            sub={cm ? `vs ${fmtYr(cm.debtFloorYear)}` : `Debt held at ${Math.round(params.prebateIndexFloor * 100)}% of GDP; surpluses left to Congress`}
+          />
+        ) : (
+          <MilestoneCard
+            label="Fiscal Crossover"
+            value={fmtYr(m.fiscalCrossoverYear)}
+            sub={cm ? `vs ${fmtYr(cm.fiscalCrossoverYear)}` : "First year of surplus"}
+          />
+        )}
         <MilestoneCard
-          label="Fiscal Crossover"
-          value={fmtYr(m.fiscalCrossoverYear)}
-          sub={cm ? `vs ${fmtYr(cm.fiscalCrossoverYear)}` : "First year of surplus"}
-        />
-        <MilestoneCard
-          label="Debt Peak"
-          value={fmtYr(m.debtPeakYear)}
-          sub={cm ? `vs ${fmtYr(cm.debtPeakYear)}` : "Gross debt maximum"}
+          label="Debt / GDP, Year 30"
+          value={`${rows[29]?.debtToGdp ?? '—'}%`}
+          sub={`vs ${rows[29]?.clDebtToGdp ?? '—'}% under current law`}
         />
         <MilestoneCard
           label="Net Creditor Year"
           value={fmtYr(m.netCreditorYear)}
           sub={cm ? `vs ${fmtYr(cm.netCreditorYear)}` : "Treasury tranche > debt held by public"}
         />
-        <MilestoneCard
-          label="Debt-Free"
-          value={fmtYr(m.debtFreeYear)}
-          sub={cm ? `vs ${fmtYr(cm.debtFreeYear)}` : "Debt held by the public below zero"}
-        />
+        {!params.debtFloorOn && (
+          <MilestoneCard
+            label="Debt-Free"
+            value={fmtYr(m.debtFreeYear)}
+            sub={cm ? `vs ${fmtYr(cm.debtFreeYear)}` : "Debt held by the public below zero"}
+          />
+        )}
       </div>
 
       {/* Presets + Compare */}

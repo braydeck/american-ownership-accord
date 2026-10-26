@@ -1,0 +1,230 @@
+[
+  {
+    "label": "Three-quarters, fixed",
+    "belowP80Avg": 21725,
+    "bottomHalfAvg": 19772,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "prebateReal": {
+      "10": 8905,
+      "20": 10704,
+      "35": 14155
+    },
+    "indexNow": {
+      "10": 0.75,
+      "20": 0.75,
+      "25": 0.75,
+      "30": 0.75,
+      "35": 0.75
+    },
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.5,
+      "30": 28.4,
+      "35": 19.7,
+      "50": -8.2
+    },
+    "debtY35AfterY5Recession": 39.4,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "netCreditor": 28,
+    "floorSpendPctGdp": {
+      "35": 0,
+      "50": 0
+    },
+    "deficitY35": -0.1,
+    "guardPass": true
+  },
+  {
+    "label": "Full, fixed",
+    "belowP80Avg": 24190,
+    "bottomHalfAvg": 22101,
+    "p80MinIncome": 8042,
+    "p80NwFromY10": 6775,
+    "prebateReal": {
+      "10": 9448,
+      "20": 12072,
+      "35": 17516
+    },
+    "indexNow": {
+      "10": 1,
+      "20": 1,
+      "25": 1,
+      "30": 1,
+      "35": 1
+    },
+    "debtGdp": {
+      "10": 77,
+      "20": 56.8,
+      "30": 44.9,
+      "35": 40.9,
+      "50": 28.6
+    },
+    "debtY35AfterY5Recession": 58.2,
+    "goal": 9,
+    "goalRec5": 15,
+    "goalRec12": 17,
+    "goalLow": 11,
+    "netCreditor": null,
+    "floorSpendPctGdp": {
+      "35": 0,
+      "50": 0
+    },
+    "deficitY35": 2.2,
+    "guardPass": true
+  },
+  {
+    "label": "0.75 to 1 from 45%, floor 25%",
+    "belowP80Avg": 21791,
+    "bottomHalfAvg": 19835,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "prebateReal": {
+      "10": 8905,
+      "20": 10704,
+      "35": 14882
+    },
+    "indexNow": {
+      "10": 0.75,
+      "20": 0.75,
+      "25": 0.821,
+      "30": 0.934,
+      "35": 1
+    },
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.5,
+      "30": 28.8,
+      "35": 25,
+      "50": 25
+    },
+    "debtY35AfterY5Recession": 39.4,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "netCreditor": 28,
+    "floorSpendPctGdp": {
+      "35": 1.56,
+      "50": 1.82
+    },
+    "deficitY35": 1.9,
+    "guardPass": true
+  },
+  {
+    "label": "0.75 to 1 from 60%, floor 25%",
+    "belowP80Avg": 21946,
+    "bottomHalfAvg": 19981,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "prebateReal": {
+      "10": 8905,
+      "20": 10755,
+      "35": 15206
+    },
+    "indexNow": {
+      "10": 0.75,
+      "20": 0.822,
+      "25": 0.896,
+      "30": 0.957,
+      "35": 1
+    },
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.6,
+      "30": 29.9,
+      "35": 25,
+      "50": 25
+    },
+    "debtY35AfterY5Recession": 40.2,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "netCreditor": 29,
+    "floorSpendPctGdp": {
+      "35": 1.41,
+      "50": 1.67
+    },
+    "deficitY35": 1.9,
+    "guardPass": true
+  },
+  {
+    "label": "0.75 to 1 from 70%, floor 25%",
+    "belowP80Avg": 22078,
+    "bottomHalfAvg": 20105,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "prebateReal": {
+      "10": 8905,
+      "20": 10841,
+      "35": 15400
+    },
+    "indexNow": {
+      "10": 0.75,
+      "20": 0.861,
+      "25": 0.917,
+      "30": 0.963,
+      "35": 0.999
+    },
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.8,
+      "30": 30.8,
+      "35": 25,
+      "50": 25
+    },
+    "debtY35AfterY5Recession": 41.1,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "netCreditor": 29,
+    "floorSpendPctGdp": {
+      "35": 0.87,
+      "50": 1.57
+    },
+    "deficitY35": 1.5,
+    "guardPass": true
+  },
+  {
+    "label": "0.75 to 1 from 60%, no floor rule",
+    "belowP80Avg": 21946,
+    "bottomHalfAvg": 19981,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "prebateReal": {
+      "10": 8905,
+      "20": 10755,
+      "35": 15206
+    },
+    "indexNow": {
+      "10": 0.75,
+      "20": 0.822,
+      "25": 0.896,
+      "30": 0.957,
+      "35": 1
+    },
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.6,
+      "30": 29.9,
+      "35": 22.9,
+      "50": 4.2
+    },
+    "debtY35AfterY5Recession": 40.2,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "netCreditor": 29,
+    "floorSpendPctGdp": {
+      "35": 0,
+      "50": 0
+    },
+    "deficitY35": 0.5,
+    "guardPass": true
+  }
+]

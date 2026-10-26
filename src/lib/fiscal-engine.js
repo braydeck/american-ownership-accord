@@ -116,7 +116,11 @@ const BASE_PARAMS = {
   publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
   // ── Spending ──
   prebatePerCapita:       7450,
-  prebateIndex:           0.5,      // share of real GDP-per-person growth the prebate follows on top of CPI (0, 0.5, 1)
+  prebateIndex:           0.75,     // share of real GDP-per-person growth the prebate follows on top of CPI (decided 2026-10-25)
+  prebateIndexHigh:       1,        // indexing rises from prebateIndex toward this as debt falls toward the floor (null = fixed)
+  prebateIndexRampFrom:   0.60,     // debt held by the public / GDP at which the rise begins
+  prebateIndexFloor:      0.25,     // debt / GDP at which indexing reaches prebateIndexHigh (the debt floor)
+  debtFloorOn:            true,     // surpluses that would take debt below the floor are spent (use left to Congress)
   citizenFloorIndex:      0.5,    // same, for the $500 citizen grant floor
   spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
   rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled)
@@ -130,6 +134,7 @@ const BASE_PARAMS = {
   abundanceRampYears:     4,      // admissions reach the requirement in equal steps
   abundanceMaxAdmitRate:  0,      // if > 0, extra admissions are capped at this share of population a year instead of the ramp
   abundanceAdmitRate:     0.012,  // statutory floor: extra admissions of this share of population every year (decided 2026-10-25); 0 = use the ramp
+  immigrantCostsOn:       true,   // federal public-service and infrastructure costs per added resident (decided 2026-10-25)
   abundanceAdmitPhaseYears: 0,    // the floor rate phases in over this many years (0 = full from Year 1)
   abundanceHousingEscalator: false, // admissions rise above the floor when housing is in surplus
   abundanceEscalatorMax:  0.015,  // ceiling on the escalated admission rate
@@ -359,6 +364,20 @@ const GDP_PER_MILLION_IMMIGRANTS = 0.0033; // CBO 2024 immigration-surge analysi
 // the premium is an assumption; it phases in over 10 years as founders' firms grow.
 const IMMIGRANT_ENTREPRENEURSHIP_PREMIUM = [0, 0.10, 0.25];
 const IMMIGRANT_PREMIUM_PHASE_YEARS = 10;
+// Federal cost of each resident added by the Abundance Floor, 2024 dollars per person a year, scaled
+// with real GDP per person (decided 2026-10-25). FY2024 outlays per US resident (336M): health function
+// (Medicaid, ACA, public health) $911.7B, after the five-year bar on new immigrants' Medicaid; education,
+// training and social services $304.6B; Medicare $874.1B, phasing in with years since arrival like
+// Social Security; federal transportation and water infrastructure $132B (CBO, 2023).
+// One-time capital: state and local fixed assets of $16.0T (BEA, 2023), $47,700 a resident, times the
+// federal share of infrastructure spending (132/626 = 21%), spent in the year of arrival.
+// Other domestic programs (justice, community development, natural resources, general government,
+// science): the rest of FY2024 noninterest outlays after Social Security, defense, income security
+// (replaced by the prebate, already per person), Medicare, health, education, transportation and
+// veterans, about $0.31T or $925 a resident (approximate).
+const IMMIGRANT_COSTS = { health: 2713, education: 907, medicare: 2601, infrastructure: 393, otherDomestic: 925 };
+const IMMIGRANT_HEALTH_BAR_YEARS = 5;
+const INFRA_CAPITAL_PER_RESIDENT = 47700 * 0.21;
 
 function citizenFloorPerCap(p, priceLevel) {
   return p.citizenFloor * priceLevel;
@@ -390,6 +409,10 @@ function runFiscalSimulation(p, horizon = 35) {
   let valGap = 1;
   let prevNomGdp = p.startingGdp, prevEvTotal = ev0;
   let prevImmigrants = 0, prevPop = p.startingPopulation;
+  // Real prebate per person relative to Year 0: grows each year with real GDP per person to the
+  // year's indexing share, which rises toward prebateIndexHigh as debt nears the floor.
+  let prebateRealMult = 1, prevPcIdx = 1, prevDebtGdp = p.startingDebt / p.startingGdp;
+  const arrivals = []; // millions admitted each year, for the health bar and Medicare aging
   let housing = initialHousingState(p);
   let histInc = [ev0], histEnt = [0];
   // Incumbent groups: companies grow at different rates, so they reach the 21% cap in different
@@ -443,6 +466,7 @@ function runFiscalSimulation(p, horizon = 35) {
         ? prevImmigrants + admitRate * prevPop / 1e6 // the floor rate every year; it meets the worker target by about Year 14 and exceeds it after
         : abundanceImmigrants(yr, p); // millions, cumulative
     const admitted = (immigrants - prevImmigrants) * 1e6, admitBase = prevPop;
+    arrivals.push(Math.max(0, admitted));
     housing = stepHousing(housing, yr, admitted, p);
     const immPremium = p.immigrantPremiumOff ? 0 : IMMIGRANT_ENTREPRENEURSHIP_PREMIUM[GROWTH_CASE_INDEX[p.growthCase] ?? 1] * Math.min(1, yr / IMMIGRANT_PREMIUM_PHASE_YEARS);
     const immLevel = 1 + GDP_PER_MILLION_IMMIGRANTS * immigrants * (1 + immPremium);
@@ -715,18 +739,38 @@ function runFiscalSimulation(p, horizon = 35) {
     const cbo = cboFiscalShares(yr);
     const baselineShare = cbo.noninterest - dissolvedProgramsFrac(yr) + p.spendingAdjustment
       - p.rateSettingSavings * ramp(yr, 2, 6) - p.drugSavings * Math.min(1, yr / 5) - p.patentBuyoutNet;
-    const baseSpend = baselineShare * trendNomGdpBase * (1 + p.spendingElasticity * (accordLevel - 1));
-    const prebateSpend = p.prebatePerCapita * Math.pow(gdpPcIdx, p.prebateIndex ?? 0) * pop * priceLevel;
+    // Accord-created GDP raises baseline spending at the elasticity, except GDP from added residents,
+    // whose costs are counted per person below.
+    const baseSpend = baselineShare * trendNomGdpBase * (1 + p.spendingElasticity * ((p.spendingElasticityAllGdp ? accordLevel : growthLevel) - 1));
+    let healthEligible = 0, medicareWeighted = 0;
+    arrivals.forEach((a, k) => {
+      const years = yr - (k + 1);
+      if (years >= IMMIGRANT_HEALTH_BAR_YEARS) healthEligible += a;
+      medicareWeighted += a * Math.min(1, years / SS_IMMIGRANT_COST_LAG);
+    });
+    const costScale = priceLevel * gdpPcIdx;
+    const immigrantServiceSpend = p.immigrantCostsOn ? costScale * (
+      IMMIGRANT_COSTS.health * healthEligible + IMMIGRANT_COSTS.medicare * medicareWeighted
+      + (IMMIGRANT_COSTS.education + IMMIGRANT_COSTS.infrastructure + IMMIGRANT_COSTS.otherDomestic) * immigrants * 1e6) : 0;
+    const immigrantCapitalSpend = p.immigrantCostsOn ? INFRA_CAPITAL_PER_RESIDENT * Math.max(0, admitted) * costScale : 0;
+    const rampShare = p.prebateIndexHigh == null ? 0
+      : Math.min(1, Math.max(0, (p.prebateIndexRampFrom - prevDebtGdp) / (p.prebateIndexRampFrom - p.prebateIndexFloor)));
+    const prebateIndexNow = (p.prebateIndex ?? 0) + ((p.prebateIndexHigh ?? 0) - (p.prebateIndex ?? 0)) * rampShare;
+    prebateRealMult *= Math.pow(gdpPcIdx / prevPcIdx, prebateIndexNow);
+    prevPcIdx = gdpPcIdx;
+    const prebateSpend = p.prebatePerCapita * prebateRealMult * pop * priceLevel;
     const childcareSpend = 100e9 * popScale * priceLevel;
     const familyLeaveSpend = 50e9 * popScale * priceLevel;
     const ceocSpend = p.ceocOn ? CEOC_DEPOSIT * CEOC_FTE * popScale * priceLevel : 0;
     const zoningSpend = housing.zoningGrantUnits * p.zoningGrantPerUnit * priceLevel;
     const carbonDividendSpend = carbonRev * CARBON_DIVIDEND_SHARE;
     const healthcareAMCF = cashT * HEALTHCARE_RESERVE_SHARE; // spent on new health commitments
-    const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend + zoningSpend;
+    const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend + zoningSpend
+      + immigrantServiceSpend + immigrantCapitalSpend;
 
     // ── Interest ──
     const debtToGdp = debt / nominalGdp;
+    prevDebtGdp = debtToGdp;
     const creditTarget = (p.assetRateCreditBp / 10000) * 100 * (tClaim / nominalGdp);
     creditBp += (creditTarget - creditBp) / ASSET_CREDIT_PHASE_YEARS;
     const effectiveRate = Math.min(MAX_INTEREST_RATE, Math.max(0.005,
@@ -744,8 +788,15 @@ function runFiscalSimulation(p, horizon = 35) {
     const debtReductionAMCF = solventBrakeActive ? treasuryFlow : saleToDebt;
     const discretionaryAMCF = solventBrakeActive ? 0 : treasuryFlow - saleToDebt;
     // Net Treasury purchases of units (cap overflow, term repurchases) are a cost even when spent.
-    const deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
+    let deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
     debt = debt + deficit - debtReductionAMCF;
+    // Debt floor (decided 2026-10-25): once debt held by the public reaches the floor, surpluses that
+    // would push it lower are spent, with the use left to Congress. Kept as unallocated spending.
+    let floorSpend = 0;
+    if (p.debtFloorOn && debt < p.prebateIndexFloor * nominalGdp) {
+      floorSpend = p.prebateIndexFloor * nominalGdp - debt;
+      deficit += floorSpend; debt += floorSpend;
+    }
     // OASDI trust funds: scheduled benefits stay in spending (CBO convention); the balance
     // shows whether they are payable under law. The contribution above the cap is credited
     // to the funds by statute. With the backstop on, general revenue tops the funds up to 100%
@@ -815,7 +866,8 @@ function runFiscalSimulation(p, horizon = 35) {
       privateUnitPct: +((tClaim + cClaim + pClaim + eClaim) > 0 ? pClaim / (tClaim + cClaim + pClaim + eClaim) * 100 : 0).toFixed(1),
       solventBrakeActive,
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
-      ceocSpend: T(ceocSpend), zoningSpend: T(zoningSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
+      floorSpend: T(floorSpend), prebateRealPerCapita: Math.round(p.prebatePerCapita * prebateRealMult), prebateIndexNow: +prebateIndexNow.toFixed(3),
+      ceocSpend: T(ceocSpend), zoningSpend: T(zoningSpend), immigrantServiceSpend: T(immigrantServiceSpend), immigrantCapitalSpend: T(immigrantCapitalSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
       vatGross: T(vatGross), fatRev: T(fatRev), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
       payrollFix: T(payrollFix), realizationRev: T(realizationRev), gdpPerCapIdx: +gdpPcIdx.toFixed(4), laborLevel: +laborLevel.toFixed(4), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
       otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
@@ -856,6 +908,7 @@ function runFiscalSimulation(p, horizon = 35) {
     amcfSelfFundingYear:   selfFundingYear,
     solvencyBrakeOffYear:  rows.find(r => !r.solventBrakeActive)?.year ?? null,
     debtFreeYear:          rows.find(r => r.grossDebt < 0)?.year ?? null,
+    debtFloorYear:         rows.find(r => r.floorSpend > 0)?.year ?? null,
   };
   return { rows, milestones: m };
 }
@@ -925,5 +978,6 @@ export function householdFiscalSeries(params = BASE_PARAMS, horizon = 35) {
       ceocOn: params.ceocOn,
       pseuMultiple: params.pseuOn ? params.pseuMultiple : 0,
       rentGap: r.rentVsCurrentLawPct / 100,
+      prebateReal: r.prebateRealPerCapita,
     }))];
 }

@@ -1,0 +1,60 @@
+[
+  {
+    "label": "Costs off (spending grows with all Accord GDP)",
+    "costPctGdp": {
+      "1": 0,
+      "5": 0,
+      "10": 0,
+      "20": 0,
+      "35": 0
+    },
+    "capitalPctGdp": {
+      "1": 0,
+      "10": 0,
+      "35": 0
+    },
+    "debtToGdp": {
+      "10": 75.7,
+      "20": 52.5,
+      "30": 36.3,
+      "35": 29.8
+    },
+    "fiscalGoal": 9,
+    "goalRec5": 15,
+    "goalRec12": 17,
+    "goalLow": 11,
+    "netCreditor": 34,
+    "p80NwY10": 2873,
+    "bottom80Pass": true,
+    "minIncomeGain": 10277
+  },
+  {
+    "label": "Costs on",
+    "costPctGdp": {
+      "1": 0.16,
+      "5": 0.28,
+      "10": 0.6,
+      "20": 1.22,
+      "35": 2.08
+    },
+    "capitalPctGdp": {
+      "1": 0.13,
+      "10": 0.13,
+      "35": 0.13
+    },
+    "debtToGdp": {
+      "10": 72.7,
+      "20": 41.1,
+      "30": 14.1,
+      "35": 1.6
+    },
+    "fiscalGoal": 8,
+    "goalRec5": 13,
+    "goalRec12": 8,
+    "goalLow": 10,
+    "netCreditor": 23,
+    "p80NwY10": 2873,
+    "bottom80Pass": true,
+    "minIncomeGain": 10277
+  }
+]

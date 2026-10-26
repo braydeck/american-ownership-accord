@@ -1,0 +1,140 @@
+[
+  {
+    "label": "Current settings",
+    "belowP80Avg": 19553,
+    "bottomHalfAvg": 17722,
+    "b10Avg": 13335,
+    "p80MinIncome": 7838,
+    "p80NwFromY10": 2873,
+    "t10Y30": -214902,
+    "goal": 8,
+    "goalRec5": 13,
+    "goalRec12": 8,
+    "goalLow": 10,
+    "debtGdp": {
+      "10": 72.7,
+      "20": 41.1,
+      "35": 1.6
+    },
+    "debtGdpY35Rec5": 23,
+    "netCreditor": 23,
+    "prebatePctGdpY35": 5.5,
+    "incomeGiniY30": 0.5176,
+    "nwGiniY30": 0.6663
+  },
+  {
+    "label": "12053 on 35 years",
+    "belowP80Avg": 22734,
+    "bottomHalfAvg": 21796,
+    "b10Avg": 16612,
+    "p80MinIncome": 6783,
+    "p80NwFromY10": 2695,
+    "t10Y30": -165519,
+    "goal": 8,
+    "goalRec5": 13,
+    "goalRec12": 8,
+    "goalLow": 9,
+    "debtGdp": {
+      "10": 73.3,
+      "20": 50.1,
+      "35": 31.4
+    },
+    "debtGdpY35Rec5": 49.4,
+    "netCreditor": 35,
+    "prebatePctGdpY35": 8.2,
+    "incomeGiniY30": 0.5047,
+    "nwGiniY30": 0.6706
+  },
+  {
+    "label": "12053 schedule, prebate indexed at 0.5",
+    "belowP80Avg": 18234,
+    "bottomHalfAvg": 17544,
+    "b10Avg": 13068,
+    "p80MinIncome": 6589,
+    "p80NwFromY10": -1044,
+    "t10Y30": -175624,
+    "goal": 7,
+    "goalRec5": 12,
+    "goalRec12": 7,
+    "goalLow": 8,
+    "debtGdp": {
+      "10": 69,
+      "20": 34.8,
+      "35": -6.9
+    },
+    "debtGdpY35Rec5": 14.7,
+    "netCreditor": 21,
+    "prebatePctGdpY35": 5.4,
+    "incomeGiniY30": 0.5246,
+    "nwGiniY30": 0.675
+  },
+  {
+    "label": "12053 schedule, prebate indexed at 0.75",
+    "belowP80Avg": 20342,
+    "bottomHalfAvg": 19536,
+    "b10Avg": 14728,
+    "p80MinIncome": 6686,
+    "p80NwFromY10": 791,
+    "t10Y30": -171037,
+    "goal": 8,
+    "goalRec5": 12,
+    "goalRec12": 8,
+    "goalLow": 9,
+    "debtGdp": {
+      "10": 71.2,
+      "20": 42.2,
+      "35": 10.9
+    },
+    "debtGdpY35Rec5": 31,
+    "netCreditor": 25,
+    "prebatePctGdpY35": 6.6,
+    "incomeGiniY30": 0.5153,
+    "nwGiniY30": 0.6729
+  },
+  {
+    "label": "Current settings, prebate indexed at 0.75",
+    "belowP80Avg": 21725,
+    "bottomHalfAvg": 19772,
+    "b10Avg": 15044,
+    "p80MinIncome": 7940,
+    "p80NwFromY10": 4783,
+    "t10Y30": -210170,
+    "goal": 9,
+    "goalRec5": 14,
+    "goalRec12": 9,
+    "goalLow": 10,
+    "debtGdp": {
+      "10": 74.6,
+      "20": 48.5,
+      "35": 19.7
+    },
+    "debtGdpY35Rec5": 39.4,
+    "netCreditor": 28,
+    "prebatePctGdpY35": 6.8,
+    "incomeGiniY30": 0.5081,
+    "nwGiniY30": 0.6642
+  },
+  {
+    "label": "Current settings, prebate indexed at 1",
+    "belowP80Avg": 24190,
+    "bottomHalfAvg": 22101,
+    "b10Avg": 16985,
+    "p80MinIncome": 8041,
+    "p80NwFromY10": 6775,
+    "t10Y30": -204462,
+    "goal": 9,
+    "goalRec5": 15,
+    "goalRec12": 17,
+    "goalLow": 11,
+    "debtGdp": {
+      "10": 77,
+      "20": 56.8,
+      "35": 40.9
+    },
+    "debtGdpY35Rec5": 58.2,
+    "netCreditor": null,
+    "prebatePctGdpY35": 8.4,
+    "incomeGiniY30": 0.4973,
+    "nwGiniY30": 0.6618
+  }
+]

@@ -28,6 +28,9 @@ const OPT_RISE = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFile
 // Re-optimized 2026-10-25 under the permanent 1.2% Abundance Floor, the housing module, the grant
 // path and company dispersion (Year 16 after a Year-5 recession allowed); seeded with the then-default design.
 const OPT_HOUSING = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-housing-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
+// Re-optimized 2026-10-25 with explicit per-resident costs, scored on 35 years: net creditor by Year 35
+// and a guard that nothing breaks through Year 75 (net interest under 10% of revenue, debt/GDP not rising).
+const OPT_35 = bestByStart([0, 1, 2, 3, 4, 5].flatMap(i => JSON.parse(readFileSync(`scripts/output/optimize-below-p80-recover10-curve-zero-lvt10-rise2.5-nc35-guard-${i}.json`, 'utf8'))).filter(r => r.p80NeverBehind));
 const byId = id => [...DATA.passing, ...CURVE.passing, ...ZERO.passing].find(d => d.id === id);
 // Optimized designs from scripts/optimize-below-p80.mjs (P80 income never behind; P80 net worth even
 // from Year 10), by start design.
@@ -72,6 +75,8 @@ const VARIANTS = [
   { id: '12053-r', base: 12053, name: '12053, optimized, smooth rise', note: optimizedNote(12053, OPT_RISE), changes: optimized(12053, OPT_RISE) },
   { id: '12053-h', base: 12053, name: '12053, optimized for the 1.2% floor and housing', note: optimizedNote(12053, OPT_HOUSING), changes: optimized(12053, OPT_HOUSING) },
   { id: '21877-h', base: 21877, name: '21877, re-optimized for the 1.2% floor and housing', note: optimizedNote('current', OPT_HOUSING), changes: optimized('current', OPT_HOUSING) },
+  { id: '12053-35', base: 12053, name: '12053, optimized on 35 years', note: optimizedNote(12053, OPT_35), changes: optimized(12053, OPT_35) },
+  { id: '21877-35', base: 21877, name: '21877, re-optimized on 35 years', note: optimizedNote('current', OPT_35), changes: optimized('current', OPT_35) },
   { id: '14007-lvt10', base: 14007, name: '14007, optimized, LVT 10%', note: optimizedNote(14007, OPT_LVT10), changes: optimized(14007, OPT_LVT10) },
   // scripts/prebate-vs-base-rate.mjs: a 2% rate on the zero band, returned through $500 more prebate (the
 // only base rate that stayed robust).

@@ -40,7 +40,7 @@ export const PREBATE_REDIRECT_DELTA = PREBATE_REDIRECTED - PREBATE_BASE;
 // With prebateIndex > 0 it also follows that share of real GDP-per-person growth.
 export const prebatePC = (P, fx = FISCAL_DEFAULTS, y = 0) =>
   (P.has('LVT_EX') ? fx.prebatePerCapita - PREBATE_REDIRECT_DELTA : fx.prebatePerCapita)
-  * Math.pow(hhAt(fx, y).gdpPerCapIdx ?? 1, fx.prebateIndex ?? 0);
+  * (hhAt(fx, y).prebateReal != null ? hhAt(fx, y).prebateReal / fx.prebatePerCapita : Math.pow(hhAt(fx, y).gdpPerCapIdx ?? 1, fx.prebateIndex ?? 0));
 
 // ─── TAX SCHEDULES ───────────────────────────────────────────────────────────
 // Current law: 2024 federal brackets and standard deduction, held fixed in real terms.
