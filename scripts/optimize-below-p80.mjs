@@ -31,6 +31,9 @@ const NET_CREDITOR_BY = process.env.NET_CREDITOR_BY ? Number(process.env.NET_CRE
 // in a 75-year run, net interest stays below 10% of revenue every year from 35 to 75 and debt/GDP at
 // Year 75 is no more than 5 points above Year 35.
 const LONGRUN_GUARD = !!process.env.LONGRUN_GUARD;
+// Hold prebate indexing at the default rule (Brayden, 2026-10-25: 0.75 rising to 1 between 60% and
+// 25% debt) instead of searching it.
+const FIX_PREBATE_INDEX = process.env.FIX_PREBATE_INDEX != null ? Number(process.env.FIX_PREBATE_INDEX) : null;
 const { makeRng } = await server.ssrLoadModule('/src/lib/prng.js');
 const { stableRentRevYr1, RENT_TAX_DEFAULTS, YR1_NOM_GDP } = await server.ssrLoadModule('/src/lib/rent-taxes.js');
 const B = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
@@ -59,7 +62,7 @@ const BOUNDS = {
 const LOG = new Set(['threshold', 'start', 'endRatio', 'shape', 'zeroEnd', 'zeroEndRatio', 'zeroShape']);
 const INDEX = { prebateIndex: E.PREBATE_INDEX_OPTIONS, floorIndex: E.FLOOR_INDEX_OPTIONS };
 const keysFor = fam => [...(fam === 'two' ? ['low', 'top', 'threshold'] : fam === 'zero' ? ['top', 'baseRate', 'zeroEnd', 'zeroEndRatio', 'zeroShape']
-  : ['low', 'top', 'start', 'endRatio', 'shape']), ...(fam === 'zero' ? [] : ['exemptJoint']), 'vatRate', 'lvtRate', 'carbonRate', 'prebate', 'fttPct', 'prebateIndex', 'floorIndex'];
+  : ['low', 'top', 'start', 'endRatio', 'shape']), ...(fam === 'zero' ? [] : ['exemptJoint']), 'vatRate', 'lvtRate', 'carbonRate', 'prebate', 'fttPct', ...(FIX_PREBATE_INDEX != null ? [] : ['prebateIndex']), 'floorIndex'];
 
 function schedule(x) {
   if (x.fam === 'two') return [[x.threshold, x.low], [Infinity, x.top]];
@@ -73,7 +76,7 @@ function toDesign(x) {
   return {
     incomeTaxBrackets: b, incomeTaxLow: b[0][1], incomeTaxHigh: b[b.length - 1][1], incomeTaxThreshold: b[b.length - 2][0],
     incomeTaxExemptJoint: x.exemptJoint, incomeTaxExemptSingle: x.exemptJoint / 2, vatRate: x.vatRate, lvtRate: x.lvtRate,
-    carbonRate: x.carbonRate, prebatePerCapita: x.prebate, prebateIndex: x.prebateIndex, citizenFloorIndex: x.floorIndex,
+    carbonRate: x.carbonRate, prebatePerCapita: x.prebate, prebateIndex: FIX_PREBATE_INDEX ?? x.prebateIndex, citizenFloorIndex: x.floorIndex,
     fttPct: x.fttPct, stableTaxFrac: stableRentRevYr1({ ...RENT_TAX_DEFAULTS, fttPct: x.fttPct }) / YR1_NOM_GDP,
   };
 }
@@ -179,6 +182,6 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
   console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
 results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${LONGRUN_GUARD ? '-guard' : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${LONGRUN_GUARD ? '-guard' : ''}${FIX_PREBATE_INDEX != null ? `-pi${FIX_PREBATE_INDEX}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();
