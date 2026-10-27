@@ -31,7 +31,14 @@ const BOTTOM_HALF_GAIN = avgGain(BOTTOM_HALF, 1, 30);
 const AHEAD_EVERY_YEAR = DEMO_KEYS
   .filter(k => Array.from({ length: 30 }, (_, i) => gain(k, i + 1)).every(g => g > 0))
   .reduce((s, k) => s + POP[k], 0);
-const MEDIAN_INC = { accord: getInc('P50', 30, ALL_PROVS).total, cl: getInc('P50', 30, BASE_ONLY).total };
+const incAt = (k, y) => ({ accord: getInc(k, y, ALL_PROVS).total, cl: getInc(k, y, BASE_ONLY).total });
+const MEDIAN_INC = incAt('P50', 30);
+const INC_POINTS = [
+  { label: 'Bottom 10% household income, Year 1', ...incAt('B10', 1) },
+  { label: 'Median household income, Year 1', ...incAt('P50', 1) },
+  { label: 'Bottom 10% household income, Year 30', ...incAt('B10', 30) },
+  { label: 'Median household income, Year 30', ...incAt('P50', 30) },
+];
 const MEDIAN_NW = { accord: getNW('P50', 30, ALL_PROVS).total, cl: getNW('P50', 30, BASE_ONLY).total };
 const B10_NW = { accord: getNW('B10', 30, ALL_PROVS).total, cl: getNW('B10', 30, BASE_ONLY).total };
 const gini = fn => computeGini(DEMO_KEYS.map(k => ({ v: Math.max(fn(k), 0), w: POP[k] })));
@@ -64,11 +71,8 @@ const SECTIONS = [
   {
     title: 'Income',
     lead: `${Math.round(AHEAD_EVERY_YEAR * 100)}% of households are ahead of current law on income in every year from 1 to 30.`,
-    stats: [
-      { label: 'Average yearly income gain, bottom half of households', value: `+${exact(BOTTOM_HALF_GAIN)}`, sub: 'Years 1–30, 2024 dollars' },
-      { label: 'Change in median household income by Year 30', value: pctChange(MEDIAN_INC.accord, MEDIAN_INC.cl), sub: `${fmtDollar(MEDIAN_INC.accord)}, against ${fmtDollar(MEDIAN_INC.cl)} under current law` },
-    ],
-    body: `Gains come from the cash prebate of $${P.prebatePerCapita.toLocaleString()} a person a year, a $${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend, a 0% income tax on the first $${Math.round(P.incomeTaxThreshold / 1000)}K, worker profit-sharing and fund dividends. The top 10% pay more in every year.`,
+    stats: INC_POINTS.map(s => ({ label: s.label, value: pctChange(s.accord, s.cl), sub: `${exact(s.accord)}, against ${exact(s.cl)} under current law` })),
+    body: `Year 1 gains come mostly from the cash prebate: $${P.prebatePerCapita.toLocaleString()} a person, so $${(P.prebatePerCapita * 4).toLocaleString()} for a family of four, plus a $${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend each. By Year 30, fund dividends, worker profit-sharing and a 0% income tax on the first $${Math.round(P.incomeTaxThreshold / 1000)}K add to it. The top 10% pay more in every year.`,
   },
   {
     title: 'Wealth',
@@ -120,7 +124,8 @@ const SECTIONS = [
 const TABLE_GROUPS = ['B10', 'P20', 'P40', 'P50', 'P70', 'P80', 'T10', 'T1'];
 const TABLE_ROWS = TABLE_GROUPS.map(k => {
   const a = getInc(k, 30, ALL_PROVS).total, c = getInc(k, 30, BASE_ONLY).total;
-  return { k, label: DEMOS[k].label, accord: a, cl: c, pct: (a - c) / c };
+  const a1 = getInc(k, 1, ALL_PROVS).total, c1 = getInc(k, 1, BASE_ONLY).total;
+  return { k, label: DEMOS[k].label, accord: a, cl: c, pct: (a - c) / c, pct1: (a1 - c1) / c1, d1: a1 - c1, d30: a - c };
 });
 
 const pct = v => `${+(v * 100).toFixed(1)}%`;
@@ -356,28 +361,33 @@ export default function AboutPage({ onNavigate }) {
           The bottom 90% gain, the top 10% pay
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-          Household income at Year 30: pre-tax income plus the Accord's net change in taxes and
-          cash transfers, including fund withdrawals and worker dividends. The top 10% pay more in
-          every year. Their net worth still grows, more slowly than under current law.
+          Change in household income against current law, in Year 1 and Year 30: pre-tax income
+          plus the Accord's net change in taxes and cash transfers. The top 10% pay more in every
+          year; their net worth still grows, more slowly than under current law.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-4 font-semibold">Income group</th>
-                <th className="py-2 pr-4 font-semibold text-right">Accord</th>
-                <th className="py-2 pr-4 font-semibold text-right">Current law</th>
-                <th className="py-2 font-semibold text-right">Change</th>
+                <th className="py-2 pr-4 font-semibold text-right">Change, Year 1</th>
+                <th className="py-2 pr-4 font-semibold text-right">Change, Year 30</th>
+                <th className="py-2 font-semibold text-right">Income, Year 30</th>
               </tr>
             </thead>
             <tbody>
               {TABLE_ROWS.map(r => (
                 <tr key={r.k} className="border-b border-border/60">
                   <td className="py-2 pr-4">{r.label}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{fmtDollar(r.accord)}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">{fmtDollar(r.cl)}</td>
-                  <td className={`py-2 text-right tabular-nums font-semibold ${r.pct >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
-                    {r.pct >= 0 ? '+' : ''}{(r.pct * 100).toFixed(0)}%
+                  {[[r.d1, r.pct1], [r.d30, r.pct]].map(([d, pc], i) => (
+                    <td key={i} className={`py-2 pr-4 text-right tabular-nums font-semibold ${pc >= 0 ? 'text-[#307ca6]' : 'text-[#c27040]'}`}>
+                      {pc >= 0 ? '+' : ''}{(pc * 100).toFixed(0)}%
+                      <span className="block text-[11px] font-normal text-muted-foreground">{d >= 0 ? '+' : '-'}{fmtDollar(Math.abs(d))}</span>
+                    </td>
+                  ))}
+                  <td className="py-2 text-right tabular-nums">
+                    {fmtDollar(r.accord)}
+                    <span className="block text-[11px] text-muted-foreground">vs {fmtDollar(r.cl)}</span>
                   </td>
                 </tr>
               ))}
