@@ -55,9 +55,9 @@ const millions = v => `${(v).toFixed(v < 10 ? 1 : 0)} million`;
 const exact = v => `$${Math.round(v).toLocaleString()}`;
 
 const HERO_STATS = [
-  { value: `${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, label: 'Federal debt, share of GDP', sub: `Today to Year 30. Current law: ${pct0(Y30.clDebtToGdp)} at Year 30` },
-  { value: `Year ${M.fiscalGoalYear}`, label: 'Interest below 10% of revenue', sub: `From ${pct0(intShare(Y1))} of revenue today. Current law: ${pct0(clIntShare(Y10))} at Year 10` },
-  { value: `+${fmtDollar(BOTTOM_HALF_GAIN)}`, label: 'Bottom half of households', sub: 'Average income gain a year, Years 1–30' },
+  { label: 'Federal debt as a share of the economy, today to Year 30', value: `${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, sub: `Current law: ${pct0(Y30.clDebtToGdp)} at Year 30` },
+  { label: 'Year interest costs fall below 10% of federal revenue', value: `Year ${M.fiscalGoalYear}`, sub: `From ${pct0(intShare(Y1))} today. Current law: ${pct0(clIntShare(Y10))} at Year 10` },
+  { label: 'Average yearly income gain for the bottom half of households', value: `+${exact(BOTTOM_HALF_GAIN)}`, sub: 'Years 1–30, against current law' },
 ];
 
 const SECTIONS = [
@@ -65,8 +65,8 @@ const SECTIONS = [
     title: 'Income',
     lead: `${Math.round(AHEAD_EVERY_YEAR * 100)}% of households are ahead of current law on income in every year from 1 to 30.`,
     stats: [
-      { value: `+${exact(BOTTOM_HALF_GAIN)}`, label: 'Bottom half, average gain a year' },
-      { value: pctChange(MEDIAN_INC.accord, MEDIAN_INC.cl), label: `Median household income at Year 30 (${fmtDollar(MEDIAN_INC.accord)})` },
+      { label: 'Average yearly income gain, bottom half of households', value: `+${exact(BOTTOM_HALF_GAIN)}`, sub: 'Years 1–30, 2024 dollars' },
+      { label: 'Change in median household income by Year 30', value: pctChange(MEDIAN_INC.accord, MEDIAN_INC.cl), sub: `${fmtDollar(MEDIAN_INC.accord)}, against ${fmtDollar(MEDIAN_INC.cl)} under current law` },
     ],
     body: `Gains come from the cash prebate of $${P.prebatePerCapita.toLocaleString()} a person a year, a $${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend, a 0% income tax on the first $${Math.round(P.incomeTaxThreshold / 1000)}K, worker profit-sharing and fund dividends. The top 10% pay more in every year.`,
   },
@@ -74,8 +74,8 @@ const SECTIONS = [
     title: 'Wealth',
     lead: `The median household's net worth reaches ${fmtDollar(MEDIAN_NW.accord)} by Year 30, against ${fmtDollar(MEDIAN_NW.cl)} under current law.`,
     stats: [
-      { value: exact(ACCOUNT_AT_18), label: 'Fund account at 18, child born in Year 0' },
-      { value: NW_GINI.accord.toFixed(2), label: `Wealth Gini at Year 30 (current law ${NW_GINI.cl.toFixed(2)})` },
+      { label: 'Fund account at 18 for a child born in Year 0', value: exact(ACCOUNT_AT_18), sub: 'Yearly grants plus a 5% real return' },
+      { label: 'Wealth inequality at Year 30 (Gini, lower is more equal)', value: NW_GINI.accord.toFixed(2), sub: `${NW_GINI.cl.toFixed(2)} under current law` },
     ],
     body: `The bottom 10% hold ${fmtDollar(B10_NW.accord)} at Year 30 against ${fmtDollar(B10_NW.cl)}. Wealth comes from units in the American Capital Fund, which holds ${pct0(Y30.amcfOwnershipPct)} of corporate equity at Year 30 for every resident, and from worker trusts holding ${pct0(Y30.workerOwnershipPct)}.`,
   },
@@ -83,8 +83,8 @@ const SECTIONS = [
     title: 'Homes',
     lead: `The National Housing Corporation builds about ${millions(Y30.nhcStockM)} homes by Year 30, and the existing shortage closes by Year ${SHORTAGE_CLOSED}.`,
     stats: [
-      { value: `${(Y10.privateExtraUnitsK / 1000).toFixed(1)} million`, label: 'Extra private homes a year at Year 10' },
-      { value: `${Y30.rentVsCurrentLawPct}%`, label: 'Rents vs current law at Year 30' },
+      { label: 'Extra homes private builders add each year, Year 10', value: `${(Y10.privateExtraUnitsK / 1000).toFixed(1)} million`, sub: 'Above current-law construction' },
+      { label: 'Rents at Year 30', value: `${Y30.rentVsCurrentLawPct}%`, sub: 'Compared with current law' },
     ],
     body: 'NHC homes are mixed-income and built on land the public keeps. Federal grants go to states and cities that allow mixed-use, mixed-density housing by right, and the land value tax pushes owners to build on held land. Construction keeps pace with immigration by law.',
   },
@@ -92,8 +92,8 @@ const SECTIONS = [
     title: 'Healthcare',
     lead: 'A public option, Medicare Plus, competes with private insurers, with a guarantee of treatment within 30 days.',
     stats: [
-      { value: '35K → 70K', label: 'Medical residency slots a year' },
-      { value: billions(HEALTH_RESERVE_Y10), label: 'Healthcare Reserve at Year 10, from fund dividends' },
+      { label: 'Medical residency slots a year', value: '35K → 70K', sub: 'Doubled to train more doctors' },
+      { label: 'Healthcare Reserve funding at Year 10', value: billions(HEALTH_RESERVE_Y10), sub: 'A year, paid from fund dividends' },
     ],
     body: `National rate setting and expanded drug-price negotiation save about ${billions(HEALTH_SAVINGS_Y10)} a year by Year 10. Hospitals are paid to keep 15% of ICU beds ready for surges.`,
   },
@@ -101,8 +101,8 @@ const SECTIONS = [
     title: 'The federal budget',
     lead: `Federal debt falls every year, from ${pct0(Y1.debtToGdp)} of GDP today to ${pct0(Y30.debtToGdp)} at Year 30. Under current law it rises to ${pct0(Y30.clDebtToGdp)}.`,
     stats: [
-      { value: `Year ${M.netCreditorYear}`, label: 'Government fund holdings exceed federal debt' },
-      { value: `Year ${M.debtFloorYear}`, label: 'Debt reaches its 25% floor; Congress decides on surpluses beyond it' },
+      { label: "Year the government's fund holdings exceed federal debt", value: `Year ${M.netCreditorYear}`, sub: 'Never under current law' },
+      { label: 'Year federal debt reaches its 25% floor', value: `Year ${M.debtFloorYear}`, sub: 'Congress decides how to use surpluses beyond it' },
     ],
     body: `Interest costs fall below 10% of federal revenue by Year ${M.fiscalGoalYear}, against ${pct0(clIntShare(Y35))} under current law at Year 35. After a 2008-scale recession in Year 5, they are back below 10% by Year ${GOAL_AFTER_RECESSION}.`,
   },
@@ -110,8 +110,8 @@ const SECTIONS = [
     title: 'Immigration',
     lead: `The United States admits immigrants equal to 1.2% of its population every year. The population reaches ${Math.round(Y30.population / 1e6)} million by Year 30.`,
     stats: [
-      { value: exact(GRANTS[30][1]), label: 'Fund grant per person at Year 30' },
-      { value: exact(NO_IMMIGRATION[30][1]), label: 'The same grant without the added immigration' },
+      { label: 'Fund grant per person at Year 30', value: exact(GRANTS[30][1]), sub: 'With the added immigration, 2024 dollars' },
+      { label: 'The same grant without the added immigration', value: exact(NO_IMMIGRATION[30][1]), sub: 'Immigration raises grants for everyone' },
     ],
     body: 'Immigrants add more to the economy than their share of the population, so they raise fund grants for everyone. New residents receive grants and the prebate from arrival, and the budget counts their public-service and infrastructure costs.',
   },
@@ -134,12 +134,28 @@ const PILLARS = [
     body: `Every company worth $10M or more moves ${pct(P.equityExciseRate)} of its equity a year into a worker trust until the trust holds 21%. Its dividends go to current workers as profit-sharing and fund units.`,
   },
   {
-    title: 'Taxes move to income at the top, consumption and land',
+    title: 'Taxes move to top incomes, consumption and land',
     body: `The corporate income tax is repealed. The income tax is 0% up to $${Math.round(P.incomeTaxThreshold / 1000)}K and rises smoothly to ${pct(P.incomeTaxHigh)} at $${Math.round(P.incomeTaxRiseEnd / 1000)}K, with no deductions. A ${pct(P.vatRate)} VAT, a ${pct(P.lvtRate)} tax on land value and a $${P.carbonRate}/ton carbon tax fund the rest.`,
   },
   {
     title: 'A cash floor replaces means-tested aid',
     body: `Every person receives $${P.prebatePerCapita.toLocaleString()} a year in cash, rising with prices plus three-quarters of income growth, and all of it once debt falls toward 25% of GDP. SNAP, the EITC, the child tax credit, TANF and WIC end, along with their phase-outs.`,
+  },
+  {
+    title: 'Housing is built as fast as the country grows',
+    body: 'The National Housing Corporation builds mixed-income homes on land the public keeps, sized each year to new households and the remaining shortage. Federal grants reward states and cities that allow mixed-use, mixed-density housing by right.',
+  },
+  {
+    title: 'Immigration grows by law',
+    body: 'Immigrants equal to 1.2% of the population are admitted every year, with grants and the prebate from arrival. The budget pays for their public services and infrastructure.',
+  },
+  {
+    title: 'A public option and more doctors',
+    body: 'Medicare Plus competes with private insurers and guarantees treatment within 30 days. Medical residency slots double, and fund dividends pay for a Healthcare Reserve.',
+  },
+  {
+    title: 'Debt falls to a safe floor',
+    body: 'Fund dividends and asset sales pay down federal debt until it reaches 25% of GDP. Beyond that floor, Congress decides how to use surpluses.',
   },
 ];
 
@@ -194,9 +210,10 @@ function ResultSection({ s }) {
       <p className="text-lg sm:text-xl font-semibold tracking-tight leading-snug mb-5">{s.lead}</p>
       <div className="grid grid-cols-2 gap-6 mb-4">
         {s.stats.map(st => (
-          <div key={st.label}>
-            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight">{st.value}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-snug">{st.label}</p>
+          <div key={st.label} className="rounded-lg border border-border/70 p-4">
+            <p className="text-sm font-semibold leading-snug">{st.label}</p>
+            <p className="text-3xl font-extrabold tracking-tight mt-2">{st.value}</p>
+            <p className="text-xs text-muted-foreground mt-2 leading-snug">{st.sub}</p>
           </div>
         ))}
       </div>
@@ -251,17 +268,34 @@ export default function AboutPage({ onNavigate }) {
           <div className="mt-14 pt-8 border-t border-primary-foreground/10 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {HERO_STATS.map(st => (
               <div key={st.label}>
-                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-accent">{st.value}</p>
-                <p className="text-sm font-semibold mt-2">{st.label}</p>
-                <p className="text-xs text-primary-foreground/60 mt-1">{st.sub}</p>
+                <p className="text-sm font-semibold leading-snug">{st.label}</p>
+                <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-accent mt-2">{st.value}</p>
+                <p className="text-xs text-primary-foreground/60 mt-2">{st.sub}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* How it works */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-16 pb-6">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-8">What the Accord changes</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+          {PILLARS.map(p => (
+            <div key={p.title}>
+              <h3 className="text-base font-semibold tracking-tight mb-1.5">{p.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{p.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-10">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">What it does for households and the budget</h2>
+      </div>
+
       {/* Results */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-4 pb-4">
         {SECTIONS.map(s => <ResultSection key={s.title} s={s} />)}
       </div>
 
@@ -304,19 +338,6 @@ export default function AboutPage({ onNavigate }) {
           </table>
         </div>
         <p className="text-xs text-muted-foreground mt-3">2024 dollars. Groups are income percentiles of households.</p>
-      </div>
-
-      {/* How it works */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-12 pb-4">
-        <SectionLabel>What the Accord does</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {PILLARS.map(p => (
-            <div key={p.title}>
-              <h3 className="text-base font-semibold tracking-tight mb-1.5">{p.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{p.body}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Explore Section */}
