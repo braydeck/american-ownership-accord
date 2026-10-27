@@ -28,6 +28,13 @@ const avgGain = (keys, y0, y1) => {
   return s / n;
 };
 const BOTTOM_HALF_GAIN = avgGain(BOTTOM_HALF, 1, 30);
+const BOTTOM_HALF_GAIN_Y1 = avgGain(BOTTOM_HALF, 1, 1);
+const BOTTOM_HALF_GAIN_Y30 = avgGain(BOTTOM_HALF, 30, 30);
+const bottomHalfPct = y => {
+  let a = 0, c = 0;
+  for (const k of BOTTOM_HALF) { a += getInc(k, y, ALL_PROVS).total; c += getInc(k, y, BASE_ONLY).total; }
+  return (a / c - 1) * 100;
+};
 const AHEAD_EVERY_YEAR = DEMO_KEYS
   .filter(k => Array.from({ length: 30 }, (_, i) => gain(k, i + 1)).every(g => g > 0))
   .reduce((s, k) => s + POP[k], 0);
@@ -64,7 +71,7 @@ const exact = v => `$${Math.round(v).toLocaleString()}`;
 const HERO_STATS = [
   { label: 'Federal debt as a share of the economy, today to Year 30', value: `${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, sub: `Current law: ${pct0(Y30.clDebtToGdp)} at Year 30` },
   { label: 'Year interest costs fall below 10% of federal revenue', value: `Year ${M.fiscalGoalYear}`, sub: `From ${pct0(intShare(Y1))} today. Current law: ${pct0(clIntShare(Y10))} at Year 10` },
-  { label: 'Average yearly income gain for the bottom half of households', value: `+${exact(BOTTOM_HALF_GAIN)}`, sub: 'Years 1–30, against current law' },
+  { label: 'Income gain for the bottom half of households in Year 1', value: `+${Math.round(bottomHalfPct(1))}%`, sub: `+${exact(BOTTOM_HALF_GAIN_Y1)} a household, rising to +${exact(BOTTOM_HALF_GAIN_Y30)} (+${Math.round(bottomHalfPct(30))}%) by Year 30` },
 ];
 
 const SECTIONS = [
