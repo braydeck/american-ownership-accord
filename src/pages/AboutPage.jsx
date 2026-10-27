@@ -123,39 +123,81 @@ const TABLE_ROWS = TABLE_GROUPS.map(k => {
   return { k, label: DEMOS[k].label, accord: a, cl: c, pct: (a - c) / c };
 });
 
-const pct = v => `${(v * 100).toFixed(v * 100 < 10 ? 1 : 0)}%`;
+const pct = v => `${+(v * 100).toFixed(1)}%`;
+// Topline changes: a tag, a headline, and two or three short lines with the operative term in bold.
+const B = ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>;
 const PILLARS = [
   {
+    tag: 'Ownership',
     title: 'The public owns a fifth of American companies',
-    body: `A ${pct(P.growthTaxRate)} tax on each company's growth in value is paid in new shares to the American Capital Fund until the fund holds 21% of that company. Every lawful resident receives fund units each year, and units return to the fund at death.`,
+    points: [
+      <>A <B>{pct(P.growthTaxRate)} tax on each company's growth</B> in value, paid in new shares</>,
+      <>Shares go to the <B>American Capital Fund</B> until it holds 21% of the company</>,
+      <><B>Every lawful resident</B> gets fund units each year; units return to the fund at death</>,
+    ],
   },
   {
+    tag: 'Ownership',
     title: 'Workers own a fifth of their employer',
-    body: `Every company worth $10M or more moves ${pct(P.equityExciseRate)} of its equity a year into a worker trust until the trust holds 21%. Its dividends go to current workers as profit-sharing and fund units.`,
+    points: [
+      <>Companies worth <B>$10M or more</B> move <B>{pct(P.equityExciseRate)} of their equity</B> a year into a worker trust</>,
+      <>The trust stops growing at <B>21%</B></>,
+      <>Its dividends go to <B>current workers</B> as profit-sharing and fund units</>,
+    ],
   },
   {
+    tag: 'Taxes',
     title: 'Taxes move to top incomes, consumption and land',
-    body: `The corporate income tax is repealed. The income tax is 0% up to $${Math.round(P.incomeTaxThreshold / 1000)}K and rises smoothly to ${pct(P.incomeTaxHigh)} at $${Math.round(P.incomeTaxRiseEnd / 1000)}K, with no deductions. A ${pct(P.vatRate)} VAT, a ${pct(P.lvtRate)} tax on land value and a $${P.carbonRate}/ton carbon tax fund the rest.`,
+    points: [
+      <>The <B>corporate income tax is repealed</B></>,
+      <>Income tax is <B>0% up to ${Math.round(P.incomeTaxThreshold / 1000)}K</B>, rising smoothly to <B>{pct(P.incomeTaxHigh)} at ${Math.round(P.incomeTaxRiseEnd / 1000)}K</B>, with no deductions</>,
+      <>A <B>{pct(P.vatRate)} VAT</B>, a <B>{pct(P.lvtRate)} land value tax</B> and a <B>${P.carbonRate}/ton carbon tax</B></>,
+    ],
   },
   {
+    tag: 'Cash',
     title: 'A cash floor replaces means-tested aid',
-    body: `Every person receives $${P.prebatePerCapita.toLocaleString()} a year in cash, rising with prices plus three-quarters of income growth, and all of it once debt falls toward 25% of GDP. SNAP, the EITC, the child tax credit, TANF and WIC end, along with their phase-outs.`,
+    points: [
+      <><B>${P.prebatePerCapita.toLocaleString()} a person a year</B> in cash, rising with prices and income growth</>,
+      <>Plus a <B>${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend</B></>,
+      <>Replaces <B>SNAP, the EITC, the child tax credit, TANF and WIC</B>, and their phase-outs</>,
+    ],
   },
   {
-    title: 'Housing is built as fast as the country grows',
-    body: 'The National Housing Corporation builds mixed-income homes on land the public keeps, sized each year to new households and the remaining shortage. Federal grants reward states and cities that allow mixed-use, mixed-density housing by right.',
+    tag: 'Housing',
+    title: 'Homes are built as fast as the country grows',
+    points: [
+      <>The National Housing Corporation builds <B>mixed-income homes on public land</B></>,
+      <>Sized each year to <B>new households and the remaining shortage</B></>,
+      <>Grants reward cities that allow <B>mixed-use housing by right</B></>,
+    ],
   },
   {
+    tag: 'Immigration',
     title: 'Immigration grows by law',
-    body: 'Immigrants equal to 1.2% of the population are admitted every year, with grants and the prebate from arrival. The budget pays for their public services and infrastructure.',
+    points: [
+      <><B>1.2% of the population</B> admitted every year</>,
+      <>Fund grants and the prebate <B>from arrival</B></>,
+      <>The budget pays for <B>their public services and infrastructure</B></>,
+    ],
   },
   {
+    tag: 'Health',
     title: 'A public option and more doctors',
-    body: 'Medicare Plus competes with private insurers and guarantees treatment within 30 days. Medical residency slots double, and fund dividends pay for a Healthcare Reserve.',
+    points: [
+      <><B>Medicare Plus</B> competes with private insurers, with treatment <B>within 30 days</B></>,
+      <><B>Medical residency slots double</B></>,
+      <>Fund dividends pay for a <B>Healthcare Reserve</B></>,
+    ],
   },
   {
+    tag: 'Budget',
     title: 'Debt falls to a safe floor',
-    body: 'Fund dividends and asset sales pay down federal debt until it reaches 25% of GDP. Beyond that floor, Congress decides how to use surpluses.',
+    points: [
+      <>Fund dividends and asset sales <B>pay down federal debt</B></>,
+      <>Debt stops falling at <B>25% of GDP</B></>,
+      <>Beyond the floor, <B>Congress decides</B> how to use surpluses</>,
+    ],
   },
 ];
 
@@ -278,24 +320,29 @@ export default function AboutPage({ onNavigate }) {
       </div>
 
       {/* How it works */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-16 pb-6">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-8">What the Accord changes</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-16 pb-6">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-6">What the Accord changes</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {PILLARS.map(p => (
-            <div key={p.title}>
-              <h3 className="text-base font-semibold tracking-tight mb-1.5">{p.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{p.body}</p>
+            <div key={p.title} className="rounded-lg border border-border/70 bg-muted/30 p-4">
+              <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-accent mb-1.5">{p.tag}</p>
+              <h3 className="text-[15px] font-bold tracking-tight leading-snug mb-2.5">{p.title}</h3>
+              <ul className="space-y-1.5">
+                {p.points.map((pt, i) => (
+                  <li key={i} className="text-[13px] text-muted-foreground leading-snug pl-3 relative before:content-[''] before:absolute before:left-0 before:top-[0.55em] before:w-1 before:h-1 before:rounded-full before:bg-muted-foreground/60">{pt}</li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-10">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">What it does for households and the budget</h2>
       </div>
 
       {/* Results */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-4 pb-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-4 pb-4">
         {SECTIONS.map(s => <ResultSection key={s.title} s={s} />)}
       </div>
 
