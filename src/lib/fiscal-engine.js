@@ -17,7 +17,7 @@ const BASE_PARAMS = {
   growthTaxRate:          0.21,   // canonical §1.1/§2.4: 21% on EV growth
   equityExciseRate:       0.042,  // canonical §6.2: 4.2%/yr → 21% worker equity in 5 yrs
   smallFirmEvShare:       0.08,   // share of corporate EV in Tier 1 firms (<$10M EV), outside the worker trust (assumption)
-  smallFirmHeadcountShare: 0.25,  // share of value in firms under $10M EV that sits in firms with 50+ FTE workers (assumption; headcount test decided 2026-10-26)
+  smallFirmHeadcountShare: 0.031, // share of value in firms under $10M EV brought into worker trusts by the headcount test, phase-in weighted (Census SUSB 2022, scripts/susb-headcount-share.py; decided 2026-10-26)
   phaseInBandEvShare:     0.03,   // share of all EV in firms worth $10M-$20M, whose worker-trust target phases from 0% to 21% (assumption; decided 2026-10-26)
   creditCapFrac:          0.20,   // codetermination credits offset up to 20% of Growth Tax
   startingEvRatio:        2.4,    // EV/GDP at Year 0: 2015–25 average of nonfinancial equity + debt (Fed Z.1)
@@ -525,9 +525,9 @@ function runFiscalSimulation(p, horizon = 35) {
     // Tier 2 and larger firms ($10M+ EV) fund a worker trust; Tier 1 firms pay into the Sectoral Fund instead.
     // Firms in the $10M-$20M band hold a trust target that rises from 0% to 21% across the band,
     // about half the full target on average, so they count at half weight.
-    // Headcount test: firms under $10M with 50+ FTE fund a trust, phased in to 100 FTE (three-quarters
-    // weight across the 50-100 band and the firms above it).
-    const headcountIn = smallShare * (p.smallFirmHeadcountShare ?? 0) * 0.75;
+    // Headcount test: firms under $10M with 50+ FTE fund a trust, phased in to 100 FTE. The share is
+    // already weighted for the phase-in.
+    const headcountIn = smallShare * (p.smallFirmHeadcountShare ?? 0);
     const trustEV = totalEV * (1 - smallShare + headcountIn - 0.5 * (p.phaseInBandEvShare ?? 0));
     const carriedWorker = workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1);
     // The excise stops at the cap within the year it is reached, so the trust never overshoots 21%.

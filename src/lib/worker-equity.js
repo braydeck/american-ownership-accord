@@ -51,9 +51,9 @@ export function sectoralFundBalance(C, y) {
 
 // Headcount test (decided 2026-10-26): firms under $10M EV still fund a worker trust once they have
 // 50 or more FTE workers, phased in to the full target at 100. Share of Tier 1 workers this moves
-// into worker trusts: about a quarter of Tier 1 work is in firms with 50+ FTE (assumption), counted
-// at three-quarters weight for the 50-100 phase-in.
-export const TIER1_HEADCOUNT_SHIFT = 0.25 * 0.75;
+// into worker trusts: 15.8% of employment in firms under $10M is in firms with 50+ employees, 7.9%
+// after the 50-100 phase-in weighting (Census SUSB 2022, scripts/susb-headcount-share.py).
+export const TIER1_HEADCOUNT_SHIFT = 0.079;
 const tier1Share = t => t[0] * (1 - TIER1_HEADCOUNT_SHIFT);
 
 // FTE workers per filer (all tiers) and FTE workers at worker-trust (Tier 2 and 3) firms per filer. Fund units go to every
