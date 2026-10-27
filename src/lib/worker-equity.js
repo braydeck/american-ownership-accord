@@ -49,10 +49,17 @@ export function sectoralFundBalance(C, y) {
   return y <= 0 ? 0 : C * (Math.pow(1 + SECTORAL_RETAINED, y) - 1) / SECTORAL_RETAINED;
 }
 
+// Headcount test (decided 2026-10-26): firms under $10M EV still fund a worker trust once they have
+// 50 or more FTE workers, phased in to the full target at 100. Share of Tier 1 workers this moves
+// into worker trusts: about a quarter of Tier 1 work is in firms with 50+ FTE (assumption), counted
+// at three-quarters weight for the 50-100 phase-in.
+export const TIER1_HEADCOUNT_SHIFT = 0.25 * 0.75;
+const tier1Share = t => t[0] * (1 - TIER1_HEADCOUNT_SHIFT);
+
 // FTE workers per filer (all tiers) and FTE workers at worker-trust (Tier 2 and 3) firms per filer. Fund units go to every
 // worker by hours; profit-sharing goes only to workers at companies with a worker trust.
 const WORKER_FTE = TIER_DIST.map((t, i) => (t[0] + t[1] + t[2]) * PARTTIME_FTE[i]);
-const TRUST_FTE  = TIER_DIST.map((t, i) => (t[1] + t[2]) * PARTTIME_FTE[i]);
+const TRUST_FTE  = TIER_DIST.map((t, i) => (t[0] - tier1Share(t) + t[1] + t[2]) * PARTTIME_FTE[i]);
 const TOTAL_WORKER_FTE = BRACKETS.reduce((s, b, i) => s + b.filers * WORKER_FTE[i], 0);
 const TOTAL_TRUST_FTE  = BRACKETS.reduce((s, b, i) => s + b.filers * TRUST_FTE[i], 0);
 
@@ -109,7 +116,7 @@ export function profitSharePerFiler(bi, y, hh = DEFAULT_HH) {
 export const SECTORAL_PAYROLL_RATE = 0.0115;
 const tier1Contribution = bi => {
   const b = BRACKETS[bi];
-  return TIER_DIST[bi][0] * SECTORAL_PAYROLL_RATE * b.agi / b.filers * (1 - b.cgShare);
+  return tier1Share(TIER_DIST[bi]) * SECTORAL_PAYROLL_RATE * b.agi / b.filers * (1 - b.cgShare);
 };
 
 // Sectoral Wealth Fund balance per filer at year y: Tier 1 employer contributions plus

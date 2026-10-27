@@ -153,7 +153,7 @@ const PILLARS = [
     title: 'Workers own a fifth of their employer',
     points: [
       <>Companies worth <B>$10M or more</B> move <B>{pct(P.equityExciseRate)} of their equity</B> a year into a worker trust</>,
-      <>The trust's target <B>phases in from 0% at $10M to 21% at $20M</B>, so there's no cliff</>,
+      <>The target <B>phases in from $10M to $20M in value, or from 50 to 100 workers</B>, whichever is higher</>,
       <>Its dividends go to <B>current workers</B> as profit-sharing and fund units</>,
     ],
   },
