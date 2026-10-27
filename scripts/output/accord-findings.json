@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-26",
+  "generated": "2026-10-27",
   "defaults": {
     "incomeTax": {
       "zeroUpTo": 69000,
@@ -51,7 +51,7 @@
       "clDeficitPctGdp": 5.9,
       "grossDebtRealT": 31.1,
       "amcfOwnershipPct": 1,
-      "workerOwnershipPct": 3.8,
+      "workerOwnershipPct": 3.7,
       "gdpVsCurrentLawPct": 1.3
     },
     {
@@ -65,7 +65,7 @@
       "clDeficitPctGdp": 5.5,
       "grossDebtRealT": 33.3,
       "amcfOwnershipPct": 5.1,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 6.9
     },
     {
@@ -79,7 +79,7 @@
       "clDeficitPctGdp": 5.4,
       "grossDebtRealT": 33.5,
       "amcfOwnershipPct": 7.1,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 10.3
     },
     {
@@ -93,7 +93,7 @@
       "clDeficitPctGdp": 5.6,
       "grossDebtRealT": 33.6,
       "amcfOwnershipPct": 10.2,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 15.9
     },
     {
@@ -107,7 +107,7 @@
       "clDeficitPctGdp": 5.8,
       "grossDebtRealT": 32.6,
       "amcfOwnershipPct": 17.6,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 34.8
     },
     {
@@ -121,7 +121,7 @@
       "clDeficitPctGdp": 6.4,
       "grossDebtRealT": 29.8,
       "amcfOwnershipPct": 19.7,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 56.6
     },
     {
@@ -135,7 +135,7 @@
       "clDeficitPctGdp": 6.7,
       "grossDebtRealT": 30.4,
       "amcfOwnershipPct": 20.2,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 68.8
     },
     {
@@ -149,7 +149,7 @@
       "clDeficitPctGdp": 7.9,
       "grossDebtRealT": 55.1,
       "amcfOwnershipPct": 20.8,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 111.1
     },
     {
@@ -163,7 +163,7 @@
       "clDeficitPctGdp": 13.1,
       "grossDebtRealT": 147.5,
       "amcfOwnershipPct": 21,
-      "workerOwnershipPct": 19.1,
+      "workerOwnershipPct": 18.7,
       "gdpVsCurrentLawPct": 205
     }
   ],
@@ -212,27 +212,27 @@
     }
   ],
   "households": {
-    "bottomHalfAvgGain1to30": 19981,
-    "bottom80AvgGain1to30": 21946,
+    "bottomHalfAvgGain1to30": 19923,
+    "bottom80AvgGain1to30": 21890,
     "minGain": {
       "B10": {
         "gain": 9250,
         "year": 1
       },
       "P50": {
-        "gain": 13827,
+        "gain": 13828,
         "year": 1
       },
       "P70": {
-        "gain": 12352,
+        "gain": 12355,
         "year": 1
       },
       "P80": {
-        "gain": 7940,
+        "gain": 7944,
         "year": 1
       },
       "T10": {
-        "gain": -249415,
+        "gain": -249410,
         "year": 35
       }
     },
@@ -258,13 +258,13 @@
     "10": {
       "income": 0.432,
       "incomeCurrentLaw": 0.555,
-      "netWorth": 0.746,
+      "netWorth": 0.747,
       "netWorthCurrentLaw": 0.832
     },
     "30": {
       "income": 0.506,
       "incomeCurrentLaw": 0.655,
-      "netWorth": 0.664,
+      "netWorth": 0.665,
       "netWorthCurrentLaw": 0.872
     }
   },
@@ -277,41 +277,41 @@
           "currentLaw": 14572
         },
         "5": {
-          "accord": 25542,
+          "accord": 25528,
           "currentLaw": 14866
         },
         "10": {
-          "accord": 27635,
+          "accord": 27617,
           "currentLaw": 15242
         },
         "20": {
-          "accord": 32845,
+          "accord": 32807,
           "currentLaw": 16021
         },
         "30": {
-          "accord": 40141,
+          "accord": 40078,
           "currentLaw": 16840
         }
       },
       "netWorth": {
         "1": {
-          "accord": 143,
+          "accord": 139,
           "currentLaw": -1275
         },
         "5": {
-          "accord": 13278,
+          "accord": 13214,
           "currentLaw": 1625
         },
         "10": {
-          "accord": 38108,
+          "accord": 37899,
           "currentLaw": 5250
         },
         "20": {
-          "accord": 117131,
+          "accord": 116475,
           "currentLaw": 12500
         },
         "30": {
-          "accord": 247829,
+          "accord": 246442,
           "currentLaw": 19750
         }
       }
@@ -320,45 +320,45 @@
       "label": "P10–P20",
       "income": {
         "1": {
-          "accord": 37996,
+          "accord": 37997,
           "currentLaw": 28224
         },
         "5": {
-          "accord": 41061,
+          "accord": 41032,
           "currentLaw": 29138
         },
         "10": {
-          "accord": 44561,
+          "accord": 44524,
           "currentLaw": 30322
         },
         "20": {
-          "accord": 53470,
+          "accord": 53386,
           "currentLaw": 32837
         },
         "30": {
-          "accord": 65349,
+          "accord": 65212,
           "currentLaw": 35561
         }
       },
       "netWorth": {
         "1": {
-          "accord": 9225,
+          "accord": 9218,
           "currentLaw": 7280
         },
         "5": {
-          "accord": 25999,
+          "accord": 25859,
           "currentLaw": 8517
         },
         "10": {
-          "accord": 61487,
+          "accord": 61016,
           "currentLaw": 10362
         },
         "20": {
-          "accord": 177675,
+          "accord": 176186,
           "currentLaw": 15338
         },
         "30": {
-          "accord": 373891,
+          "accord": 370741,
           "currentLaw": 22704
         }
       }
@@ -367,45 +367,45 @@
       "label": "P20–P30",
       "income": {
         "1": {
-          "accord": 52207,
+          "accord": 52208,
           "currentLaw": 40400
         },
         "5": {
-          "accord": 56145,
+          "accord": 56117,
           "currentLaw": 42040
         },
         "10": {
-          "accord": 60827,
+          "accord": 60790,
           "currentLaw": 44185
         },
         "20": {
-          "accord": 72103,
+          "accord": 72018,
           "currentLaw": 48808
         },
         "30": {
-          "accord": 86699,
+          "accord": 86559,
           "currentLaw": 53914
         }
       },
       "netWorth": {
         "1": {
-          "accord": 29902,
+          "accord": 29899,
           "currentLaw": 26520
         },
         "5": {
-          "accord": 51575,
+          "accord": 51444,
           "currentLaw": 28706
         },
         "10": {
-          "accord": 96061,
+          "accord": 95579,
           "currentLaw": 31694
         },
         "20": {
-          "accord": 238780,
+          "accord": 237204,
           "currentLaw": 38635
         },
         "30": {
-          "accord": 478879,
+          "accord": 475493,
           "currentLaw": 47095
         }
       }
@@ -414,45 +414,45 @@
       "label": "P30–P40",
       "income": {
         "1": {
-          "accord": 65639,
+          "accord": 65640,
           "currentLaw": 52676
         },
         "5": {
-          "accord": 70770,
+          "accord": 70742,
           "currentLaw": 55469
         },
         "10": {
-          "accord": 77136,
+          "accord": 77100,
           "currentLaw": 59169
         },
         "20": {
-          "accord": 92207,
+          "accord": 92124,
           "currentLaw": 67327
         },
         "30": {
-          "accord": 111318,
+          "accord": 111179,
           "currentLaw": 76610
         }
       },
       "netWorth": {
         "1": {
-          "accord": 64765,
+          "accord": 64773,
           "currentLaw": 59624
         },
         "5": {
-          "accord": 91998,
+          "accord": 91915,
           "currentLaw": 66588
         },
         "10": {
-          "accord": 147832,
+          "accord": 147401,
           "currentLaw": 76447
         },
         "20": {
-          "accord": 324964,
+          "accord": 323431,
           "currentLaw": 100760
         },
         "30": {
-          "accord": 625821,
+          "accord": 622428,
           "currentLaw": 132807
         }
       }
@@ -461,45 +461,45 @@
       "label": "P40–P50",
       "income": {
         "1": {
-          "accord": 78379,
+          "accord": 78380,
           "currentLaw": 64832
         },
         "5": {
-          "accord": 84161,
+          "accord": 84135,
           "currentLaw": 68270
         },
         "10": {
-          "accord": 91524,
+          "accord": 91490,
           "currentLaw": 72824
         },
         "20": {
-          "accord": 108761,
+          "accord": 108681,
           "currentLaw": 82865
         },
         "30": {
-          "accord": 130399,
+          "accord": 130262,
           "currentLaw": 94290
         }
       },
       "netWorth": {
         "1": {
-          "accord": 105040,
+          "accord": 105059,
           "currentLaw": 97850
         },
         "5": {
-          "accord": 139698,
+          "accord": 139660,
           "currentLaw": 110131
         },
         "10": {
-          "accord": 209602,
+          "accord": 209211,
           "currentLaw": 127672
         },
         "20": {
-          "accord": 427171,
+          "accord": 425651,
           "currentLaw": 171581
         },
         "30": {
-          "accord": 794075,
+          "accord": 790626,
           "currentLaw": 230590
         }
       }
@@ -508,45 +508,45 @@
       "label": "P50–P60",
       "income": {
         "1": {
-          "accord": 94012,
+          "accord": 94013,
           "currentLaw": 80185
         },
         "5": {
-          "accord": 101218,
+          "accord": 101196,
           "currentLaw": 85105
         },
         "10": {
-          "accord": 110733,
+          "accord": 110704,
           "currentLaw": 91683
         },
         "20": {
-          "accord": 132841,
+          "accord": 132768,
           "currentLaw": 106402
         },
         "30": {
-          "accord": 160416,
+          "accord": 160291,
           "currentLaw": 123483
         }
       },
       "netWorth": {
         "1": {
-          "accord": 163865,
+          "accord": 163906,
           "currentLaw": 153624
         },
         "5": {
-          "accord": 209095,
+          "accord": 209171,
           "currentLaw": 178340
         },
         "10": {
-          "accord": 300069,
+          "accord": 299833,
           "currentLaw": 214899
         },
         "20": {
-          "accord": 577848,
+          "accord": 576594,
           "currentLaw": 312039
         },
         "30": {
-          "accord": 1043445,
+          "accord": 1040426,
           "currentLaw": 453088
         }
       }
@@ -555,45 +555,45 @@
       "label": "P60–P70",
       "income": {
         "1": {
-          "accord": 112309,
+          "accord": 112311,
           "currentLaw": 98746
         },
         "5": {
-          "accord": 121904,
+          "accord": 121884,
           "currentLaw": 106050
         },
         "10": {
-          "accord": 134816,
+          "accord": 134789,
           "currentLaw": 115944
         },
         "20": {
-          "accord": 166741,
+          "accord": 166671,
           "currentLaw": 138589
         },
         "30": {
-          "accord": 207118,
+          "accord": 206996,
           "currentLaw": 165655
         }
       },
       "netWorth": {
         "1": {
-          "accord": 250696,
+          "accord": 250763,
           "currentLaw": 237120
         },
         "5": {
-          "accord": 309428,
+          "accord": 309624,
           "currentLaw": 277397
         },
         "10": {
-          "accord": 427971,
+          "accord": 427874,
           "currentLaw": 337496
         },
         "20": {
-          "accord": 792562,
+          "accord": 791480,
           "currentLaw": 499576
         },
         "30": {
-          "accord": 1423180,
+          "accord": 1420321,
           "currentLaw": 739495
         }
       }
@@ -602,45 +602,45 @@
       "label": "P70–P80",
       "income": {
         "1": {
-          "accord": 139080,
+          "accord": 139083,
           "currentLaw": 126728
         },
         "5": {
-          "accord": 153834,
+          "accord": 153821,
           "currentLaw": 138254
         },
         "10": {
-          "accord": 174331,
+          "accord": 174313,
           "currentLaw": 154145
         },
         "20": {
-          "accord": 222854,
+          "accord": 222800,
           "currentLaw": 191619
         },
         "30": {
-          "accord": 284472,
+          "accord": 284375,
           "currentLaw": 238204
         }
       },
       "netWorth": {
         "1": {
-          "accord": 419273,
+          "accord": 419406,
           "currentLaw": 399000
         },
         "5": {
-          "accord": 509259,
+          "accord": 509794,
           "currentLaw": 484987
         },
         "10": {
-          "accord": 693937,
+          "accord": 694314,
           "currentLaw": 618980
         },
         "20": {
-          "accord": 1265959,
+          "accord": 1265761,
           "currentLaw": 1008253
         },
         "30": {
-          "accord": 2272568,
+          "accord": 2271288,
           "currentLaw": 1642338
         }
       }
@@ -649,7 +649,7 @@
       "label": "P80–P90",
       "income": {
         "1": {
-          "accord": 199148,
+          "accord": 199152,
           "currentLaw": 191208
         },
         "5": {
@@ -657,37 +657,37 @@
           "currentLaw": 213540
         },
         "10": {
-          "accord": 258098,
+          "accord": 258096,
           "currentLaw": 245157
         },
         "20": {
-          "accord": 345485,
+          "accord": 345466,
           "currentLaw": 323128
         },
         "30": {
-          "accord": 459644,
+          "accord": 459603,
           "currentLaw": 425899
         }
       },
       "netWorth": {
         "1": {
-          "accord": 829159,
+          "accord": 829456,
           "currentLaw": 793500
         },
         "5": {
-          "accord": 988411,
+          "accord": 989793,
           "currentLaw": 994236
         },
         "10": {
-          "accord": 1322791,
+          "accord": 1324335,
           "currentLaw": 1318008
         },
         "20": {
-          "accord": 2367445,
+          "accord": 2369433,
           "currentLaw": 2316192
         },
         "30": {
-          "accord": 4259341,
+          "accord": 4262095,
           "currentLaw": 4070346
         }
       }
@@ -696,45 +696,45 @@
       "label": "P90–P99",
       "income": {
         "1": {
-          "accord": 262838,
+          "accord": 262842,
           "currentLaw": 331200
         },
         "5": {
-          "accord": 297356,
+          "accord": 297366,
           "currentLaw": 380060
         },
         "10": {
-          "accord": 350292,
+          "accord": 350304,
           "currentLaw": 451392
         },
         "20": {
-          "accord": 486893,
+          "accord": 486902,
           "currentLaw": 636732
         },
         "30": {
-          "accord": 689278,
+          "accord": 689285,
           "currentLaw": 898174
         }
       },
       "netWorth": {
         "1": {
-          "accord": 2975949,
+          "accord": 2977175,
           "currentLaw": 2875500
         },
         "5": {
-          "accord": 3381031,
+          "accord": 3387198,
           "currentLaw": 3699234
         },
         "10": {
-          "accord": 4306329,
+          "accord": 4314304,
           "currentLaw": 5068271
         },
         "20": {
-          "accord": 7082032,
+          "accord": 7095700,
           "currentLaw": 9513842
         },
         "30": {
-          "accord": 12135528,
+          "accord": 12159590,
           "currentLaw": 17858789
         }
       }
@@ -743,45 +743,45 @@
       "label": "P99–P99.9",
       "income": {
         "1": {
-          "accord": 881418,
+          "accord": 881520,
           "currentLaw": 1567500
         },
         "5": {
-          "accord": 1028756,
+          "accord": 1029238,
           "currentLaw": 1869273
         },
         "10": {
-          "accord": 1277626,
+          "accord": 1278227,
           "currentLaw": 2329454
         },
         "20": {
-          "accord": 1958667,
+          "accord": 1959597,
           "currentLaw": 3617571
         },
         "30": {
-          "accord": 3009461,
+          "accord": 3010904,
           "currentLaw": 5617977
         }
       },
       "netWorth": {
         "1": {
-          "accord": 18360941,
+          "accord": 18371643,
           "currentLaw": 17952500
         },
         "5": {
-          "accord": 18325507,
+          "accord": 18379284,
           "currentLaw": 23975010
         },
         "10": {
-          "accord": 20583201,
+          "accord": 20649136,
           "currentLaw": 34419227
         },
         "20": {
-          "accord": 25850548,
+          "accord": 25951406,
           "currentLaw": 70939113
         },
         "30": {
-          "accord": 33589267,
+          "accord": 33746417,
           "currentLaw": 146207752
         }
       }
@@ -790,45 +790,45 @@
       "label": "Billionaires",
       "income": {
         "1": {
-          "accord": 158770973,
+          "accord": 158842467,
           "currentLaw": 322500000
         },
         "5": {
-          "accord": 193570864,
+          "accord": 193952773,
           "currentLaw": 430688798
         },
         "10": {
-          "accord": 271004747,
+          "accord": 271553027,
           "currentLaw": 618309469
         },
         "20": {
-          "accord": 537823906,
+          "accord": 538953929,
           "currentLaw": 1274355330
         },
         "30": {
-          "accord": 1096358967,
+          "accord": 1098687980,
           "currentLaw": 2626486557
         }
       },
       "netWorth": {
         "1": {
-          "accord": 9760943288,
+          "accord": 9769761116,
           "currentLaw": 9137500000
         },
         "5": {
-          "accord": 9297560087,
+          "accord": 9341678416,
           "currentLaw": 12202849272
         },
         "10": {
-          "accord": 10635483965,
+          "accord": 10688208622,
           "currentLaw": 17518768278
         },
         "20": {
-          "accord": 14007738641,
+          "accord": 14081711352,
           "currentLaw": 36106734352
         },
         "30": {
-          "accord": 19461586346,
+          "accord": 19558826374,
           "currentLaw": 74417119106
         }
       }
@@ -837,45 +837,45 @@
       "label": "Elon Musk",
       "income": {
         "1": {
-          "accord": 5312102908,
+          "accord": 5314627977,
           "currentLaw": 10750000000
         },
         "5": {
-          "accord": 6440003309,
+          "accord": 6453491918,
           "currentLaw": 14356293262
         },
         "10": {
-          "accord": 8998646901,
+          "accord": 9018011544,
           "currentLaw": 20610315622
         },
         "20": {
-          "accord": 17808293618,
+          "accord": 17848204758,
           "currentLaw": 42478511002
         },
         "30": {
-          "accord": 36271689697,
+          "accord": 36353947818,
           "currentLaw": 87549551890
         }
       },
       "netWorth": {
         "1": {
-          "accord": 984505542417,
+          "accord": 985485635058,
           "currentLaw": 901925000000
         },
         "5": {
-          "accord": 966652971849,
+          "accord": 971708380196,
           "currentLaw": 1204493004658
         },
         "10": {
-          "accord": 1174867426041,
+          "accord": 1181431693505,
           "currentLaw": 1729205480656
         },
         "20": {
-          "accord": 1811158828977,
+          "accord": 1822474611878,
           "currentLaw": 3563947073101
         },
         "30": {
-          "accord": 3098017822625,
+          "accord": 3117826641886,
           "currentLaw": 7345407403545
         }
       }
@@ -903,18 +903,18 @@
     "cohorts": {
       "bornYear0": {
         "at18": 36063,
-        "at60": 535406,
-        "grantedBy60": 120997
+        "at60": 535410,
+        "grantedBy60": 120999
       },
       "bornYear10": {
         "at18": 40116,
-        "at60": 652489,
-        "grantedBy60": 165887
+        "at60": 652496,
+        "grantedBy60": 165889
       },
       "bornYear20": {
         "at18": 44311,
-        "at60": 843511,
-        "grantedBy60": 237005
+        "at60": 843522,
+        "grantedBy60": 237007
       },
       "age30AtStart": {
         "at18": null,

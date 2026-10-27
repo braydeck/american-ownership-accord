@@ -17,6 +17,7 @@ const BASE_PARAMS = {
   growthTaxRate:          0.21,   // canonical §1.1/§2.4: 21% on EV growth
   equityExciseRate:       0.042,  // canonical §6.2: 4.2%/yr → 21% worker equity in 5 yrs
   smallFirmEvShare:       0.08,   // share of corporate EV in Tier 1 firms (<$10M EV), outside the worker trust (assumption)
+  phaseInBandEvShare:     0.03,   // share of all EV in firms worth $10M-$20M, whose worker-trust target phases from 0% to 21% (assumption; decided 2026-10-26)
   creditCapFrac:          0.20,   // codetermination credits offset up to 20% of Growth Tax
   startingEvRatio:        2.4,    // EV/GDP at Year 0: 2015–25 average of nonfinancial equity + debt (Fed Z.1)
   // Financial corporations in the Growth Tax and worker trusts (decided 2026-10-18), on the market
@@ -521,7 +522,9 @@ function runFiscalSimulation(p, horizon = 35) {
 
     // Equity Excise and codetermination credits
     // Tier 2 and larger firms ($10M+ EV) fund a worker trust; Tier 1 firms pay into the Sectoral Fund instead.
-    const trustEV = totalEV * (1 - smallShare);
+    // Firms in the $10M-$20M band hold a trust target that rises from 0% to 21% across the band,
+    // about half the full target on average, so they count at half weight.
+    const trustEV = totalEV * (1 - smallShare - 0.5 * (p.phaseInBandEvShare ?? 0));
     const carriedWorker = workerEquity * (prevEvTotal > 0 ? totalEV / prevEvTotal : 1);
     // The excise stops at the cap within the year it is reached, so the trust never overshoots 21%.
     const equityExcise = workerAtCap ? 0 : Math.min(trustEV * p.equityExciseRate, Math.max(0, trustEV * WORKER_EQUITY_CAP - carriedWorker));
