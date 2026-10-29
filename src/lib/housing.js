@@ -22,10 +22,10 @@ export const HOUSING_DEFAULTS = {
   zoningReformOn:          true,   // federal grants and existing federal funds conditioned on by-right mixed-use, mixed-density zoning (decided 2026-10-25)
   zoningShareGain:         0.20,   // zoning reform raises private builders' share of new demand by this much (assumption)
   zoningElasticityGain:    1.0,    // and raises their response to rents by this much (assumption)
-  zoningGrantPerUnit:      10000,
+  zoningGrantPerUnit:      10000,  // federal grant per private unit permitted above current law, 2024 dollars (assumption)
   nhcOwnershipShare:       0.5,    // share of NHC homes sold as ownership-track (structure only); the rest are market-rate rentals (assumption)
   nhcLandPerUnitRatio:     0.5,    // land value per NHC home relative to the average home, given denser building (assumption)
-  nhcLandPaymentShare:     0.75,   // land payment as a share of the LVT the parcel would owe (decided 2026-10-25)  // federal grant per private unit permitted above current law, 2024 dollars (assumption)
+  nhcLandPaymentShare:     0.75,   // land payment as a share of the LVT the parcel would owe (decided 2026-10-25)
   privateDemandRampYears:  8,      // private builders scale up over this many years
   lvtSupplyBoost:          0.10,   // extra private completions under the LVT, share of current-law completions (assumption; Plassmann & Tideman 2000 find a significant rise)
   privateSupplyElasticity: 1.0,    // % rise in private completions per 1% rise in real rents above current law (assumption)
