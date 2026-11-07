@@ -1,0 +1,1054 @@
+{
+ "calibration": {
+  "hospitals": 4507,
+  "medicareDaysScale": 1.02,
+  "medicaidScale": 1.76,
+  "nationalUnder65RateXMedicare": 1.856,
+  "weightedCommercialPriceXMedicare": 2.85,
+  "safetyNetCutoffShare": 0.407,
+  "protectedNarrow": 2153,
+  "protectedBroad": 3032
+ },
+ "byRule": {
+  "rate186": {
+   "savingShareOfNhe": -0.05,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 29.8,
+    "medianChangePctRevenue": 13.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 16.9,
+    "shareMarginBelowMinus10After": 8.1
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 37.1,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 19.0,
+    "shareMarginBelowMinus10After": 8.6
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 24.2,
+    "medianChangePctRevenue": 18.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 15.3,
+    "shareMarginBelowMinus10After": 7.8
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 6.6,
+    "medianChangePctRevenue": 32.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 1.5,
+    "shareMarginBelowMinus10After": 0.7
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 16.6,
+    "medianChangePctRevenue": 24.0,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 8.3,
+    "shareMarginBelowMinus10After": 3.7
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 11.8,
+    "medianChangePctRevenue": 33.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 11.8,
+    "shareMarginBelowMinus10After": 6.9
+   }
+  },
+  "rate186-narrow": {
+   "savingShareOfNhe": -0.32,
+   "holdHarmlessShareOfNhe": 0.27,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 23.9,
+    "medianChangePctRevenue": 13.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 15.4,
+    "shareMarginBelowMinus10After": 7.2
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 31.9,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 18.0,
+    "shareMarginBelowMinus10After": 8.0
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 17.6,
+    "medianChangePctRevenue": 18.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 13.3,
+    "shareMarginBelowMinus10After": 6.6
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 32.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 0.2,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 24.0,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 3.4,
+    "shareMarginBelowMinus10After": 0.4
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 11.8,
+    "medianChangePctRevenue": 33.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 11.8,
+    "shareMarginBelowMinus10After": 6.9
+   }
+  },
+  "rate186-broad": {
+   "savingShareOfNhe": -1.3,
+   "holdHarmlessShareOfNhe": 1.25,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 14.2,
+    "medianChangePctRevenue": 13.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 11.0,
+    "shareMarginBelowMinus10After": 4.0
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 32.5,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 18.1,
+    "shareMarginBelowMinus10After": 8.0
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 18.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 5.6,
+    "shareMarginBelowMinus10After": 1.0
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.9,
+    "medianChangePctRevenue": 32.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 0.3,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 24.0,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 3.4,
+    "shareMarginBelowMinus10After": 0.4
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 33.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 5.9,
+    "shareMarginBelowMinus10After": 1.0
+   }
+  },
+  "rate123": {
+   "savingShareOfNhe": 7.72,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 70.4,
+    "medianChangePctRevenue": -12.8,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 65.5,
+    "shareMarginBelowMinus10After": 49.3
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 83.7,
+    "medianChangePctRevenue": -18.4,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 82.6,
+    "shareMarginBelowMinus10After": 63.3
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 60.1,
+    "medianChangePctRevenue": -6.1,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 52.2,
+    "shareMarginBelowMinus10After": 38.5
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 34.6,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 17.1,
+    "shareMarginBelowMinus10After": 5.0
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 59.1,
+    "medianChangePctRevenue": -6.2,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 54.7,
+    "shareMarginBelowMinus10After": 39.8
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 23.5,
+    "medianChangePctRevenue": 13.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 25.5,
+    "shareMarginBelowMinus10After": 19.6
+   }
+  },
+  "rate123-narrow": {
+   "savingShareOfNhe": 6.34,
+   "holdHarmlessShareOfNhe": 1.37,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 47.1,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 54.4,
+    "shareMarginBelowMinus10After": 40.1
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 64.5,
+    "medianChangePctRevenue": -14.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 71.9,
+    "shareMarginBelowMinus10After": 52.8
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 33.6,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 40.9,
+    "shareMarginBelowMinus10After": 30.2
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 5.4,
+    "shareMarginBelowMinus10After": 0.4
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 22.7,
+    "shareMarginBelowMinus10After": 7.2
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 20.6,
+    "medianChangePctRevenue": 13.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 24.5,
+    "shareMarginBelowMinus10After": 19.6
+   }
+  },
+  "rate123-broad": {
+   "savingShareOfNhe": 3.52,
+   "holdHarmlessShareOfNhe": 4.2,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 29.0,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 42.4,
+    "shareMarginBelowMinus10After": 26.1
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 66.3,
+    "medianChangePctRevenue": -14.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 72.4,
+    "shareMarginBelowMinus10After": 53.0
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 19.0,
+    "shareMarginBelowMinus10After": 5.3
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 2.6,
+    "medianChangePctRevenue": 7.0,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 6.1,
+    "shareMarginBelowMinus10After": 0.7
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 22.7,
+    "shareMarginBelowMinus10After": 7.2
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 13.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 14.7,
+    "shareMarginBelowMinus10After": 3.9
+   }
+  },
+  "rate142": {
+   "savingShareOfNhe": 5.37,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 58.0,
+    "medianChangePctRevenue": -4.8,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 50.1,
+    "shareMarginBelowMinus10After": 28.3
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 71.5,
+    "medianChangePctRevenue": -10.6,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 62.8,
+    "shareMarginBelowMinus10After": 34.1
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 47.5,
+    "medianChangePctRevenue": 1.6,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 40.2,
+    "shareMarginBelowMinus10After": 23.9
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 20.7,
+    "medianChangePctRevenue": 14.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 6.8,
+    "shareMarginBelowMinus10After": 2.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 44.5,
+    "medianChangePctRevenue": 3.3,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 39.4,
+    "shareMarginBelowMinus10After": 18.7
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 20.6,
+    "medianChangePctRevenue": 19.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 19.6,
+    "shareMarginBelowMinus10After": 12.7
+   }
+  },
+  "rate142-narrow": {
+   "savingShareOfNhe": 4.51,
+   "holdHarmlessShareOfNhe": 0.87,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 41.7,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 43.0,
+    "shareMarginBelowMinus10After": 24.0
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 57.1,
+    "medianChangePctRevenue": -5.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 55.5,
+    "shareMarginBelowMinus10After": 29.6
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 29.8,
+    "medianChangePctRevenue": 1.6,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 33.3,
+    "shareMarginBelowMinus10After": 19.7
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 14.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 2.1,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 3.3,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 16.1,
+    "shareMarginBelowMinus10After": 3.3
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 18.6,
+    "medianChangePctRevenue": 19.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 19.6,
+    "shareMarginBelowMinus10After": 12.7
+   }
+  },
+  "rate142-broad": {
+   "savingShareOfNhe": 2.39,
+   "holdHarmlessShareOfNhe": 2.99,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 25.5,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 32.5,
+    "shareMarginBelowMinus10After": 14.8
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 58.3,
+    "medianChangePctRevenue": -6.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 55.6,
+    "shareMarginBelowMinus10After": 29.6
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 1.6,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 14.5,
+    "shareMarginBelowMinus10After": 3.4
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 1.8,
+    "medianChangePctRevenue": 14.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 2.3,
+    "shareMarginBelowMinus10After": 0.2
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 3.3,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 16.1,
+    "shareMarginBelowMinus10After": 3.3
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 19.6,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 10.8,
+    "shareMarginBelowMinus10After": 2.9
+   }
+  },
+  "rate150": {
+   "savingShareOfNhe": 4.39,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 52.4,
+    "medianChangePctRevenue": -1.4,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 42.4,
+    "shareMarginBelowMinus10After": 22.2
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 65.1,
+    "medianChangePctRevenue": -7.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 52.0,
+    "shareMarginBelowMinus10After": 26.2
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 42.6,
+    "medianChangePctRevenue": 4.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 34.9,
+    "shareMarginBelowMinus10After": 19.2
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 17.1,
+    "medianChangePctRevenue": 17.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 5.2,
+    "shareMarginBelowMinus10After": 1.5
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 37.8,
+    "medianChangePctRevenue": 6.9,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 30.8,
+    "shareMarginBelowMinus10After": 13.7
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 18.6,
+    "medianChangePctRevenue": 22.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 18.6,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate150-narrow": {
+   "savingShareOfNhe": 3.69,
+   "holdHarmlessShareOfNhe": 0.69,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 38.7,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 36.8,
+    "shareMarginBelowMinus10After": 19.1
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 53.0,
+    "medianChangePctRevenue": -2.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 46.4,
+    "shareMarginBelowMinus10After": 23.1
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 27.5,
+    "medianChangePctRevenue": 4.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 29.4,
+    "shareMarginBelowMinus10After": 16.0
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 17.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 1.4,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 6.9,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 12.5,
+    "shareMarginBelowMinus10After": 2.6
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 17.6,
+    "medianChangePctRevenue": 22.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 18.6,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate150-broad": {
+   "savingShareOfNhe": 1.84,
+   "holdHarmlessShareOfNhe": 2.55,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 23.7,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 27.6,
+    "shareMarginBelowMinus10After": 11.7
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 54.2,
+    "medianChangePctRevenue": -2.7,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 46.6,
+    "shareMarginBelowMinus10After": 23.2
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 4.7,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 12.8,
+    "shareMarginBelowMinus10After": 2.8
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 1.6,
+    "medianChangePctRevenue": 17.5,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 1.6,
+    "shareMarginBelowMinus10After": 0.2
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 6.9,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 12.5,
+    "shareMarginBelowMinus10After": 2.6
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 22.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 10.8,
+    "shareMarginBelowMinus10After": 2.0
+   }
+  },
+  "rate160": {
+   "savingShareOfNhe": 3.16,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 45.7,
+    "medianChangePctRevenue": 2.7,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 32.9,
+    "shareMarginBelowMinus10After": 16.0
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 57.1,
+    "medianChangePctRevenue": -3.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 39.3,
+    "shareMarginBelowMinus10After": 18.3
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 36.9,
+    "medianChangePctRevenue": 8.8,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 28.0,
+    "shareMarginBelowMinus10After": 14.1
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 12.9,
+    "medianChangePctRevenue": 21.8,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 4.0,
+    "shareMarginBelowMinus10After": 1.0
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 30.6,
+    "medianChangePctRevenue": 11.8,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 21.2,
+    "shareMarginBelowMinus10After": 9.0
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 15.7,
+    "medianChangePctRevenue": 25.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 17.6,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate160-narrow": {
+   "savingShareOfNhe": 2.63,
+   "holdHarmlessShareOfNhe": 0.53,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 34.8,
+    "medianChangePctRevenue": 2.7,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 29.0,
+    "shareMarginBelowMinus10After": 13.8
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 47.2,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 35.9,
+    "shareMarginBelowMinus10After": 16.5
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 25.1,
+    "medianChangePctRevenue": 8.8,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 23.7,
+    "shareMarginBelowMinus10After": 11.8
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 21.8,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 1.0,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 11.8,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 8.8,
+    "shareMarginBelowMinus10After": 1.4
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 15.7,
+    "medianChangePctRevenue": 25.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 17.6,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate160-broad": {
+   "savingShareOfNhe": 1.07,
+   "holdHarmlessShareOfNhe": 2.08,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 21.0,
+    "medianChangePctRevenue": 2.7,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 21.5,
+    "shareMarginBelowMinus10After": 8.3
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 48.1,
+    "medianChangePctRevenue": 0.0,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 36.0,
+    "shareMarginBelowMinus10After": 16.5
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 8.8,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 10.3,
+    "shareMarginBelowMinus10After": 1.9
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 1.3,
+    "medianChangePctRevenue": 21.8,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 1.2,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 11.8,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 8.8,
+    "shareMarginBelowMinus10After": 1.4
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 25.1,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 9.8,
+    "shareMarginBelowMinus10After": 2.0
+   }
+  },
+  "rate170": {
+   "savingShareOfNhe": 1.92,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 38.6,
+    "medianChangePctRevenue": 6.6,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 25.7,
+    "shareMarginBelowMinus10After": 12.0
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 48.7,
+    "medianChangePctRevenue": 0.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 30.2,
+    "shareMarginBelowMinus10After": 13.6
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 30.7,
+    "medianChangePctRevenue": 12.4,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 22.2,
+    "shareMarginBelowMinus10After": 10.8
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 9.7,
+    "medianChangePctRevenue": 25.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 2.4,
+    "shareMarginBelowMinus10After": 0.8
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 23.8,
+    "medianChangePctRevenue": 16.4,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 15.5,
+    "shareMarginBelowMinus10After": 5.9
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 11.8,
+    "medianChangePctRevenue": 28.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 13.7,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate170-narrow": {
+   "savingShareOfNhe": 1.52,
+   "holdHarmlessShareOfNhe": 0.4,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 30.2,
+    "medianChangePctRevenue": 6.6,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 22.9,
+    "shareMarginBelowMinus10After": 10.6
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 40.9,
+    "medianChangePctRevenue": 0.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 28.0,
+    "shareMarginBelowMinus10After": 12.5
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 21.8,
+    "medianChangePctRevenue": 12.4,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 18.9,
+    "shareMarginBelowMinus10After": 9.1
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 25.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 0.6,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 16.4,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 6.2,
+    "shareMarginBelowMinus10After": 1.0
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 11.8,
+    "medianChangePctRevenue": 28.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 13.7,
+    "shareMarginBelowMinus10After": 10.8
+   }
+  },
+  "rate170-broad": {
+   "savingShareOfNhe": 0.22,
+   "holdHarmlessShareOfNhe": 1.71,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 18.2,
+    "medianChangePctRevenue": 6.6,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 16.8,
+    "shareMarginBelowMinus10After": 6.3
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 41.6,
+    "medianChangePctRevenue": 0.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 28.0,
+    "shareMarginBelowMinus10After": 12.5
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 12.4,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 8.0,
+    "shareMarginBelowMinus10After": 1.5
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 1.1,
+    "medianChangePctRevenue": 25.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 0.7,
+    "shareMarginBelowMinus10After": 0.1
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 16.4,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 6.2,
+    "shareMarginBelowMinus10After": 1.0
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 0.0,
+    "medianChangePctRevenue": 28.2,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 7.8,
+    "shareMarginBelowMinus10After": 2.0
+   }
+  },
+  "cap200": {
+   "savingShareOfNhe": 5.97,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 55.6,
+    "medianChangePctRevenue": -3.7,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 54.5,
+    "shareMarginBelowMinus10After": 34.1
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 62.0,
+    "medianChangePctRevenue": -7.5,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 59.0,
+    "shareMarginBelowMinus10After": 39.2
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 50.6,
+    "medianChangePctRevenue": -0.3,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 50.9,
+    "shareMarginBelowMinus10After": 30.1
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 31.3,
+    "medianChangePctRevenue": 2.9,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 30.3,
+    "shareMarginBelowMinus10After": 12.3
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 65.8,
+    "medianChangePctRevenue": -9.7,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 63.9,
+    "shareMarginBelowMinus10After": 46.8
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 16.7,
+    "medianChangePctRevenue": 4.4,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 40.2,
+    "shareMarginBelowMinus10After": 16.7
+   }
+  },
+  "cap150": {
+   "savingShareOfNhe": 8.24,
+   "holdHarmlessShareOfNhe": 0.0,
+   "all": {
+    "hospitals": 4507,
+    "shareLosingRevenue": 70.3,
+    "medianChangePctRevenue": -12.2,
+    "shareNegativeMarginBefore": 33.4,
+    "shareNegativeMarginAfter": 68.0,
+    "shareMarginBelowMinus10After": 48.6
+   },
+   "urban": {
+    "hospitals": 1970,
+    "shareLosingRevenue": 80.6,
+    "medianChangePctRevenue": -16.7,
+    "shareNegativeMarginBefore": 32.0,
+    "shareNegativeMarginAfter": 77.0,
+    "shareMarginBelowMinus10After": 56.5
+   },
+   "rural": {
+    "hospitals": 2537,
+    "shareLosingRevenue": 62.4,
+    "medianChangePctRevenue": -7.8,
+    "shareNegativeMarginBefore": 34.5,
+    "shareNegativeMarginAfter": 61.0,
+    "shareMarginBelowMinus10After": 42.5
+   },
+   "criticalAccess": {
+    "hospitals": 1359,
+    "shareLosingRevenue": 41.8,
+    "medianChangePctRevenue": 1.7,
+    "shareNegativeMarginBefore": 31.6,
+    "shareNegativeMarginAfter": 37.8,
+    "shareMarginBelowMinus10After": 17.2
+   },
+   "safetyNet": {
+    "hospitals": 1127,
+    "shareLosingRevenue": 71.8,
+    "medianChangePctRevenue": -14.3,
+    "shareNegativeMarginBefore": 36.5,
+    "shareNegativeMarginAfter": 68.8,
+    "shareMarginBelowMinus10After": 55.3
+   },
+   "kansasRural": {
+    "hospitals": 102,
+    "shareLosingRevenue": 23.5,
+    "medianChangePctRevenue": 3.8,
+    "shareNegativeMarginBefore": 59.8,
+    "shareNegativeMarginAfter": 49.0,
+    "shareMarginBelowMinus10After": 19.6
+   }
+  }
+ }
+}

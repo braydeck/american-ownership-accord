@@ -1,0 +1,496 @@
+[
+ {
+  "start": "near-1976",
+  "startObjective": 29459,
+  "fam": "two",
+  "from": "near-1976",
+  "exemptJoint": 70000,
+  "vatRate": 0.15,
+  "lvtRate": 0.1,
+  "carbonRate": 107,
+  "prebate": 6700,
+  "fttPct": 0.333,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "low": 0.1,
+  "top": 0.62,
+  "threshold": 200000,
+  "healthRate": 0.0722,
+  "healthExempt": 20000,
+  "brackets": [
+   [
+    200000,
+    0.1
+   ],
+   [
+    null,
+    0.62
+   ]
+  ],
+  "objective": 32484,
+  "belowAvg1to10": 20292,
+  "bottomHalfAvg1to30": 31228,
+  "byGroupAvg1to30": {
+   "B10": 19665,
+   "P10": 27841,
+   "P20": 35413,
+   "P30": 35510,
+   "P40": 37714,
+   "P50": 37309,
+   "P60": 33246,
+   "P70": 33171
+  },
+  "p80MinIncome": 4854,
+  "p80MinNetWorth": 3338,
+  "p80NeverBehind": true,
+  "bottomHalfVsPreSupplementMin": 1631,
+  "cases": {
+   "base": {
+    "d35": 61.7,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 6.3,
+    "intGdp35": 1.9,
+    "realIntGdpMax20": 0.5
+   },
+   "rec5": {
+    "d35": 86.7,
+    "maxIntOutlays": 9.1,
+    "intOutlays35": 8.3,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.7
+   },
+   "rec12": {
+    "d35": 85.2,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 8.1,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.7
+   },
+   "low": {
+    "d35": 82.1,
+    "maxIntOutlays": 8.7,
+    "intOutlays35": 7.7,
+    "intGdp35": 2.5,
+    "realIntGdpMax20": 0.6
+   }
+  },
+  "incomeGiniY30": 0.4515,
+  "nwGiniY30": 0.6245,
+  "laborLevelY10": 0.98
+ },
+ {
+  "start": "contrib-near-1976",
+  "startObjective": 31061,
+  "fam": "two",
+  "from": "contrib-near-1976",
+  "exemptJoint": 58000,
+  "vatRate": 0.1408,
+  "lvtRate": 0.1272,
+  "carbonRate": 110,
+  "prebate": 6450,
+  "fttPct": 0.482,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "low": 0.1,
+  "top": 0.62,
+  "threshold": 200000,
+  "healthRate": 0.05,
+  "healthExempt": 7000,
+  "brackets": [
+   [
+    200000,
+    0.1
+   ],
+   [
+    null,
+    0.62
+   ]
+  ],
+  "objective": 31957,
+  "belowAvg1to10": 19857,
+  "bottomHalfAvg1to30": 30527,
+  "byGroupAvg1to30": {
+   "B10": 18820,
+   "P10": 26655,
+   "P20": 34739,
+   "P30": 35295,
+   "P40": 37125,
+   "P50": 35931,
+   "P60": 32982,
+   "P70": 34105
+  },
+  "p80MinIncome": 6542,
+  "p80MinNetWorth": 11890,
+  "p80NeverBehind": true,
+  "bottomHalfVsPreSupplementMin": 892,
+  "cases": {
+   "base": {
+    "d35": 60.9,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 6.2,
+    "intGdp35": 1.8,
+    "realIntGdpMax20": 0.5
+   },
+   "rec5": {
+    "d35": 86.3,
+    "maxIntOutlays": 9,
+    "intOutlays35": 8.3,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.6
+   },
+   "rec12": {
+    "d35": 84.7,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 8.1,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.7
+   },
+   "low": {
+    "d35": 80.5,
+    "maxIntOutlays": 8.7,
+    "intOutlays35": 7.7,
+    "intGdp35": 2.4,
+    "realIntGdpMax20": 0.6
+   }
+  },
+  "incomeGiniY30": 0.4597,
+  "nwGiniY30": 0.6316,
+  "laborLevelY10": 0.9832
+ },
+ {
+  "start": "traj-near",
+  "startObjective": 29548,
+  "fam": "two",
+  "from": "traj-near",
+  "exemptJoint": 38000,
+  "vatRate": 0.1409,
+  "lvtRate": 0.1299,
+  "carbonRate": 121,
+  "prebate": 6350,
+  "fttPct": 0.483,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "low": 0.154,
+  "top": 0.619,
+  "threshold": 200000,
+  "healthRate": 0,
+  "healthExempt": 0,
+  "brackets": [
+   [
+    200000,
+    0.154
+   ],
+   [
+    null,
+    0.619
+   ]
+  ],
+  "objective": 31311,
+  "belowAvg1to10": 19328,
+  "bottomHalfAvg1to30": 30524,
+  "byGroupAvg1to30": {
+   "B10": 18982,
+   "P10": 27710,
+   "P20": 36210,
+   "P30": 34441,
+   "P40": 35275,
+   "P50": 34355,
+   "P60": 31297,
+   "P70": 32216
+  },
+  "p80MinIncome": 5068,
+  "p80MinNetWorth": 6698,
+  "p80NeverBehind": true,
+  "bottomHalfVsPreSupplementMin": 1125,
+  "cases": {
+   "base": {
+    "d35": 61.1,
+    "maxIntOutlays": 8.6,
+    "intOutlays35": 6.3,
+    "intGdp35": 1.8,
+    "realIntGdpMax20": 0.5
+   },
+   "rec5": {
+    "d35": 86.1,
+    "maxIntOutlays": 9,
+    "intOutlays35": 8.3,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.6
+   },
+   "rec12": {
+    "d35": 84.5,
+    "maxIntOutlays": 8.6,
+    "intOutlays35": 8.1,
+    "intGdp35": 2.5,
+    "realIntGdpMax20": 0.7
+   },
+   "low": {
+    "d35": 80.8,
+    "maxIntOutlays": 8.7,
+    "intOutlays35": 7.7,
+    "intGdp35": 2.4,
+    "realIntGdpMax20": 0.6
+   }
+  },
+  "incomeGiniY30": 0.4684,
+  "nwGiniY30": 0.6458,
+  "laborLevelY10": 0.9821
+ },
+ {
+  "start": "current",
+  "startObjective": 29417,
+  "fam": "zero",
+  "from": "current",
+  "low": 0,
+  "baseRate": 0.002,
+  "top": 0.6158,
+  "zeroEnd": 89000,
+  "zeroEndRatio": 3.681,
+  "zeroShape": 2.585,
+  "exemptJoint": 0,
+  "vatRate": 0.15,
+  "lvtRate": 0.1,
+  "carbonRate": 106,
+  "prebate": 6950,
+  "fttPct": 0.208,
+  "prebateIndex": 0.5,
+  "floorIndex": 0.5,
+  "healthRate": 0.1112,
+  "healthExempt": 0,
+  "brackets": [
+   [
+    89000,
+    0.002
+   ],
+   [
+    93966,
+    0.002
+   ],
+   [
+    99210,
+    0.002
+   ],
+   [
+    104746,
+    0.002
+   ],
+   [
+    110590,
+    0.0042
+   ],
+   [
+    116761,
+    0.0081
+   ],
+   [
+    123277,
+    0.0137
+   ],
+   [
+    130156,
+    0.021
+   ],
+   [
+    137419,
+    0.0305
+   ],
+   [
+    145087,
+    0.0421
+   ],
+   [
+    153182,
+    0.0561
+   ],
+   [
+    161730,
+    0.0727
+   ],
+   [
+    170755,
+    0.0919
+   ],
+   [
+    180283,
+    0.1141
+   ],
+   [
+    190343,
+    0.1392
+   ],
+   [
+    200964,
+    0.1674
+   ],
+   [
+    212178,
+    0.1989
+   ],
+   [
+    224018,
+    0.2338
+   ],
+   [
+    236518,
+    0.2722
+   ],
+   [
+    249716,
+    0.3142
+   ],
+   [
+    263650,
+    0.36
+   ],
+   [
+    278362,
+    0.4097
+   ],
+   [
+    293895,
+    0.4634
+   ],
+   [
+    310294,
+    0.5212
+   ],
+   [
+    327609,
+    0.5832
+   ],
+   [
+    null,
+    0.6158
+   ]
+  ],
+  "objective": 29430,
+  "belowAvg1to10": 17935,
+  "bottomHalfAvg1to30": 27741,
+  "byGroupAvg1to30": {
+   "B10": 18190,
+   "P10": 24924,
+   "P20": 31714,
+   "P30": 31153,
+   "P40": 32726,
+   "P50": 32781,
+   "P60": 30751,
+   "P70": 33201
+  },
+  "p80MinIncome": 2981,
+  "p80MinNetWorth": 681,
+  "p80NeverBehind": true,
+  "bottomHalfVsPreSupplementMin": 42,
+  "cases": {
+   "base": {
+    "d35": 62.2,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 6.3,
+    "intGdp35": 1.9,
+    "realIntGdpMax20": 0.5
+   },
+   "rec5": {
+    "d35": 87.7,
+    "maxIntOutlays": 9,
+    "intOutlays35": 8.3,
+    "intGdp35": 2.7,
+    "realIntGdpMax20": 0.7
+   },
+   "rec12": {
+    "d35": 86,
+    "maxIntOutlays": 8.5,
+    "intOutlays35": 8.1,
+    "intGdp35": 2.6,
+    "realIntGdpMax20": 0.7
+   },
+   "low": {
+    "d35": 82.3,
+    "maxIntOutlays": 8.6,
+    "intOutlays35": 7.7,
+    "intGdp35": 2.5,
+    "realIntGdpMax20": 0.6
+   }
+  },
+  "incomeGiniY30": 0.4644,
+  "nwGiniY30": 0.6351,
+  "laborLevelY10": 0.9822
+ },
+ {
+  "start": "near-4148",
+  "startObjective": 29049,
+  "fam": "two",
+  "from": "near-4148",
+  "exemptJoint": 42000,
+  "vatRate": 0.1192,
+  "lvtRate": 0.1278,
+  "carbonRate": 111,
+  "prebate": 5650,
+  "fttPct": 0.275,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "low": 0.1,
+  "top": 0.62,
+  "threshold": 200000,
+  "healthRate": 0.0678,
+  "healthExempt": 20000,
+  "brackets": [
+   [
+    200000,
+    0.1
+   ],
+   [
+    null,
+    0.62
+   ]
+  ],
+  "objective": 29129,
+  "belowAvg1to10": 17543,
+  "bottomHalfAvg1to30": 28490,
+  "byGroupAvg1to30": {
+   "B10": 17615,
+   "P10": 25803,
+   "P20": 33583,
+   "P30": 32464,
+   "P40": 32985,
+   "P50": 31904,
+   "P60": 28919,
+   "P70": 29756
+  },
+  "p80MinIncome": 3228,
+  "p80MinNetWorth": -705,
+  "p80NeverBehind": true,
+  "bottomHalfVsPreSupplementMin": 69,
+  "cases": {
+   "base": {
+    "d35": 59.5,
+    "maxIntOutlays": 8.7,
+    "intOutlays35": 6.3,
+    "intGdp35": 1.8,
+    "realIntGdpMax20": 0.5
+   },
+   "rec5": {
+    "d35": 84.1,
+    "maxIntOutlays": 9.1,
+    "intOutlays35": 8.3,
+    "intGdp35": 2.5,
+    "realIntGdpMax20": 0.6
+   },
+   "rec12": {
+    "d35": 82.5,
+    "maxIntOutlays": 8.7,
+    "intOutlays35": 8.1,
+    "intGdp35": 2.5,
+    "realIntGdpMax20": 0.6
+   },
+   "low": {
+    "d35": 78.7,
+    "maxIntOutlays": 8.8,
+    "intOutlays35": 7.7,
+    "intGdp35": 2.4,
+    "realIntGdpMax20": 0.6
+   }
+  },
+  "incomeGiniY30": 0.4608,
+  "nwGiniY30": 0.6326,
+  "laborLevelY10": 0.9831
+ }
+]

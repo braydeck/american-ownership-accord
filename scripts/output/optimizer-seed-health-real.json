@@ -1,0 +1,1 @@
+[{"fam": "two", "from": "real-near-123", "exemptJoint": 57000, "vatRate": 0.1352, "lvtRate": 0.15, "carbonRate": 114, "prebate": 6150, "fttPct": 0.5, "prebateIndex": 0.75, "floorIndex": 0, "low": 0.1038, "top": 0.62, "threshold": 200000, "healthRate": 0.0808, "healthExempt": 6000}]

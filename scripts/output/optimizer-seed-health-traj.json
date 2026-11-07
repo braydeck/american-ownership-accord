@@ -1,0 +1,19 @@
+[
+ {
+  "fam": "two",
+  "from": "traj-near",
+  "exemptJoint": 36000,
+  "vatRate": 0.15,
+  "lvtRate": 0.15,
+  "carbonRate": 142,
+  "prebate": 5850,
+  "fttPct": 0.5,
+  "prebateIndex": 0.75,
+  "floorIndex": 0.5,
+  "low": 0.1382,
+  "top": 0.62,
+  "threshold": 185000,
+  "healthRate": 0,
+  "healthExempt": 0
+ }
+]

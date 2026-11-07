@@ -1,0 +1,426 @@
+{
+ "preSupplement": {
+  "B10": {
+   "1": {
+    "gain": 9249,
+    "prebate": 13628,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -2976,
+    "other": -1403
+   },
+   "5": {
+    "gain": 10659,
+    "prebate": 14576,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -3022,
+    "other": -895
+   },
+   "10": {
+    "gain": 12371,
+    "prebate": 16029,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -2886,
+    "other": -772
+   },
+   "20": {
+    "gain": 16781,
+    "prebate": 19359,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -2754,
+    "other": 176
+   },
+   "30": {
+    "gain": 23232,
+    "prebate": 24197,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -2727,
+    "other": 1762
+   }
+  },
+  "P10": {
+   "1": {
+    "gain": 9771,
+    "prebate": 15899,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5386,
+    "other": -743
+   },
+   "5": {
+    "gain": 11892,
+    "prebate": 17006,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5495,
+    "other": 380
+   },
+   "10": {
+    "gain": 14196,
+    "prebate": 18701,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5359,
+    "other": 855
+   },
+   "20": {
+    "gain": 20547,
+    "prebate": 22586,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5112,
+    "other": 3073
+   },
+   "30": {
+    "gain": 29648,
+    "prebate": 28230,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5018,
+    "other": 6435
+   }
+  },
+  "P20": {
+   "1": {
+    "gain": 11806,
+    "prebate": 16656,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6177,
+    "other": 1328
+   },
+   "5": {
+    "gain": 14078,
+    "prebate": 17816,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6190,
+    "other": 2453
+   },
+   "10": {
+    "gain": 16604,
+    "prebate": 19591,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5937,
+    "other": 2951
+   },
+   "20": {
+    "gain": 23215,
+    "prebate": 23661,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5666,
+    "other": 5220
+   },
+   "30": {
+    "gain": 32648,
+    "prebate": 29575,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5572,
+    "other": 8646
+   }
+  },
+  "P30": {
+   "1": {
+    "gain": 12962,
+    "prebate": 17413,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6589,
+    "other": 2138
+   },
+   "5": {
+    "gain": 15274,
+    "prebate": 18625,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6584,
+    "other": 3232
+   },
+   "10": {
+    "gain": 17929,
+    "prebate": 20482,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6279,
+    "other": 3727
+   },
+   "20": {
+    "gain": 24800,
+    "prebate": 24736,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5903,
+    "other": 5966
+   },
+   "30": {
+    "gain": 34572,
+    "prebate": 30919,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5702,
+    "other": 9354
+   }
+  },
+  "P40": {
+   "1": {
+    "gain": 13547,
+    "prebate": 18170,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6855,
+    "other": 2231
+   },
+   "5": {
+    "gain": 15872,
+    "prebate": 19435,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6768,
+    "other": 3205
+   },
+   "10": {
+    "gain": 18670,
+    "prebate": 21372,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -6394,
+    "other": 3692
+   },
+   "20": {
+    "gain": 25826,
+    "prebate": 25812,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5890,
+    "other": 5904
+   },
+   "30": {
+    "gain": 35982,
+    "prebate": 32263,
+    "health": 0,
+    "coverage": 0,
+    "taxes": -5571,
+    "other": 9290
+   }
+  }
+ },
+ "closest": {
+  "B10": {
+   "1": {
+    "gain": 6550,
+    "prebate": 8404,
+    "health": 1051,
+    "coverage": 1134,
+    "taxes": -2697,
+    "other": -1343
+   },
+   "5": {
+    "gain": 8842,
+    "prebate": 8951,
+    "health": 2158,
+    "coverage": 1274,
+    "taxes": -2726,
+    "other": -814
+   },
+   "10": {
+    "gain": 10871,
+    "prebate": 9850,
+    "health": 2767,
+    "coverage": 1507,
+    "taxes": -2569,
+    "other": -684
+   },
+   "20": {
+    "gain": 16197,
+    "prebate": 12065,
+    "health": 4244,
+    "coverage": 2048,
+    "taxes": -2398,
+    "other": 237
+   },
+   "30": {
+    "gain": 23679,
+    "prebate": 15388,
+    "health": 6125,
+    "coverage": 2699,
+    "taxes": -2335,
+    "other": 1802
+   }
+  },
+  "P10": {
+   "1": {
+    "gain": 8294,
+    "prebate": 9805,
+    "health": 2512,
+    "coverage": 1488,
+    "taxes": -4845,
+    "other": -667
+   },
+   "5": {
+    "gain": 12481,
+    "prebate": 10443,
+    "health": 4815,
+    "coverage": 1672,
+    "taxes": -4920,
+    "other": 470
+   },
+   "10": {
+    "gain": 15803,
+    "prebate": 11491,
+    "health": 6122,
+    "coverage": 1978,
+    "taxes": -4739,
+    "other": 951
+   },
+   "20": {
+    "gain": 24801,
+    "prebate": 14076,
+    "health": 9308,
+    "coverage": 2687,
+    "taxes": -4402,
+    "other": 3131
+   },
+   "30": {
+    "gain": 37127,
+    "prebate": 17953,
+    "health": 13387,
+    "coverage": 3543,
+    "taxes": -4217,
+    "other": 6462
+   }
+  },
+  "P20": {
+   "1": {
+    "gain": 10678,
+    "prebate": 10272,
+    "health": 3980,
+    "coverage": 1259,
+    "taxes": -6250,
+    "other": 1418
+   },
+   "5": {
+    "gain": 16378,
+    "prebate": 10941,
+    "health": 7683,
+    "coverage": 1415,
+    "taxes": -6212,
+    "other": 2551
+   },
+   "10": {
+    "gain": 20787,
+    "prebate": 12038,
+    "health": 9705,
+    "coverage": 1674,
+    "taxes": -5682,
+    "other": 3053
+   },
+   "20": {
+    "gain": 32573,
+    "prebate": 14747,
+    "health": 15104,
+    "coverage": 2274,
+    "taxes": -4833,
+    "other": 5281
+   },
+   "30": {
+    "gain": 48524,
+    "prebate": 18808,
+    "health": 22439,
+    "coverage": 2998,
+    "taxes": -4397,
+    "other": 8675
+   }
+  },
+  "P30": {
+   "1": {
+    "gain": 9879,
+    "prebate": 10739,
+    "health": 3220,
+    "coverage": 1259,
+    "taxes": -7582,
+    "other": 2242
+   },
+   "5": {
+    "gain": 15441,
+    "prebate": 11438,
+    "health": 6854,
+    "coverage": 1415,
+    "taxes": -7606,
+    "other": 3340
+   },
+   "10": {
+    "gain": 19735,
+    "prebate": 12586,
+    "health": 8780,
+    "coverage": 1674,
+    "taxes": -7139,
+    "other": 3834
+   },
+   "20": {
+    "gain": 30784,
+    "prebate": 15417,
+    "health": 13505,
+    "coverage": 2274,
+    "taxes": -6444,
+    "other": 6031
+   },
+   "30": {
+    "gain": 45863,
+    "prebate": 19663,
+    "health": 19590,
+    "coverage": 2998,
+    "taxes": -5775,
+    "other": 9387
+   }
+  },
+  "P40": {
+   "1": {
+    "gain": 9243,
+    "prebate": 11206,
+    "health": 3422,
+    "coverage": 1185,
+    "taxes": -8923,
+    "other": 2353
+   },
+   "5": {
+    "gain": 15353,
+    "prebate": 11935,
+    "health": 7669,
+    "coverage": 1332,
+    "taxes": -8906,
+    "other": 3323
+   },
+   "10": {
+    "gain": 19961,
+    "prebate": 13133,
+    "health": 9883,
+    "coverage": 1575,
+    "taxes": -8436,
+    "other": 3806
+   },
+   "20": {
+    "gain": 31760,
+    "prebate": 16087,
+    "health": 15320,
+    "coverage": 2141,
+    "taxes": -7761,
+    "other": 5974
+   },
+   "30": {
+    "gain": 47844,
+    "prebate": 20518,
+    "health": 22328,
+    "coverage": 2822,
+    "taxes": -7149,
+    "other": 9326
+   }
+  }
+ }
+}

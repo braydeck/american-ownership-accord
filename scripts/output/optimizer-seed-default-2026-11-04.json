@@ -1,0 +1,42 @@
+[
+ {
+  "fam": "zero",
+  "from": "smooth-best-zero",
+  "low": 0,
+  "baseRate": 0.03,
+  "top": 0.62,
+  "zeroEnd": 79000,
+  "zeroEndRatio": 3.887,
+  "zeroShape": 3,
+  "exemptJoint": 0,
+  "vatRate": 0.1471,
+  "lvtRate": 0.1,
+  "carbonRate": 107,
+  "prebate": 5950,
+  "fttPct": 0.422,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "healthRate": 0.0847,
+  "healthExempt": 0
+ },
+ {
+  "fam": "zero",
+  "from": "smooth2-best",
+  "low": 0,
+  "baseRate": 0.03,
+  "top": 0.62,
+  "zeroEnd": 80000,
+  "zeroEndRatio": 4.12,
+  "zeroShape": 3,
+  "exemptJoint": 0,
+  "vatRate": 0.1473,
+  "lvtRate": 0.1,
+  "carbonRate": 107,
+  "prebate": 5650,
+  "fttPct": 0.432,
+  "prebateIndex": 0.75,
+  "floorIndex": 0,
+  "healthRate": 0.08,
+  "healthExempt": 0
+ }
+]

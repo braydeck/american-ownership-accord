@@ -1,0 +1,426 @@
+{
+  "extra": {
+    "healthCapGap": 0.005
+  },
+  "baselineOff": {
+    "goal": 9,
+    "rec5": 14,
+    "rec12": 9,
+    "low": 10,
+    "nc": 29,
+    "floor": 34
+  },
+  "scan": [
+    {
+      "rate": 0.06,
+      "goal": 19,
+      "rec5": 34,
+      "rec12": 30,
+      "low": 28,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0625,
+      "goal": 18,
+      "rec5": 33,
+      "rec12": 29,
+      "low": 26,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.065,
+      "goal": 17,
+      "rec5": 32,
+      "rec12": 28,
+      "low": 25,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0675,
+      "goal": 16,
+      "rec5": 31,
+      "rec12": 27,
+      "low": 24,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.07,
+      "goal": 15,
+      "rec5": 29,
+      "rec12": 26,
+      "low": 23,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0725,
+      "goal": 14,
+      "rec5": 28,
+      "rec12": 25,
+      "low": 22,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.075,
+      "goal": 14,
+      "rec5": 27,
+      "rec12": 24,
+      "low": 21,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0775,
+      "goal": 13,
+      "rec5": 25,
+      "rec12": 23,
+      "low": 20,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.08,
+      "goal": 12,
+      "rec5": 24,
+      "rec12": 22,
+      "low": 19,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0825,
+      "goal": 11,
+      "rec5": 23,
+      "rec12": 21,
+      "low": 18,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.085,
+      "goal": 10,
+      "rec5": 22,
+      "rec12": 20,
+      "low": 17,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0875,
+      "goal": 10,
+      "rec5": 21,
+      "rec12": 20,
+      "low": 16,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.09,
+      "goal": 9,
+      "rec5": 20,
+      "rec12": 19,
+      "low": 15,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0925,
+      "goal": 8,
+      "rec5": 19,
+      "rec12": 19,
+      "low": 14,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.095,
+      "goal": 7,
+      "rec5": 19,
+      "rec12": 18,
+      "low": 14,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.0975,
+      "goal": 7,
+      "rec5": 18,
+      "rec12": 18,
+      "low": 13,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1,
+      "goal": 7,
+      "rec5": 17,
+      "rec12": 18,
+      "low": 12,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1025,
+      "goal": 7,
+      "rec5": 16,
+      "rec12": 18,
+      "low": 11,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.105,
+      "goal": 7,
+      "rec5": 16,
+      "rec12": 18,
+      "low": 10,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1075,
+      "goal": 6,
+      "rec5": 15,
+      "rec12": 18,
+      "low": 9,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.11,
+      "goal": 6,
+      "rec5": 15,
+      "rec12": 18,
+      "low": 8,
+      "nc": null,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1125,
+      "goal": 6,
+      "rec5": 14,
+      "rec12": 18,
+      "low": 8,
+      "nc": 35,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.115,
+      "goal": 5,
+      "rec5": 14,
+      "rec12": 18,
+      "low": 8,
+      "nc": 34,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1175,
+      "goal": 5,
+      "rec5": 13,
+      "rec12": 17,
+      "low": 8,
+      "nc": 34,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.12,
+      "goal": 4,
+      "rec5": 12,
+      "rec12": 17,
+      "low": 8,
+      "nc": 33,
+      "floor": null,
+      "pass": false
+    },
+    {
+      "rate": 0.1225,
+      "goal": 4,
+      "rec5": 12,
+      "rec12": 17,
+      "low": 7,
+      "nc": 32,
+      "floor": 35,
+      "pass": false
+    },
+    {
+      "rate": 0.125,
+      "goal": 3,
+      "rec5": 11,
+      "rec12": 17,
+      "low": 7,
+      "nc": 32,
+      "floor": 34,
+      "pass": false
+    },
+    {
+      "rate": 0.1275,
+      "goal": 3,
+      "rec5": 11,
+      "rec12": 17,
+      "low": 7,
+      "nc": 31,
+      "floor": 34,
+      "pass": false
+    },
+    {
+      "rate": 0.13,
+      "goal": 1,
+      "rec5": 11,
+      "rec12": 17,
+      "low": 7,
+      "nc": 30,
+      "floor": 33,
+      "pass": false
+    },
+    {
+      "rate": 0.1325,
+      "goal": 1,
+      "rec5": 11,
+      "rec12": 17,
+      "low": 7,
+      "nc": 30,
+      "floor": 33,
+      "pass": false
+    },
+    {
+      "rate": 0.135,
+      "goal": 1,
+      "rec5": 11,
+      "rec12": 17,
+      "low": 7,
+      "nc": 29,
+      "floor": 32,
+      "pass": false
+    },
+    {
+      "rate": 0.1375,
+      "goal": 1,
+      "rec5": 11,
+      "rec12": 1,
+      "low": 6,
+      "nc": 28,
+      "floor": 31,
+      "pass": true
+    },
+    {
+      "rate": 0.14,
+      "goal": 1,
+      "rec5": 11,
+      "rec12": 1,
+      "low": 6,
+      "nc": 28,
+      "floor": 31,
+      "pass": true
+    },
+    {
+      "rate": 0.1425,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 6,
+      "nc": 27,
+      "floor": 30,
+      "pass": true
+    },
+    {
+      "rate": 0.145,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 6,
+      "nc": 27,
+      "floor": 30,
+      "pass": true
+    },
+    {
+      "rate": 0.1475,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 6,
+      "nc": 27,
+      "floor": 29,
+      "pass": true
+    },
+    {
+      "rate": 0.15,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 5,
+      "nc": 26,
+      "floor": 29,
+      "pass": true
+    },
+    {
+      "rate": 0.1525,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 3,
+      "nc": 26,
+      "floor": 28,
+      "pass": true
+    },
+    {
+      "rate": 0.155,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 3,
+      "nc": 25,
+      "floor": 28,
+      "pass": true
+    },
+    {
+      "rate": 0.1575,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 1,
+      "nc": 25,
+      "floor": 27,
+      "pass": true
+    },
+    {
+      "rate": 0.16,
+      "goal": 1,
+      "rec5": 10,
+      "rec12": 1,
+      "low": 1,
+      "nc": 24,
+      "floor": 27,
+      "pass": true
+    }
+  ],
+  "solvedRate": 0.1375
+}
