@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { BASE_PARAMS, runFiscalSimulation, realGrantSeries, carbonDividendPerCapita } from '@/lib/fiscal-engine';
 import { DEMO_KEYS, DEMOS, POP } from '@/lib/demographics';
-import { getInc, getNW, BASE_ONLY, computeGini } from '@/lib/household-model';
+import { getInc, getNW, BASE_ONLY, computeGini, healthLayer, accordIncomeAt, FISCAL_DEFAULTS as H_FX } from '@/lib/household-model';
+import { HEALTH_2024, nheShareOfGdp } from '@/lib/health';
+import { accordSchedule, startingBandTop } from '@/lib/income-tax';
 import { fmtDollar } from '@/lib/format';
 
 // Every figure below is computed from the same models the pages run, at the default settings, over
@@ -15,7 +17,18 @@ const SIM = runFiscalSimulation(P, 35);
 const M = SIM.milestones;
 const ROW = y => SIM.rows[y - 1];
 const real = (row, nominalT) => nominalT * 1e12 / row.priceLevel;
-const GOAL_AFTER_RECESSION = runFiscalSimulation({ ...P, recessionYear: 5 }, 35).milestones.fiscalGoalYear;
+const REC5 = runFiscalSimulation({ ...P, recessionYear: 5 }, 35);
+const GOAL_AFTER_RECESSION = REC5.milestones.fiscalGoalYear;
+const REC5_Y35 = REC5.rows[34];
+const REC5_PEAK_INT = Math.max(...REC5.rows.map(r => r.intToRev));
+const LOW_Y35 = runFiscalSimulation({ ...P, growthCase: 'low' }, 35).rows[34];
+const MAX_INT_SHARE = Math.max(...SIM.rows.map(r => r.intToRev));
+// The lowest rate on income: the starting rate or the minimum rate on all income, whichever is higher.
+const START_RATE = Math.max(P.incomeTaxLow, P.incomeTaxFloorRate ?? 0);
+const startRatePct = `${+(START_RATE * 100).toFixed(1)}%`;
+const START_BAND_K = Math.round(startingBandTop(accordSchedule({ brackets: P.incomeTaxBrackets ?? undefined,
+  lowRate: P.incomeTaxLow, highRate: P.incomeTaxHigh, threshold: P.incomeTaxThreshold,
+  riseEnd: P.incomeTaxRiseEnd, riseShape: P.incomeTaxRiseShape, floorRate: P.incomeTaxFloorRate })) / 1000);
 const NO_IMMIGRATION = realGrantSeries({ ...P, abundanceFloorOn: false }, 35);
 const GRANTS = realGrantSeries(P, 35);
 
@@ -60,7 +73,15 @@ const clIntShare = r => r.clInterest / r.clRev * 100;
 // Housing and health
 const SHORTAGE_CLOSED = SIM.rows.find(r => r.year > 1 && r.housingShortageM <= 0)?.year;
 const HEALTH_RESERVE_Y10 = real(Y10, Y10.healthcareAMCF);
-const HEALTH_SAVINGS_Y10 = (P.rateSettingSavings + P.drugSavings) * real(Y10, Y10.nominalGdp);
+const NHE_Y35 = nheShareOfGdp(35, P);
+const HEALTH_RATE = `${+(P.healthContributionRate * 100).toFixed(1)}%`;
+const HEALTH_RATE_ARTICLE = /^(8|11|18)(\D|$)/.test(HEALTH_RATE) ? 'an' : 'a';
+const HOSPITAL_RATE = /^rate(\d+)/.exec(P.healthPaymentLevel)?.[1];
+const HELD_HARMLESS = P.healthPaymentLevel.endsWith('-narrow') ? 'critical access and safety-net hospitals'
+  : P.healthPaymentLevel.endsWith('-broad') ? 'rural and safety-net hospitals' : null;
+// Median household's health line at Year 10: new wages, premiums and copays saved and coverage
+// gained, less the health contribution and the taxes on the new wages (2024 dollars).
+const MEDIAN_HEALTH_Y10 = (h => h.gain - h.tax + h.coverage)(healthLayer('P50', 10, H_FX, accordIncomeAt('P50', 10, ALL_PROVS, H_FX)));
 
 const pct0 = v => `${Math.round(v)}%`;
 const pctChange = (a, c) => `${a >= c ? '+' : ''}${Math.round((a - c) / c * 100)}%`;
@@ -68,9 +89,15 @@ const billions = v => `$${Math.round(v / 1e9)} billion`;
 const millions = v => `${(v).toFixed(v < 10 ? 1 : 0)} million`;
 const exact = v => `$${Math.round(v).toLocaleString()}`;
 
+const COVERAGE_STATS = [
+  { value: `${Math.round(HEALTH_2024.lawfulUninsured / 1e6)} million`, label: 'Uninsured residents who gain coverage in Year 1' },
+  { value: '$0', label: 'Premiums and deductibles, in Medicare Plus or a private plan' },
+  { value: `+${exact(MEDIAN_HEALTH_Y10)}`, label: 'A year for the median household by Year 10, net of the health contribution' },
+];
+
 const HERO_STATS = [
   { label: 'Federal debt as a share of the economy, today to Year 30', value: `${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, sub: `Current law: ${pct0(Y30.clDebtToGdp)} at Year 30` },
-  { label: 'Year interest costs fall below 10% of federal revenue', value: `Year ${M.fiscalGoalYear}`, sub: `From ${pct0(intShare(Y1))} today. Current law: ${pct0(clIntShare(Y10))} at Year 10` },
+  { label: 'Interest costs as a share of federal revenue, today to Year 35', value: `${pct0(intShare(Y1))} → ${pct0(intShare(Y35))}`, sub: `Current law: ${pct0(clIntShare(Y35))} at Year 35` },
   { label: 'Income gain for the bottom half of households in Year 1', value: `+${Math.round(bottomHalfPct(1))}%`, sub: `+${exact(BOTTOM_HALF_GAIN_Y1)} a household, rising to +${exact(BOTTOM_HALF_GAIN_Y30)} (+${Math.round(bottomHalfPct(30))}%) by Year 30` },
 ];
 
@@ -79,7 +106,7 @@ const SECTIONS = [
     title: 'Income',
     lead: `${Math.round(AHEAD_EVERY_YEAR * 100)}% of households are ahead of current law on income in every year from 1 to 30.`,
     stats: INC_POINTS.map(s => ({ label: s.label, value: pctChange(s.accord, s.cl), sub: `${exact(s.accord)}, against ${exact(s.cl)} under current law` })),
-    body: `Year 1 gains come mostly from the cash prebate: $${P.prebatePerCapita.toLocaleString()} a person, so $${(P.prebatePerCapita * 4).toLocaleString()} for a family of four, plus a $${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend each. By Year 30, fund dividends, worker profit-sharing and a 0% income tax on the first $${Math.round(P.incomeTaxThreshold / 1000)}K add to it. The top 10% pay more in every year.`,
+    body: `Year 1 gains come mostly from the cash prebate: $${P.prebatePerCapita.toLocaleString()} a person, so $${(P.prebatePerCapita * 4).toLocaleString()} for a family of four, plus a $${Math.round(carbonDividendPerCapita(P.carbonRate))} carbon dividend each. By Year 30, fund dividends, worker profit-sharing and a ${startRatePct} income tax on the first $${START_BAND_K}K add to it. The top 10% pay more in every year.`,
   },
   {
     title: 'Wealth',
@@ -101,21 +128,22 @@ const SECTIONS = [
   },
   {
     title: 'Healthcare',
-    lead: 'A public option, Medicare Plus, competes with private insurers, with a guarantee of treatment within 30 days.',
+    lead: `Every lawful resident under 65 is covered from birth or arrival, with no premium and no deductible. ${Math.round(HEALTH_2024.lawfulUninsured / 1e6)} million uninsured residents gain coverage in Year 1.`,
     stats: [
-      { label: 'Medical residency slots a year', value: '35K → 70K', sub: 'Doubled to train more doctors' },
-      { label: 'Healthcare Reserve funding at Year 10', value: billions(HEALTH_RESERVE_Y10), sub: 'A year, paid from fund dividends' },
+      { label: 'National health spending at Year 35', value: `${(NHE_Y35.accord * 100).toFixed(1)}% of GDP`, sub: `Current law: ${(NHE_Y35.currentLaw * 100).toFixed(1)}%` },
+      { label: 'Health gain for the median household, Year 10', value: exact(MEDIAN_HEALTH_Y10), sub: 'New wages, premiums and copays saved, less the health contribution' },
+      { label: 'Healthcare Reserve funding at Year 10', value: billions(HEALTH_RESERVE_Y10), sub: 'A year from fund dividends, paid into the Health Fund' },
     ],
-    body: `National rate setting and expanded drug-price negotiation save about ${billions(HEALTH_SAVINGS_Y10)} a year by Year 10. Hospitals are paid to keep 15% of ICU beds ready for surges.`,
+    body: `Employers turn their premium payments into wages over two years. ${HEALTH_RATE_ARTICLE === 'an' ? 'An' : 'A'} ${HEALTH_RATE} health contribution on income above $${P.healthContribExempt.toLocaleString()} per tax filer replaces premiums and deductibles. Hospitals are paid ${HOSPITAL_RATE}% of Medicare rates for patients under 65${HELD_HARMLESS ? `, with ${HELD_HARMLESS} held harmless` : ''}, and health spending grows more slowly than under current law. Medical residency slots double, from 35,000 to 70,000 a year.`,
   },
   {
     title: 'The federal budget',
     lead: `Federal debt falls every year, from ${pct0(Y1.debtToGdp)} of GDP today to ${pct0(Y30.debtToGdp)} at Year 30. Under current law it rises to ${pct0(Y30.clDebtToGdp)}.`,
     stats: [
-      { label: "Year the government's fund holdings exceed federal debt", value: `Year ${M.netCreditorYear}`, sub: 'Never under current law' },
-      { label: 'Year federal debt reaches its 25% floor', value: `Year ${M.debtFloorYear}`, sub: 'Congress decides how to use surpluses beyond it' },
+      { label: 'Federal debt at Year 35 after a 2008-scale recession in Year 5', value: pct0(REC5_Y35.debtToGdp), sub: `Current law: ${pct0(REC5_Y35.clDebtToGdp)}` },
+      { label: 'Federal debt at Year 35 with slower growth', value: pct0(LOW_Y35.debtToGdp), sub: `Current law: ${pct0(LOW_Y35.clDebtToGdp)}` },
     ],
-    body: `Interest costs fall below 10% of federal revenue by Year ${M.fiscalGoalYear}, against ${pct0(clIntShare(Y35))} under current law at Year 35. After a 2008-scale recession in Year 5, they are back below 10% by Year ${GOAL_AFTER_RECESSION}.`,
+    body: `Interest costs ${MAX_INT_SHARE < 10 ? 'stay below 10% of federal revenue in every year and fall' : 'fall'} to ${pct0(intShare(Y35))} by Year 35, against ${pct0(clIntShare(Y35))} under current law. After a 2008-scale recession in Year 5, they peak at ${pct0(REC5_PEAK_INT)} and are back below 10% by Year ${GOAL_AFTER_RECESSION}.`,
   },
   {
     title: 'Immigration',
@@ -162,7 +190,7 @@ const PILLARS = [
     title: 'Taxes move to top incomes, consumption and land',
     points: [
       <>The <B>corporate income tax is repealed</B></>,
-      <>Income tax is <B>0% up to ${Math.round(P.incomeTaxThreshold / 1000)}K</B>, rising smoothly to <B>{pct(P.incomeTaxHigh)} at ${Math.round(P.incomeTaxRiseEnd / 1000)}K</B>, with no deductions</>,
+      <>Income tax is <B>{startRatePct} up to ${START_BAND_K}K</B>, rising smoothly to <B>{pct(P.incomeTaxHigh)} at ${Math.round(P.incomeTaxRiseEnd / 1000)}K</B>, with no deductions</>,
       <>A <B>{pct(P.vatRate)} VAT</B>, a <B>{pct(P.lvtRate)} land value tax</B> and a <B>${P.carbonRate}/ton carbon tax</B></>,
     ],
   },
@@ -195,20 +223,20 @@ const PILLARS = [
   },
   {
     tag: 'Health',
-    title: 'A public option and more doctors',
+    title: 'Everyone is covered, with no premiums',
     points: [
-      <><B>Medicare Plus</B> competes with private insurers, with treatment <B>within 30 days</B></>,
-      <><B>Medical residency slots double</B></>,
-      <>Fund dividends pay for a <B>Healthcare Reserve</B></>,
+      <>Every lawful resident under 65 is <B>covered automatically</B>, in Medicare Plus or a private plan</>,
+      <>Employer premiums become <B>wages</B>, and {HEALTH_RATE_ARTICLE} <B>{HEALTH_RATE} health contribution</B> on income replaces premiums</>,
+      <><B>One national rate schedule</B> for every plan, with treatment <B>within 30 days</B></>,
     ],
   },
   {
     tag: 'Budget',
-    title: 'Debt falls to a safe floor',
+    title: 'Debt falls every year',
     points: [
       <>Fund dividends and asset sales <B>pay down federal debt</B></>,
-      <>Debt stops falling at <B>25% of GDP</B></>,
-      <>Beyond the floor, <B>Congress decides</B> how to use surpluses</>,
+      <>Debt falls to <B>{pct0(Y35.debtToGdp)} of GDP</B> by Year 35</>,
+      <>If debt reaches <B>{pct0(P.prebateIndexFloor * 100)} of GDP</B>, Congress decides how to use surpluses</>,
     ],
   },
 ];
@@ -298,7 +326,8 @@ export default function AboutPage({ onNavigate }) {
           <p className="text-base text-primary-foreground/70 leading-relaxed max-w-xl mx-auto mb-10">
             Residents and workers become co-owners of American companies, the tax system moves from
             corporate profits to top incomes, consumption and land, a cash floor replaces
-            means-tested aid, and housing is built at the pace the country grows. These models
+            means-tested aid, every resident under 65 is covered with no premiums, and housing is
+            built at the pace the country grows. These models
             project what that does to the federal budget and to households over 35 years.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
@@ -325,6 +354,32 @@ export default function AboutPage({ onNavigate }) {
                 <p className="text-sm font-semibold leading-snug">{st.label}</p>
                 <p className="text-3xl sm:text-4xl font-extrabold tracking-tight text-accent mt-2">{st.value}</p>
                 <p className="text-xs text-primary-foreground/60 mt-2">{st.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Universal coverage */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-12">
+        <div className="rounded-lg border border-border/70 border-l-4 border-l-accent bg-muted/30 p-5 sm:p-6">
+          <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-accent mb-1.5">Healthcare</p>
+          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-snug mb-2">
+            Everyone under 65 is covered from birth or arrival
+          </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-3xl">
+            No application, no premium and no deductible. Coverage stays the same when you change
+            jobs, start a business or stop working. Employers turn their premium payments into
+            wages, and {HEALTH_RATE_ARTICLE} {HEALTH_RATE} health contribution on income above
+            ${P.healthContribExempt.toLocaleString()} per tax filer replaces premiums. National
+            health spending is {(NHE_Y35.accord * 100).toFixed(1)}% of GDP at Year 35, against{' '}
+            {(NHE_Y35.currentLaw * 100).toFixed(1)}% under current law.
+          </p>
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {COVERAGE_STATS.map(st => (
+              <div key={st.label}>
+                <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-accent">{st.value}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-snug">{st.label}</p>
               </div>
             ))}
           </div>

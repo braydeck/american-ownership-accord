@@ -8,9 +8,10 @@ import { lvtRevForFiscal, LAND_GROWTH_ELASTICITY, LAND_SECTORS } from '@/lib/lan
 import { incomeTaxSplitForFiscal, INCOME_TAX_DEFAULTS, accordSchedule, accordScheduleTax, accordMarginalRate,
   clMarginalRate, ssAboveCapBase, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE, etiTopFloor, bracketPoints } from '@/lib/income-tax';
 import { BRACKETS } from '@/lib/brackets';
-import { STABLE_RENT_FRAC } from '@/lib/rent-taxes';
+import { STABLE_RENT_FRAC, pollutionFeeReal } from '@/lib/rent-taxes';
 import { HOUSING_DEFAULTS, stepHousing, initialHousingState } from '@/lib/housing';
 import { cboFiscalShares, CBO_REV_MIX_2026 } from '@/lib/cbo-baseline';
+import { HEALTH_DEFAULTS, healthFiscalYear, costShareAbsorbed, untyingGdpGain, convertedWageTaxRates, FICA_RATE, workerPremiumPerFiler, oopPerFiler, nongroupPremiumPerFiler } from '@/lib/health';
 
 const BASE_PARAMS = {
   // ── Corporate base and the Growth Tax ──
@@ -83,9 +84,12 @@ const BASE_PARAMS = {
   saleProceedsToDebt:     true,   // true: unit-sale proceeds (net of Treasury buybacks) always retire debt
   assetRateCreditBp:      1,      // bp off the Treasury's rate per point of GDP held in the Treasury tranche
   // ── Revenue ──
-  // Default tax and transfer settings: design "21877 optimized, LVT 10%" (decided 2026-10-18,
-  // docs/engine-spec-2026-10-07.md, "Income tax shape and the distributional goal").
-  vatRate:                0.1478,
+  // Default tax and transfer settings (decided 2026-11-05): the smooth-schedule trajectory design
+  // with the Healthcare Supplement at rate150-narrow, debt falling to ~50% of GDP by Year 35, the
+  // bottom half's gain maximized with the FTT capped at 0.25%, retuned on the sourced rent-tax bases
+  // (scripts/optimize-below-p80.mjs, GOAL=trajectory DEBT_TARGET=50 OBJECTIVE=bottomHalf FTT_MAX=0.25,
+  // families curve,zero).
+  vatRate:                0.15,
   // VAT base (decided 2026-10-16): personal consumption (~68% of GDP) less housing services
   // (owner-occupied imputed rent $2.50T and tenant rent $0.77T, 15.9% of PCE in 2025) and less
   // financial services and insurance ($1.69T), which the FAT taxes instead (BEA via FRED).
@@ -98,14 +102,15 @@ const BASE_PARAMS = {
   lvtGroundRentYield:     0.04,
   lvtLandElasticity:      LAND_GROWTH_ELASTICITY,
   lvtAssessmentBasis:     'capitalized',
-  // Income tax (design "21877, re-optimized", 2026-10-19): 0% up to $69K with no standard
-  // deduction, then a smooth rise to 62% at $265K (thresholds rise with average wages). riseEnd at
-  // or below the threshold gives two rates.
+  // Income tax: 2.7% on all income up to $81K, no exemption, then a smooth rise (slow at first,
+  // steep near the top) to 62% at $288K (thresholds rise with average wages). riseEnd at or below
+  // the threshold gives two rates.
   incomeTaxLow:           0,
   incomeTaxHigh:          0.62,
-  incomeTaxThreshold:     69_000,
-  incomeTaxRiseEnd:       264_753,
-  incomeTaxRiseShape:     2.567,
+  incomeTaxThreshold:     81_000,
+  incomeTaxRiseEnd:       288_279,
+  incomeTaxRiseShape:     3,
+  incomeTaxFloorRate:     0.027,   // minimum rate on all income
   incomeTaxExemptSingle:  0,
   incomeTaxExemptJoint:   0,
   incomeTaxEtiTop:        INCOME_TAX_DEFAULTS.etiTop,
@@ -113,11 +118,14 @@ const BASE_PARAMS = {
   realizationOn:          true,   // gains realized at death and on gifts (incl. charitable), pledged-asset backstop (gaps item 3)
   ssUncapOn:              true,
   ssBackstopOn:           true,   // general revenue tops the OASDI trust funds up to 100% of a year's cost (decided 2026-10-16)   // 12.4% Social Security contribution on all income above the cap, no benefit credit (gaps item 1)
-  carbonRate:             106,
+  carbonRate:             99,
   stableTaxFrac:          STABLE_RENT_FRAC,
-  publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6
+  pollutionFeeOn:         true,   // air pollution fee on industrial SO2, NOx and PM2.5 at 25% of EPA damages, falling 9%/yr real (decided 2026-11-06)
+  publicOptionRevenue:    0.0016, // % of GDP: higher taxable wages as premiums fall (Urban/CBO), phased Yrs 2–6; only with the Healthcare Supplement off
+  // ── Healthcare Supplement (health.js): replaces the public-option, rate-setting and drug-pricing placeholders ──
+  ...HEALTH_DEFAULTS,
   // ── Spending ──
-  prebatePerCapita:       7450,
+  prebatePerCapita:       5800,
   prebateIndex:           0.75,     // share of real GDP-per-person growth the prebate follows on top of CPI (decided 2026-10-25)
   prebateIndexHigh:       1,        // indexing rises from prebateIndex toward this as debt falls toward the floor (null = fixed)
   prebateIndexRampFrom:   0.60,     // debt held by the public / GDP at which the rise begins
@@ -125,8 +133,8 @@ const BASE_PARAMS = {
   debtFloorOn:            true,     // surpluses that would take debt below the floor are spent (use left to Congress)
   citizenFloorIndex:      0.5,    // same, for the $500 citizen grant floor
   spendingAdjustment:     0,      // points of GDP added to CBO-based baseline spending (scenarios)
-  rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled)
-  drugSavings:            0.001,  // % of GDP by Yr 5 (doc §12: $25–40B)
+  rateSettingSavings:     0.0005, // % of GDP, phased Yrs 2–6 (Maryland all-payer result scaled); only with the Healthcare Supplement off
+  drugSavings:            0.001,  // % of GDP by Yr 5 (doc §12: $25–40B); only with the Healthcare Supplement off
   patentBuyoutNet:        0,      // % of GDP; central 0 (range −0.3 to +0.4)
   spendingElasticity:     0.5,    // share of baseline spending that rises with Accord-created GDP
   // ── Growth and immigration ──
@@ -295,7 +303,7 @@ function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
   const i = GROWTH_CASE_INDEX[p.growthCase] ?? 1;
   const sched = accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
     lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
-    riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape });
+    riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape, floorRate: p.incomeTaxFloorRate });
   const vatEff = p.vatRate * 0.9 * consumptionTaxCoverage(p);
   const carbonEff = carbonRevenueAtRate(p.carbonRate) * carbonDecayFactor(yr) / (PCE_GDP_SHARE * p.startingGdp * realIdx);
   const tc = vatEff + carbonEff;
@@ -315,9 +323,14 @@ function laborSupplyEffect(p, realIdx, gdpPcIdx, yr) {
       const pay = aboveCap ? CL_PAYROLL_ABOVE_CAP : CL_EMPLOYEE_PAYROLL;
       const ssExtra = p.ssUncapOn && aboveCap ? SS_RATE / 2 : 0;
       const nCL = (1 - clMarginalRate(agi, b.jFrac) - CL_PROGRAM_MARGINAL[bi] - pay) / (1 + pay);
-      const nA = (1 - accordMarginalRate(agi, ded, sched) - pay - ssExtra) / (1 + pay + ssExtra) / (1 + tc);
+      // Healthcare Supplement: the contribution is a marginal rate on all income; the premiums and
+      // out-of-pocket costs it replaces were not, so they enter only the income effect.
+      const hc = p.healthSupplementOn && agi > p.healthContribExempt ? p.healthContributionRate : 0;
+      const healthNet = p.healthSupplementOn ? hc * (agi - p.healthContribExempt)
+        - workerPremiumPerFiler(bi) - nongroupPremiumPerFiler(bi) - oopPerFiler(bi) * costShareAbsorbed(p) : 0;
+      const nA = (1 - accordMarginalRate(agi, ded, sched) - pay - ssExtra - hc) / (1 + pay + ssExtra) / (1 + tc);
       const taxDelta = accordScheduleTax(agi, ded, sched) - b.effCL * agi + tc * b.cRat * agi
-        + (p.ssUncapOn ? SS_RATE * ssAboveCapBase(agi, b.jFrac) : 0);
+        + (p.ssUncapOn ? SS_RATE * ssAboveCapBase(agi, b.jFrac) : 0) + healthNet;
       const dY = ((prebate + cdiv) * b.hhSz - taxDelta) / (agi * (1 - b.effCL - pay));
       wSum += w; sub += w * Math.log(Math.max(0.05, nA) / Math.max(0.05, nCL)); inc += w * dY;
     }
@@ -378,7 +391,8 @@ const IMMIGRANT_PREMIUM_PHASE_YEARS = 10;
 // (replaced by the prebate, already per person), Medicare, health, education, transportation and
 // veterans, about $0.31T or $925 a resident (approximate).
 const IMMIGRANT_COSTS = { health: 2713, education: 907, medicare: 2601, infrastructure: 393, otherDomestic: 925 };
-const IMMIGRANT_HEALTH_BAR_YEARS = 5;
+const IMMIGRANT_HEALTH_BAR_YEARS = 5; // current-law Medicaid bar; the Healthcare Supplement covers lawful residents from arrival
+const IMMIGRANT_UNDER_65 = 0.9;       // share of added residents under 65 (assumption; most arrive as working-age adults and children)
 const INFRA_CAPITAL_PER_RESIDENT = 47700 * 0.21;
 
 function citizenFloorPerCap(p, priceLevel) {
@@ -415,6 +429,9 @@ function runFiscalSimulation(p, horizon = 35) {
   // year's indexing share, which rises toward prebateIndexHigh as debt nears the floor.
   let prebateRealMult = 1, prevPcIdx = 1, prevDebtGdp = p.startingDebt / p.startingGdp;
   const arrivals = []; // millions admitted each year, for the health bar and Medicare aging
+  const convertedRates = convertedWageTaxRates(accordSchedule({ brackets: p.incomeTaxBrackets ?? undefined,
+    lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
+    riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape, floorRate: p.incomeTaxFloorRate }), p.incomeTaxExemptSingle, p.incomeTaxExemptJoint, p.ssUncapOn);
   let housing = initialHousingState(p);
   let histInc = [ev0], histEnt = [0];
   // Incumbent groups: companies grow at different rates, so they reach the 21% cap in different
@@ -476,7 +493,7 @@ function runFiscalSimulation(p, horizon = 35) {
     const trendPcIdx = trendRealIdx * p.startingPopulation
       / (p.startingPopulation * Math.pow(1 + p.populationGrowthRate, yr) + immigrants * 1e6);
     const laborLevel = 1 + laborSupplyEffect(p, trendRealIdx, trendPcIdx, yr);
-    const growthLevel = growthLevelFactor(yr, p.growthCase) * laborLevel;
+    const growthLevel = growthLevelFactor(yr, p.growthCase) * laborLevel * (1 + untyingGdpGain(yr, p));
     const accordLevel = growthLevel * immLevel;
     const realGdp = realGdpBase * accordLevel;
     priceLevel *= (1 + p.inflationRate);
@@ -720,13 +737,16 @@ function runFiscalSimulation(p, horizon = 35) {
     const nhcLandPayments = housing.nhcStock * p.nhcOwnershipShare * resLvtPerUnit * p.nhcLandPerUnitRatio * p.nhcLandPaymentShare;
     const carbonRev = carbonRevenueAtRate(p.carbonRate) * priceLevel
       * carbonDecayFactor(yr) * Math.max(0, 1 - cycGap);
-    const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0);
+    // The pollution fee is reported with the smaller rent taxes; its real base shrinks as plants abate.
+    const pollutionFeeRev = p.pollutionFeeOn ? pollutionFeeReal(yr) * priceLevel * Math.max(0, 1 - cycGap) : 0;
+    const stableTaxRev = nominalGdp * (p.stableTaxFrac ?? 0) + pollutionFeeRev;
     const incomeTaxSplit = incomeTaxSplitForFiscal({
       nominalGdp, brackets: p.incomeTaxBrackets ?? undefined,
       lowRate: p.incomeTaxLow, highRate: p.incomeTaxHigh, threshold: p.incomeTaxThreshold,
-      riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape,
+      riseEnd: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape, floorRate: p.incomeTaxFloorRate,
       exemptSingle: p.incomeTaxExemptSingle, exemptJoint: p.incomeTaxExemptJoint, etiTop: p.incomeTaxEtiTop,
       ssUncapOn: p.ssUncapOn,
+      healthRate: p.healthSupplementOn ? p.healthContributionRate : 0, healthExempt: p.healthContribExempt,
     });
     // Social Security contribution above the cap (the former "payroll fix"), computed bottom-up.
     const payrollFix = incomeTaxSplit.ss * el('incomeTax');
@@ -735,24 +755,35 @@ function runFiscalSimulation(p, horizon = 35) {
     const payrollTax = nominalGdp * 0.054 * el('payroll');
     const otherTax = nominalGdp * 0.010;
     const realizationRev = p.realizationOn ? nominalGdp * REALIZATION_GDP : 0;
-    const publicOptionRev = nominalGdp * p.publicOptionRevenue * ramp(yr, 2, 6);
+    const publicOptionRev = p.healthSupplementOn ? 0 : nominalGdp * p.publicOptionRevenue * ramp(yr, 2, 6);
+    // Healthcare Supplement. Converted wages and the state clawback are sized on the no-Accord
+    // economy, so they sit outside the immigrant revenue adjustment below.
+    const hlth = p.healthSupplementOn
+      ? healthFiscalYear({ yr, p, trendNomGdp: trendNomGdpBase, immigrantsUnder65: immigrants * 1e6 * IMMIGRANT_UNDER_65 }) : null;
+    const healthContribution = hlth ? incomeTaxSplit.health * el('payroll') : 0;
+    const convWages = hlth ? hlth.convertedWages : 0;
+    const healthWageRev = hlth ? convWages * ((convertedRates.incomeTax + convertedRates.ssAboveCap) * el('incomeTax')
+      + (FICA_RATE * convertedRates.belowCapShare + p.healthContributionRate) * el('payroll')) : 0;
+    const healthClawback = hlth ? hlth.clawback : 0;
+    const healthEmployerTransition = hlth ? hlth.employerTransition : 0;
     const grossRev = vatGross + fatRev + lvtRev + carbonRev + stableTaxRev + payrollFix + capGainsTax
-      + incomeTax + payrollTax + otherTax + publicOptionRev + realizationRev;
+      + incomeTax + payrollTax + otherTax + publicOptionRev + realizationRev + healthContribution;
     // Output added by immigrants is taxed at a lower average rate (CBO 2024).
     const immGdpShare = 1 - 1 / immLevel;
-    const totalRev = grossRev * (1 - (1 - IMMIGRANT_REVENUE_FACTOR) * immGdpShare);
+    const totalRev = grossRev * (1 - (1 - IMMIGRANT_REVENUE_FACTOR) * immGdpShare)
+      + healthWageRev + healthClawback + healthEmployerTransition;
 
     // ── Spending ──
     const cbo = cboFiscalShares(yr);
-    const baselineShare = cbo.noninterest - dissolvedProgramsFrac(yr) + p.spendingAdjustment
-      - p.rateSettingSavings * ramp(yr, 2, 6) - p.drugSavings * Math.min(1, yr / 5) - p.patentBuyoutNet;
+    const baselineShare = cbo.noninterest - dissolvedProgramsFrac(yr) + p.spendingAdjustment - p.patentBuyoutNet
+      - (p.healthSupplementOn ? 0 : p.rateSettingSavings * ramp(yr, 2, 6) + p.drugSavings * Math.min(1, yr / 5));
     // Accord-created GDP raises baseline spending at the elasticity, except GDP from added residents,
     // whose costs are counted per person below.
     const baseSpend = baselineShare * trendNomGdpBase * (1 + p.spendingElasticity * ((p.spendingElasticityAllGdp ? accordLevel : growthLevel) - 1));
     let healthEligible = 0, medicareWeighted = 0;
     arrivals.forEach((a, k) => {
       const years = yr - (k + 1);
-      if (years >= IMMIGRANT_HEALTH_BAR_YEARS) healthEligible += a;
+      if (years >= IMMIGRANT_HEALTH_BAR_YEARS && !p.healthSupplementOn) healthEligible += a;
       medicareWeighted += a * Math.min(1, years / SS_IMMIGRANT_COST_LAG);
     });
     const costScale = priceLevel * gdpPcIdx;
@@ -773,7 +804,8 @@ function runFiscalSimulation(p, horizon = 35) {
     const carbonDividendSpend = carbonRev * CARBON_DIVIDEND_SHARE;
     const healthcareAMCF = cashT * HEALTHCARE_RESERVE_SHARE; // spent on new health commitments
     const totalSpend = baseSpend + prebateSpend + childcareSpend + familyLeaveSpend + carbonDividendSpend + ceocSpend + zoningSpend
-      + immigrantServiceSpend + immigrantCapitalSpend;
+      + immigrantServiceSpend + immigrantCapitalSpend + (hlth ? hlth.netOutlays : 0)
+      - (hlth && p.healthReserveToFund ? healthcareAMCF : 0);
 
     // ── Interest ──
     const debtToGdp = debt / nominalGdp;
@@ -784,6 +816,8 @@ function runFiscalSimulation(p, horizon = 35) {
       p.baseInterestRate + p.interestReflexivity * Math.max(0, debtToGdp - p.reflexivityThreshold) / 100 - creditBp));
     const interest = debt * effectiveRate;
     const totalOutlays = totalSpend + interest;
+    // The fiscal-goal test and the brake measure interest against all revenue, the dedicated health
+    // contribution included, since the Health Fund's spending is in outlays (decided 2026-10-30).
     const intToRev = totalRev > 0 ? (interest / totalRev) * 100 : 0;
     const solventBrakeActive = intToRev > BRAKE_THRESHOLD_PCT;
     brakeLastYear = solventBrakeActive;
@@ -795,7 +829,10 @@ function runFiscalSimulation(p, horizon = 35) {
     const debtReductionAMCF = solventBrakeActive ? treasuryFlow : saleToDebt;
     const discretionaryAMCF = solventBrakeActive ? 0 : treasuryFlow - saleToDebt;
     // Net Treasury purchases of units (cap overflow, term repurchases) are a cost even when spent.
-    let deficit = totalOutlays - totalRev - (p.bankPostBrake ? discretionaryAMCF : Math.min(0, discretionaryAMCF));
+    // Discretionary Treasury cash sent to the Health Fund pays its costs; the rest is spent unless banked.
+    const healthDiscretionary = hlth ? Math.max(0, discretionaryAMCF) * p.healthDiscretionaryShare : 0;
+    let deficit = totalOutlays - totalRev - healthDiscretionary
+      - (p.bankPostBrake ? discretionaryAMCF - healthDiscretionary : Math.min(0, discretionaryAMCF));
     debt = debt + deficit - debtReductionAMCF;
     // Debt floor (decided 2026-10-25): once debt held by the public reaches the floor, surpluses that
     // would push it lower are spent, with the use left to Congress. Kept as unallocated spending.
@@ -813,9 +850,14 @@ function runFiscalSimulation(p, horizon = 35) {
     // Benefits follow wages, so the Accord's productivity effects raise cost along with payroll.
     // Extra immigrants pay in now and claim later: their share of cost phases in over 45 years.
     const ssCostGdp = potentialBase * priceLevel * growthLevel * (1 + (immLevel - 1) * Math.min(1, yr / SS_IMMIGRANT_COST_LAG));
-    const ssCost = interp(SS_COST_RATE, fy) * TAXABLE_PAYROLL_GDP * ssCostGdp;
+    // Converted wages are covered earnings: they pay in now and raise benefits as cohorts retire
+    // (benefits rise 0.7 for 1 with covered earnings under the progressive formula; assumption).
+    const convPayrollShare = convWages * convertedRates.belowCapShare / (TAXABLE_PAYROLL_GDP * trendNomGdpBase);
+    const ssCost = interp(SS_COST_RATE, fy) * TAXABLE_PAYROLL_GDP * ssCostGdp
+      * (1 + 0.7 * convPayrollShare * Math.min(1, yr / SS_IMMIGRANT_COST_LAG));
     if (ssTrustFund == null) ssTrustFund = SS_START_RATIO * ssCost;
-    const ssIncome = interp(SS_INCOME_RATE, fy) * TAXABLE_PAYROLL_GDP * nominalGdp + payrollFix;
+    const ssIncome = interp(SS_INCOME_RATE, fy) * TAXABLE_PAYROLL_GDP * nominalGdp + payrollFix
+      + SS_RATE * convWages * convertedRates.belowCapShare;
     ssTrustFund = ssTrustFund * (1 + effectiveRate) + ssIncome - ssCost;
     if (ssDepletionYear == null && ssTrustFund < 0) ssDepletionYear = yr;
     const ssGeneralTransfer = p.ssBackstopOn ? Math.max(0, ssCost - ssTrustFund) : 0;
@@ -875,9 +917,15 @@ function runFiscalSimulation(p, horizon = 35) {
       grantsTotal: T(citizenDeposit), grantsPerCapita: +grantPerCap.toFixed(0), budgetGrantCost: 0,
       floorSpend: T(floorSpend), prebateRealPerCapita: Math.round(p.prebatePerCapita * prebateRealMult), prebateIndexNow: +prebateIndexNow.toFixed(3),
       ceocSpend: T(ceocSpend), zoningSpend: T(zoningSpend), immigrantServiceSpend: T(immigrantServiceSpend), immigrantCapitalSpend: T(immigrantCapitalSpend), ceocUnits: T(ceocUnits), pseuUnits: T(pseuUnits),
-      vatGross: T(vatGross), fatRev: T(fatRev), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev),
+      vatGross: T(vatGross), fatRev: T(fatRev), lvtRev: T(lvtRev), carbonRev: T(carbonRev), stableTaxRev: T(stableTaxRev), pollutionFeeRev: T(pollutionFeeRev),
       payrollFix: T(payrollFix), realizationRev: T(realizationRev), gdpPerCapIdx: +gdpPcIdx.toFixed(4), laborLevel: +laborLevel.toFixed(4), capGainsTax: T(capGainsTax), incomeTax: T(incomeTax), payrollTax: T(payrollTax),
       otherTax: T(otherTax), publicOptionRev: T(publicOptionRev), totalRev: T(totalRev),
+      healthContribution: T(healthContribution), healthWageRev: T(healthWageRev), healthClawback: T(healthClawback),
+      healthEmployerTransition: T(healthEmployerTransition), healthConvertedWages: T(convWages),
+      healthFundSpend: T(hlth?.fundSpend ?? 0), healthNetOutlays: T(hlth?.netOutlays ?? 0),
+      healthMedicareSavings: T(hlth?.medicareSavings ?? 0), healthPaymentSavings: T(hlth?.paymentSavings ?? 0),
+      healthAdminSavings: T(hlth?.adminSavings ?? 0), healthDiscretionary: T(healthDiscretionary), healthImmigrantSpend: T(hlth?.immigrantSpend ?? 0),
+      healthCapFactor: +(hlth?.capFactor ?? 1).toFixed(4),
       cycGap: +(cycGap * 100).toFixed(2), clCycGap: +(clCycGap * 100).toFixed(2),
       prebateSpend: T(prebateSpend), carbonDividendSpend: T(carbonDividendSpend), childcareSpend: T(childcareSpend),
       familyLeaveSpend: T(familyLeaveSpend), baseSpend: T(baseSpend), interest: T(interest), effectiveRate: +(effectiveRate * 100).toFixed(2),

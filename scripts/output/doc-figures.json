@@ -1,0 +1,230 @@
+{
+  "generated": "2026-11-07",
+  "prebate": {
+    "statutory": 5800,
+    "realY1": 5889,
+    "realY35": 11152,
+    "indexShare": {
+      "1": 0.75,
+      "10": 0.75,
+      "20": 0.75,
+      "30": 0.8,
+      "35": 0.83
+    },
+    "vatOffsetSpending": 38667,
+    "costY1T": 2.09,
+    "carbonDividendY1": 813
+  },
+  "revenue": [
+    {
+      "year": 1,
+      "total": 34.14,
+      "currentLaw": 17.54,
+      "incomeTax": 5.22,
+      "capGainsTax": 2.18,
+      "payrollTax": 5.4,
+      "ssAboveCap": 1.21,
+      "vat": 6.22,
+      "fat": 0.87,
+      "lvt": 3.17,
+      "carbon": 1.1,
+      "smallerRentTaxes": 1.12,
+      "realization": 0.08,
+      "otherTax": 1,
+      "healthContribution": 3.3,
+      "healthConvertedWageTaxes": 0.57,
+      "healthStatePayments": 1.05,
+      "healthEmployerTransition": 1.82,
+      "rentTotal": 5.39,
+      "vatPlusFat": 7.09
+    },
+    {
+      "year": 10,
+      "total": 31.22,
+      "currentLaw": 17.71,
+      "incomeTax": 5.22,
+      "capGainsTax": 2.17,
+      "payrollTax": 5.4,
+      "ssAboveCap": 1.21,
+      "vat": 7.46,
+      "fat": 0.87,
+      "lvt": 2.67,
+      "carbon": 0.62,
+      "smallerRentTaxes": 0.97,
+      "realization": 0.08,
+      "otherTax": 1,
+      "healthContribution": 3.3,
+      "healthConvertedWageTaxes": 1.12,
+      "healthStatePayments": 0.82,
+      "healthEmployerTransition": 0,
+      "rentTotal": 4.26,
+      "vatPlusFat": 8.33
+    },
+    {
+      "year": 30,
+      "total": 27.01,
+      "currentLaw": 18.75,
+      "incomeTax": 5.22,
+      "capGainsTax": 2.17,
+      "payrollTax": 5.4,
+      "ssAboveCap": 1.21,
+      "vat": 7.47,
+      "fat": 0.87,
+      "lvt": 1.81,
+      "carbon": 0.17,
+      "smallerRentTaxes": 0.91,
+      "realization": 0.08,
+      "otherTax": 1,
+      "healthContribution": 3.3,
+      "healthConvertedWageTaxes": 1,
+      "healthStatePayments": 0.67,
+      "healthEmployerTransition": 0,
+      "rentTotal": 2.89,
+      "vatPlusFat": 8.33
+    }
+  ],
+  "ftt": {
+    "ratePct": 0.25,
+    "yr1RevB": 226,
+    "volumeRetention": 0.572,
+    "peakRatePct": 0.448,
+    "peakRevB": 260
+  },
+  "smallRentTaxesYr1B": {
+    "fsl": 47,
+    "ftt": 226,
+    "royalty": 10,
+    "spectrum": 7,
+    "water": 2.52,
+    "methane": 0.77,
+    "pollutionByYear": {
+      "1": 67,
+      "10": 36,
+      "20": 18,
+      "30": 9
+    },
+    "pollutionY1PctGdp": 0.21
+  },
+  "interest": {
+    "byYear": {
+      "1": 9.6,
+      "2": 9.8,
+      "3": 9.8,
+      "4": 9.6,
+      "5": 9.5,
+      "6": 9.3,
+      "7": 9.1,
+      "8": 8.9,
+      "9": 8.7,
+      "10": 8.6,
+      "11": 8.4,
+      "12": 8.2
+    },
+    "maxThrough35": 9.8,
+    "y20": 7,
+    "y35": 5.8,
+    "clY35": 24,
+    "brakeActiveYears": [],
+    "maxThrough75": 9.8
+  },
+  "debt": {
+    "fallsEveryYear1to35": true,
+    "fallsEveryYear1to75": false,
+    "peakThrough75": 97.8,
+    "grossRealMinT": 30.8,
+    "grossRealMaxT": 60.5,
+    "netFinancialAssetsY75PctGdp": -12.2,
+    "netSovPosY35PctGdp": 18.6,
+    "clDeficitRange1to35": [
+      5.3,
+      6.7
+    ]
+  },
+  "milestones": {
+    "fiscalGoalYear": 1,
+    "ssDepletionYear": null,
+    "ssBackstopStartYear": 46,
+    "fiscalCrossoverYear": null,
+    "interestThresholdYear": 1,
+    "debtPeakYear": 75,
+    "netCreditorYear": null,
+    "amcfSelfFundingYear": 1,
+    "solvencyBrakeOffYear": 1,
+    "debtFreeYear": null,
+    "debtFloorYear": null
+  },
+  "stress": {
+    "recessionYear5": {
+      "fiscalGoalYear": 12,
+      "debtY35": 76.4,
+      "clDebtY35": 189.8,
+      "peakDebt": 103.4,
+      "interestAtOrAbove10Years": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "maxIntToRev": 10.5
+    },
+    "recessionYear12": {
+      "fiscalGoalYear": 18,
+      "debtY35": 73.2,
+      "clDebtY35": 169.8,
+      "peakDebt": 97.8,
+      "interestAtOrAbove10Years": [],
+      "maxIntToRev": 9.8
+    },
+    "lowGrowth": {
+      "fiscalGoalYear": 1,
+      "debtY35": 68.9,
+      "clDebtY35": 114.6,
+      "peakDebt": 98.3,
+      "interestAtOrAbove10Years": [],
+      "maxIntToRev": 9.9
+    }
+  },
+  "grants": {
+    "perPersonReal": {
+      "1": 1119,
+      "5": 1249,
+      "10": 1312,
+      "20": 1450,
+      "30": 1601,
+      "40": 1830,
+      "50": 3108,
+      "60": 4627
+    },
+    "noImmigration": {
+      "10": 1241,
+      "30": 1405,
+      "60": 3114
+    },
+    "reachesPathYear": 4,
+    "abovePathYear": 40
+  },
+  "population": {
+    "1": 346,
+    "30": 539,
+    "60": 830,
+    "75": 1021
+  },
+  "amcfOwnershipPct": {
+    "1": 1,
+    "5": 5,
+    "7": 7.1,
+    "10": 10.1,
+    "20": 17.6,
+    "30": 19.7,
+    "50": 20.8,
+    "75": 21
+  },
+  "gdpVsCurrentLawPct": {
+    "1": 1.2,
+    "5": 6.3,
+    "10": 15.4,
+    "35": 68.3
+  }
+}

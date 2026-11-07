@@ -73,7 +73,8 @@ const accountAt = (birth, age) => { let b = 0; for (let a = 1; a <= age; a++) { 
 const out = {
   generated: new Date().toISOString().slice(0, 10),
   defaults: {
-    incomeTax: { zeroUpTo: p.incomeTaxThreshold, topRate: p.incomeTaxHigh, topRateFrom: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape },
+    incomeTax: { minimumRate: Math.max(p.incomeTaxLow, p.incomeTaxFloorRate ?? 0), riseFrom: p.incomeTaxThreshold, topRate: p.incomeTaxHigh, topRateFrom: p.incomeTaxRiseEnd, riseShape: p.incomeTaxRiseShape },
+    healthContributionRate: p.healthContributionRate, healthContribExempt: p.healthContribExempt, healthPaymentLevel: p.healthPaymentLevel,
     vatRate: p.vatRate, lvtRate: p.lvtRate, carbonRate: p.carbonRate, prebatePerCapita: p.prebatePerCapita, prebateIndex: p.prebateIndex,
     citizenFloorIndex: p.citizenFloorIndex, growthTaxRate: p.growthTaxRate, equityExciseRate: p.equityExciseRate,
     carbonDividendYear1: Math.round(F.carbonDividendPerCapita(p.carbonRate)),

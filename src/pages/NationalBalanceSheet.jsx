@@ -112,9 +112,10 @@ const PARAM_SECTIONS = [
   {
     title: "Income Tax",
     open: false,
-    note: "The starting rate applies up to the income where the rate starts rising; the rate then rises smoothly to the top rate. Setting the top-rate income at or below the start gives a two-rate tax. Thresholds rise with average wages. A standard deduction, if set, comes off the bottom. The ETI damps the base of filers above $200K as their rates rise: 0.15 ≈ Accord (loopholes closed), 0.30 ≈ conventional.",
+    note: "The starting rate applies up to the income where the rate starts rising; the rate then rises smoothly to the top rate. The minimum rate, if set, applies to all income and no bracket falls below it. Setting the top-rate income at or below the start gives a two-rate tax. Thresholds rise with average wages. A standard deduction, if set, comes off the bottom. The ETI damps the base of filers above $200K as their rates rise: 0.15 ≈ Accord (loopholes closed), 0.30 ≈ conventional.",
     params: [
       { key: "incomeTaxLow",          label: "Starting Rate",          min: 0, max: 0.40, step: 0.01, fmt: P0 },
+      { key: "incomeTaxFloorRate",    label: "Minimum Rate (all income)", min: 0, max: 0.10, step: 0.005, fmt: v => `${(v*100).toFixed(1)}%` },
       { key: "incomeTaxThreshold",    label: "Rate Starts Rising At",  min: 10000, max: 1000000, step: 1000, fmt: v => `$${(v/1000).toFixed(0)}K` },
       { key: "incomeTaxRiseEnd",      label: "Top Rate Reached At",    min: 10000, max: 5000000, step: 1000, fmt: v => `$${(v/1000).toFixed(0)}K` },
       { key: "incomeTaxRiseShape",    label: "Rise Shape (>1 rises late)", min: 0.3, max: 3, step: 0.01, fmt: v => v.toFixed(2) },

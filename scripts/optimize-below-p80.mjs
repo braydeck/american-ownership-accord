@@ -34,8 +34,31 @@ const LONGRUN_GUARD = !!process.env.LONGRUN_GUARD;
 // Hold prebate indexing at the default rule (Brayden, 2026-10-25: 0.75 rising to 1 between 60% and
 // 25% debt) instead of searching it.
 const FIX_PREBATE_INDEX = process.env.FIX_PREBATE_INDEX != null ? Number(process.env.FIX_PREBATE_INDEX) : null;
+// Hold the health contribution's per-filer exemption fixed (Brayden, 2026-11-06: keep $8,000) instead of searching it.
+const FIX_HEALTH_EXEMPT = process.env.FIX_HEALTH_EXEMPT != null ? Number(process.env.FIX_HEALTH_EXEMPT) : null;
+// Healthcare Supplement (2026-10-28): HEALTH_PAYMENT=<payment level key in health.js> searches the
+// dedicated health contribution as one more lever (it may go to 0) at that provider payment level.
+// Starts are the SEEDS and named designs only, each raised to the lowest contribution (1-pt steps)
+// at which it passes, since no pre-Supplement design covers the Health Fund unchanged.
+const HEALTH_PAYMENT = process.env.HEALTH_PAYMENT ?? null;
+// HEALTH_RATE_MAX caps the dedicated contribution (0 = the Fund is paid from the income tax, VAT,
+// LVT and carbon mix alone). The contribution's income exemption per filer is searched with it.
+const HEALTH_RATE_MAX = Number(process.env.HEALTH_RATE_MAX ?? 0.25);
+// BOTTOM_HALF_GUARD (Brayden, 2026-10-30): B10-P40 do no worse in any year 1-35 than under the
+// pre-Supplement default, counting coverage gained by the previously uninsured as income.
+const BOTTOM_HALF_GUARD = !!process.env.BOTTOM_HALF_GUARD;
+const BOTTOM_HALF = ['B10', 'P10', 'P20', 'P30', 'P40'];
+// OBJECTIVE=bottomHalf climbs on the bottom half's (B10-P40) average income gain, Years 1-30, in place
+// of the average for all eight groups below P80; every condition is unchanged.
+const OBJECTIVE = process.env.OBJECTIVE ?? 'below80';
+const climbScore = s => OBJECTIVE === 'bottomHalf' ? s.bottomHalfAvg1to30 : s.objective;
+// ZERO_SHAPE_MAX widens how late the zero-start curve may bend (default 3).
+const ZERO_SHAPE_MAX = Number(process.env.ZERO_SHAPE_MAX ?? 3);
+// FTT_MAX caps the FTT rate in percent (Brayden, 2026-11-05: 0.25%, where the volume response is
+// best measured; starts above it are lowered to it).
+const FTT_MAX = Number(process.env.FTT_MAX ?? 0.5);
 const { makeRng } = await server.ssrLoadModule('/src/lib/prng.js');
-const { stableRentRevYr1, RENT_TAX_DEFAULTS, YR1_NOM_GDP } = await server.ssrLoadModule('/src/lib/rent-taxes.js');
+const { stableRentFrac, RENT_TAX_DEFAULTS } = await server.ssrLoadModule('/src/lib/rent-taxes.js');
 const B = JSON.parse(readFileSync('src/data/design-search.json', 'utf8'));
 const C = JSON.parse(readFileSync('src/data/curve-search.json', 'utf8'));
 const Z = JSON.parse(readFileSync('src/data/zero-curve-search.json', 'utf8'));
@@ -56,13 +79,13 @@ const YEARS = Array.from({ length: 35 }, (_, i) => i + 1);
 const avg = a => a.reduce((s, x) => s + x, 0) / a.length;
 const BOUNDS = {
   low: [0.10, 0.25], top: [0.40, 0.62], threshold: [100e3, 400e3], start: [100e3, 300e3], endRatio: [MIN_RISE, 10], shape: [0.33, 1.5],
-  baseRate: [0, 0.08], zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, 3],
-  exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [LVT_MIN, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, 0.5],
+  baseRate: [0, 0.08], zeroEnd: [15e3, 150e3], zeroEndRatio: [3, 60], zeroShape: [0.5, ZERO_SHAPE_MAX],
+  healthRate: [0, HEALTH_RATE_MAX], healthExempt: [0, 80e3], exemptJoint: [30e3, 80e3], vatRate: [0, 0.15], lvtRate: [LVT_MIN, 0.15], carbonRate: [0, 190], prebate: [3000, 10000], fttPct: [0, FTT_MAX],
 };
 const LOG = new Set(['threshold', 'start', 'endRatio', 'shape', 'zeroEnd', 'zeroEndRatio', 'zeroShape']);
 const INDEX = { prebateIndex: E.PREBATE_INDEX_OPTIONS, floorIndex: E.FLOOR_INDEX_OPTIONS };
 const keysFor = fam => [...(fam === 'two' ? ['low', 'top', 'threshold'] : fam === 'zero' ? ['top', 'baseRate', 'zeroEnd', 'zeroEndRatio', 'zeroShape']
-  : ['low', 'top', 'start', 'endRatio', 'shape']), ...(fam === 'zero' ? [] : ['exemptJoint']), 'vatRate', 'lvtRate', 'carbonRate', 'prebate', 'fttPct', ...(FIX_PREBATE_INDEX != null ? [] : ['prebateIndex']), 'floorIndex'];
+  : ['low', 'top', 'start', 'endRatio', 'shape']), ...(fam === 'zero' ? [] : ['exemptJoint']), 'vatRate', 'lvtRate', 'carbonRate', 'prebate', 'fttPct', ...(FIX_PREBATE_INDEX != null ? [] : ['prebateIndex']), 'floorIndex', ...(HEALTH_PAYMENT && HEALTH_RATE_MAX > 0 ? ['healthRate', ...(FIX_HEALTH_EXEMPT != null ? [] : ['healthExempt'])] : [])];
 
 function schedule(x) {
   if (x.fam === 'two') return [[x.threshold, x.low], [Infinity, x.top]];
@@ -74,10 +97,12 @@ function schedule(x) {
 function toDesign(x) {
   const b = schedule(x);
   return {
-    incomeTaxBrackets: b, incomeTaxLow: b[0][1], incomeTaxHigh: b[b.length - 1][1], incomeTaxThreshold: b[b.length - 2][0],
+    // The schedule carries its own base rate, so the engine default's minimum rate is cleared.
+    incomeTaxBrackets: b, incomeTaxFloorRate: 0, incomeTaxLow: b[0][1], incomeTaxHigh: b[b.length - 1][1], incomeTaxThreshold: b[b.length - 2][0],
     incomeTaxExemptJoint: x.exemptJoint, incomeTaxExemptSingle: x.exemptJoint / 2, vatRate: x.vatRate, lvtRate: x.lvtRate,
     carbonRate: x.carbonRate, prebatePerCapita: x.prebate, prebateIndex: FIX_PREBATE_INDEX ?? x.prebateIndex, citizenFloorIndex: x.floorIndex,
-    fttPct: x.fttPct, stableTaxFrac: stableRentRevYr1({ ...RENT_TAX_DEFAULTS, fttPct: x.fttPct }) / YR1_NOM_GDP,
+    fttPct: x.fttPct, stableTaxFrac: stableRentFrac({ ...RENT_TAX_DEFAULTS, fttPct: x.fttPct }),
+    ...(HEALTH_PAYMENT ? { healthContributionRate: Math.min(HEALTH_RATE_MAX, x.healthRate ?? 0), healthContribExempt: FIX_HEALTH_EXEMPT ?? x.healthExempt ?? 0, healthPaymentLevel: HEALTH_PAYMENT } : {}),
   };
 }
 function fromRecord(d) {
@@ -90,8 +115,110 @@ function fromRecord(d) {
   return { fam: 'two', ...shared, low: d.brackets[0][1], top: d.brackets[1][1], threshold: d.brackets[0][0] };
 }
 
+// GOAL=debt (Brayden, 2026-10-28): the primary goal is debt held at 20-30% of GDP, sustainably, with
+// the bottom 80% ahead. A design passes when debt is at or below DEBT_MAX by Year 35 and through
+// Year 75 in the base case, and by Year 35 after a Year-5 or Year-12 recession and under low growth,
+// with the bottom 80% ahead in each. P80 may be behind by up to P80_TOLERANCE (default $1,000).
+// The fiscal-goal and net-creditor years are reported, not required.
+// GOAL=trajectory (Brayden, 2026-10-30): judged on Years 1-35 only, on trajectory and interest; the
+// 30% debt level is a direction, not a test (2026-11-02). Every case (normal, Year-5 and Year-12
+// recessions, low growth): debt lower at
+// Year 35 than Year 10, Year-35 debt no more than DRIFT_MAX points above its Year 20-35 low, net
+// interest under 10% of revenue in Years 26-35, and real net interest under
+// INT_GDP_MAX % of GDP from Year 20 (Furman and Summers 2020; real = net interest less inflation
+// times the year-start debt, Brayden 2026-11-02). Fiscal room beyond these goes to household gains.
+const GOAL_TRAJ = process.env.GOAL === 'trajectory';
+// Interest may top 10% of revenue during a shock; the end state counts (Brayden, 2026-11-02): it
+// must be under 10% in each of the last INT_REV_END_YEARS years of the window.
+// DEBT_TARGET: optional normal-growth Year-35 debt ceiling, for tracing gains against debt.
+const DEBT_TARGET = +(process.env.DEBT_TARGET ?? 0);
+const DRIFT_MAX = 3, INT_REV_END_YEARS = 10, INT_GDP_MAX = 2;
+const realInterestGdp = rows => rows.map((r, i) => i === 0 ? r.interest / r.nominalGdp * 100
+  : (r.interest - (r.priceLevel / rows[i - 1].priceLevel - 1) * rows[i - 1].grossDebt) / r.nominalGdp * 100);
+function trajMiss(des) {
+  let miss = 0;
+  const cases = [{}, ...STRESS_CASES].map(d => {
+    const rows = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des, ...d }, 35).rows;
+    const d35 = rows[34].debtToGdp;
+    if (DEBT_TARGET && !Object.keys(d).length) miss += Math.max(0, d35 - DEBT_TARGET);
+    miss += Math.max(0, d35 - rows[9].debtToGdp + 0.1);
+    miss += Math.max(0, d35 - Math.min(...rows.slice(19).map(r => r.debtToGdp)) - DRIFT_MAX);
+    miss += rows.slice(35 - INT_REV_END_YEARS).filter(r => r.intToRev >= 10).length;
+    // Interest's share of revenue keeps falling (Brayden, 2026-11-03): Year 35 below Years 10 and 20.
+    miss += Math.max(0, rows[34].intToRev - rows[9].intToRev + 0.1) + Math.max(0, rows[34].intToRev - rows[19].intToRev + 0.1);
+    miss += realInterestGdp(rows).slice(19).reduce((t, v) => t + Math.max(0, v - INT_GDP_MAX), 0);
+    const pass = Object.keys(d).length ? E.evaluate({ ...des, ...d }).bottom80Pass : true;
+    if (!pass) miss += 10;
+    return { d35, maxIntOutlays: Math.max(...rows.map(r => r.interest / r.totalOutlays * 100)), intOutlays35: rows[34].interest / rows[34].totalOutlays * 100, intGdp35: rows[34].interest / rows[34].nominalGdp * 100, realIntGdpMax20: Math.max(...realInterestGdp(rows).slice(19)) };
+  });
+  return { miss, cases };
+}
+const GOAL_DEBT = process.env.GOAL === 'debt' || GOAL_TRAJ;
+const DEBT_MAX = 30;
+const P80_TOLERANCE = Number(process.env.P80_TOLERANCE ?? 1000);
+const STRESS = [{ recessionYear: 5 }, { recessionYear: 12 }, { growthCase: 'low' }];
+const STRESS_CASES = STRESS;
+const PRE_SUPPLEMENT = BOTTOM_HALF_GUARD ? E.gainsTable({ healthSupplementOn: false }, BOTTOM_HALF, YEARS) : null;
+// Largest shortfall of B10-P40 against the pre-Supplement default in any year, and its average.
+function bottomHalfShort(g) {
+  if (!PRE_SUPPLEMENT) return { max: 0, mean: 0 };
+  const s = BOTTOM_HALF.flatMap(k => g[k].map((v, i) => Math.max(0, PRE_SUPPLEMENT[k][i].income - v.income)));
+  return { max: Math.max(...s), mean: avg(s) };
+}
+const debtAt = (des, years) => F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, years).rows;
+function debtMiss(des) {
+  const lr = debtAt(des, 75);
+  let miss = Math.max(0, lr[34].debtToGdp - DEBT_MAX) + Math.max(0, Math.max(...lr.slice(34).map(r => r.debtToGdp)) - DEBT_MAX)
+    + lr.slice(34).filter(r => r.intToRev >= 10).length;
+  const stress = STRESS.map(d => ({ d35: debtAt({ ...des, ...d }, 35)[34].debtToGdp, pass: E.evaluate({ ...des, ...d }).bottom80Pass }));
+  for (const t of stress) miss += Math.max(0, t.d35 - DEBT_MAX) + (t.pass ? 0 : 10);
+  return { miss, lr, stress };
+}
+function scoreDebtGoal(x) {
+  const des = toDesign(x);
+  const r = E.evaluate(des);
+  if (!(r.bottom80Pass && r.minIncomeGain >= 1000 && r.minNwGain >= 1000)) return null;
+  const g = E.gainsTable(des, [...BELOW, 'P80'], YEARS);
+  const p80IncMin = Math.min(...g.P80.map(v => v.income));
+  const p80NwMin = Math.min(...g.P80.slice(RECOVER_BY - 1).map(v => v.netWorth));
+  if (p80IncMin < -P80_TOLERANCE || p80NwMin < -P80_TOLERANCE) return null;
+  if (bottomHalfShort(g).max > 0) return null;
+  if (GOAL_TRAJ) {
+    const t = trajMiss(des);
+    if (t.miss > 0) return null;
+    const below = BELOW.map(k => g[k].map(v => v.income));
+    return {
+      objective: Math.round(avg(below.map(s => avg(s.slice(0, 30))))),
+      belowAvg1to10: Math.round(avg(below.map(s => avg(s.slice(0, 10))))),
+      bottomHalfAvg1to30: Math.round(avg(below.slice(0, 5).map(s => avg(s.slice(0, 30))))),
+      byGroupAvg1to30: Object.fromEntries(BELOW.map((k, i) => [k, Math.round(avg(below[i].slice(0, 30)))])),
+      p80MinIncome: Math.round(p80IncMin), p80MinNetWorth: Math.round(p80NwMin), p80NeverBehind: true,
+      bottomHalfVsPreSupplementMin: PRE_SUPPLEMENT ? Math.round(Math.min(...BOTTOM_HALF.flatMap(k => g[k].map((v, i) => v.income - PRE_SUPPLEMENT[k][i].income)))) : null,
+      cases: Object.fromEntries(['base', 'rec5', 'rec12', 'low'].map((n, i) => [n, Object.fromEntries(Object.entries(t.cases[i]).map(([k, v]) => [k, +v.toFixed(1)]))])),
+      incomeGiniY30: r.incomeGiniY30, nwGiniY30: r.nwGiniY30, laborLevelY10: r.laborLevelY10,
+    };
+  }
+  const { miss, lr, stress } = debtMiss(des);
+  if (miss > 0) return null;
+  const below = BELOW.map(k => g[k].map(v => v.income));
+  const m = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, 75).milestones;
+  return {
+    objective: Math.round(avg(below.map(s => avg(s.slice(0, 30))))),
+    belowAvg1to10: Math.round(avg(below.map(s => avg(s.slice(0, 10))))),
+    bottomHalfAvg1to30: Math.round(avg(below.slice(0, 5).map(s => avg(s.slice(0, 30))))),
+    byGroupAvg1to30: Object.fromEntries(BELOW.map((k, i) => [k, Math.round(avg(below[i].slice(0, 30)))])),
+    p80MinIncome: Math.round(p80IncMin), p80MinNetWorth: Math.round(p80NwMin), p80NeverBehind: true,
+    p80AvgIncome1to10: Math.round(avg(g.P80.slice(0, 10).map(v => v.income))),
+    bottomHalfVsPreSupplementMin: PRE_SUPPLEMENT ? Math.round(Math.min(...BOTTOM_HALF.flatMap(k => g[k].map((v, i) => v.income - PRE_SUPPLEMENT[k][i].income)))) : null,
+    debtPath: [10, 20, 30, 35, 50, 75].map(y => [y, lr[y - 1].debtToGdp]), stressDebt35: stress.map(t => t.d35),
+    fiscalGoalYear: r.fiscalGoalYear, netCreditorYear: m.netCreditorYear, debtFloorYear: m.debtFloorYear,
+    incomeGiniY30: r.incomeGiniY30, nwGiniY30: r.nwGiniY30, laborLevelY10: r.laborLevelY10,
+  };
+}
+
 // null when the design fails a condition; otherwise its scores.
 function score(x) {
+  if (GOAL_DEBT) return scoreDebtGoal(x);
   const des = toDesign(x);
   const r = E.evaluate(des);
   if (!(r.bottom80Pass && r.fiscalGoalYear != null && r.fiscalGoalYear <= 10 && r.minIncomeGain >= 1000 && r.minNwGain >= 1000)) return null;
@@ -139,6 +266,8 @@ function mutate(x) {
     if (LOG.has(k)) y[k] = Math.min(b, Math.max(a, y[k] * Math.exp(0.15 * normal())));
     else y[k] = Math.min(b, Math.max(a, y[k] + 0.08 * (b - a) * normal()));
   }
+  if (y.healthRate != null) y.healthRate = +y.healthRate.toFixed(4);
+  if (y.healthExempt != null) y.healthExempt = Math.round(y.healthExempt / 1000) * 1000;
   if (y.baseRate != null) y.baseRate = +y.baseRate.toFixed(3);
   if (y.zeroEnd) { y.zeroEnd = Math.round(y.zeroEnd / 1e3) * 1e3; y.zeroShape = +y.zeroShape.toFixed(3); y.zeroEndRatio = +y.zeroEndRatio.toFixed(3); }
   y.low = +y.low.toFixed(4); y.top = +y.top.toFixed(4); y.vatRate = +y.vatRate.toFixed(4); y.lvtRate = +y.lvtRate.toFixed(4); y.fttPct = +y.fttPct.toFixed(3);
@@ -150,14 +279,60 @@ function mutate(x) {
 }
 
 const better = (s, c) => s.p80NeverBehind && !c.p80NeverBehind ? true
-  : s.p80NeverBehind && c.p80NeverBehind ? s.objective > c.objective
+  : s.p80NeverBehind && c.p80NeverBehind ? climbScore(s) > climbScore(c)
   : !s.p80NeverBehind && !c.p80NeverBehind ? s.p80MinNetWorth > c.p80MinNetWorth : false;
 
 // Starts per family: the 5 robust designs with the highest P80 net-worth floor and the 3 with the
 // largest gain below P80, plus the named designs (4148, 1976, 14007, 13610, 21877) when their family runs.
 const pool = [...[...B.passing, ...C.passing, ...Z.passing].filter(d => d.robust).map(d => fromRecord(d)).filter(Boolean), ...SEEDS]
-  .filter(x => FAMS.includes(x.fam)).map(x => ({ ...x, lvtRate: Math.max(x.lvtRate, LVT_MIN), ...(x.endRatio ? { endRatio: Math.max(x.endRatio, MIN_RISE) } : {}) }));
-const scored = pool.map(x => ({ x, s: score(x) })).filter(o => o.s);
+  .filter(x => FAMS.includes(x.fam)).map(x => ({ ...x, lvtRate: Math.max(x.lvtRate, LVT_MIN), fttPct: Math.min(x.fttPct, FTT_MAX), ...(x.endRatio ? { endRatio: Math.max(x.endRatio, MIN_RISE) } : {}) }));
+const NAMED_IDS = [4148, 1976, 14007, 13610, 21877];
+function withLowestPassingRate(x) {
+  for (let r = 0; r <= HEALTH_RATE_MAX + 1e-9; r += 0.01) {
+    const y = { ...x, healthRate: +r.toFixed(2) }, s = score(y);
+    if (s) return { x: y, s };
+  }
+  return { x, s: null };
+}
+// When no contribution rate alone makes a start pass, climb on how far it misses the conditions
+// (fiscal goal by Year 10, bottom 80% and P80 ahead on income) until it passes or iterations run out.
+function violation(x) {
+  const des = toDesign(x), r = E.evaluate(des);
+  const p80g = E.gainsTable(des, ['P80'], YEARS).P80;
+  const p80 = Math.min(...p80g.map(v => v.income));
+  if (GOAL_DEBT) {
+    const bh = bottomHalfShort(E.gainsTable(des, BOTTOM_HALF, YEARS));
+    const p80Nw = Math.min(...p80g.slice(RECOVER_BY - 1).map(v => v.netWorth));
+    const dist = Math.max(0, 1000 - r.minIncomeGain) / 2000 + Math.max(0, 1000 - r.minNwGain) / 2000 + Math.max(0, -P80_TOLERANCE - p80) / 2000
+      + Math.max(0, -P80_TOLERANCE - p80Nw) / 2000
+      + (bh.max + 10 * bh.mean) / 2000;
+    return dist > 0 ? dist + 50 : (GOAL_TRAJ ? trajMiss(des) : debtMiss(des)).miss / 10;
+  }
+  const miss = (e, by) => e.fiscalGoalYear == null ? 30 + e.debtToGdpY30 / 10 : Math.max(0, e.fiscalGoalYear - by);
+  const base = miss(r, 10) + Math.max(0, 1000 - r.minIncomeGain) / 2000 + Math.max(0, 1000 - r.minNwGain) / 2000 + Math.max(0, -p80) / 2000;
+  if (base > 0 || process.env.REPAIR_STRESS == null) return base;
+  // Stress conditions, once the base case passes: recessions, low growth, and the long-run debt path.
+  const shocks = [[{ recessionYear: 5 }, 16], [{ recessionYear: 12 }, 22], [{ growthCase: 'low' }, 20]]
+    .reduce((t, [d, by]) => { const e = E.evaluate({ ...des, ...d }); return t + miss(e, by) + (e.bottom80Pass ? 0 : 5); }, 0);
+  const debt35 = F.runFiscalSimulation({ ...F.BASE_PARAMS, ...des }, 35).rows[34].debtToGdp;
+  return shocks + Math.max(0, debt35 - 25) / 5;
+}
+function repair(x) {
+  let cur = { x, v: violation(x) };
+  for (let i = 0; i < ITERS && cur.v > 0; i++) {
+    const y = mutate(cur.x);
+    if (y === cur.x) continue;
+    const v = violation(y);
+    if (v < cur.v) { cur = { x: y, v }; console.log(`repair ${x.from} ${i}: violation ${v.toFixed(2)} health ${y.healthRate}`); }
+  }
+  const s = cur.v === 0 ? score(cur.x) : null;
+  return { x: cur.x, s, v: cur.v };
+}
+const healthStarts = HEALTH_PAYMENT ? pool.filter(x => SEEDS.some(sd => sd.from === x.from) || NAMED_IDS.includes(x.from)) : [];
+const scored = HEALTH_PAYMENT
+  ? healthStarts.map(withLowestPassingRate).map((o, i) => o.s ? o : repair({ ...healthStarts[i], healthRate: Math.min(HEALTH_RATE_MAX, healthStarts[i].healthRate ?? 0.12), healthExempt: healthStarts[i].healthExempt ?? 0 }))
+    .map(o => { if (!o.s) console.log(`no passing design from ${o.x.from}: violation ${o.v?.toFixed(2)} ${JSON.stringify(o.x)}`); return o; }).filter(o => o.s)
+  : pool.map(x => ({ x, s: score(x) })).filter(o => o.s);
 const starts = [];
 for (const fam of FAMS) {
   const f = scored.filter(o => o.x.fam === fam);
@@ -165,7 +340,7 @@ for (const fam of FAMS) {
     if (!starts.includes(o)) starts.push(o);
 }
 const NAMED_STARTS = [...(FAMS.includes('two') ? [4148, 1976, 14007] : []), ...(FAMS.includes('curve') ? [13610] : []), ...(FAMS.includes('zero') ? [21877] : [])];
-for (const sd of SEEDS) { const o = scored.find(o => o.x === pool.find(p => p.from === sd.from && p.zeroEnd === sd.zeroEnd && p.top === sd.top)); if (o && !starts.includes(o)) starts.push(o); }
+for (const sd of SEEDS) { const o = scored.find(o => o.x.from === sd.from && o.x.zeroEnd === sd.zeroEnd && o.x.top === sd.top); if (o && !starts.includes(o)) starts.push(o); }
 for (const id of NAMED_STARTS) if (!starts.some(o => o.x.from === id)) { const o = scored.find(o => o.x.from === id); if (o) starts.push(o); }
 console.log(`robust designs ${pool.length}, meet P80 condition ${scored.length}, starts ${starts.length}`);
 
@@ -179,9 +354,9 @@ for (const st of starts.filter((_, i) => i % SHARDS === SHARD)) {
     if (s && better(s, cur.s)) cur = { x, s };
   }
   results.push({ start: st.x.from, startObjective: st.s.objective, ...cur.x, brackets: schedule(cur.x).map(([t, r]) => [t === Infinity ? null : Math.round(t), r]), ...cur.s });
-  console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
+  console.log(`from ${st.x.from} (${st.x.fam}): ${st.s.objective} → ${cur.s.objective} | P80 min inc ${cur.s.p80MinIncome} nw ${cur.s.p80MinNetWorth} | goal ${cur.s.fiscalGoalYear} | health ${cur.x.healthRate ?? '-'} | Gini ${cur.s.incomeGiniY30} ${cur.s.nwGiniY30}`);
 }
-results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? b.objective - a.objective : b.p80MinNetWorth - a.p80MinNetWorth));
-writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${LONGRUN_GUARD ? '-guard' : ''}${FIX_PREBATE_INDEX != null ? `-pi${FIX_PREBATE_INDEX}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
+results.sort((a, b) => (b.p80NeverBehind - a.p80NeverBehind) || (b.p80NeverBehind ? climbScore(b) - climbScore(a) : b.p80MinNetWorth - a.p80MinNetWorth));
+writeFileSync(`scripts/output/optimize-below-p80${NW_FLOOR ? `-${-NW_FLOOR}` : ''}${RECOVER_BY > 1 ? `-recover${RECOVER_BY}` : ''}${process.argv[6] ? `-${FAMS.join('-')}` : ''}${LVT_MIN ? `-lvt${Math.round(LVT_MIN * 100)}` : ''}${MIN_RISE > 1.2 ? `-rise${MIN_RISE}` : ''}${NET_CREDITOR_BY ? `-nc${NET_CREDITOR_BY}` : ''}${LONGRUN_GUARD ? '-guard' : ''}${FIX_PREBATE_INDEX != null ? `-pi${FIX_PREBATE_INDEX}` : ''}${FIX_HEALTH_EXEMPT != null ? `-hx${FIX_HEALTH_EXEMPT}` : ''}${HEALTH_PAYMENT ? `-health-${HEALTH_PAYMENT}` : ''}${GOAL_TRAJ ? `-trajectory${DEBT_TARGET ? `-debt${DEBT_TARGET}` : ''}` : GOAL_DEBT ? '-debtgoal' : ''}${HEALTH_RATE_MAX < 0.25 ? `-rate${HEALTH_RATE_MAX}` : ''}${BOTTOM_HALF_GUARD ? '-bhguard' : ''}${P80_TOLERANCE !== 1000 ? `-p80tol${P80_TOLERANCE}` : ''}${OBJECTIVE !== 'below80' ? `-obj${OBJECTIVE}` : ''}${ZERO_SHAPE_MAX !== 3 ? `-zshape${ZERO_SHAPE_MAX}` : ''}${FTT_MAX !== 0.5 ? `-ftt${FTT_MAX}` : ''}${SHARDS > 1 ? `-${SHARD}` : ''}.json`, JSON.stringify(results, null, 1));
 for (const r of results.slice(0, 6)) console.log(JSON.stringify(r));
 await server.close();

@@ -1,0 +1,281 @@
+{
+  "generated": "2026-11-07",
+  "settings": {
+    "contributionRate": 0.0804,
+    "contributionExemptPerFiler": 8000,
+    "paymentLevel": "rate150-narrow",
+    "paymentLevelCut": 1.46,
+    "adminSaving": 0.38,
+    "capCutPerYear": 0.006,
+    "capScope": 0.81,
+    "costSharing": "copays"
+  },
+  "newlyCoveredLawfulResidents": 20090000,
+  "fiscal": [
+    {
+      "year": 1,
+      "fundSpend": 9.94,
+      "netOutlays": 7.66,
+      "contribution": 3.3,
+      "convertedWageTaxes": 0.57,
+      "stateClawback": 1.05,
+      "employerTransition": 1.82,
+      "paymentSavings": 0,
+      "adminSavings": 0,
+      "medicareSavings": 0,
+      "immigrantCoverage": 0.12,
+      "healthcareReserve": 0,
+      "healthcareReserveRealB": 1,
+      "nhePctGdpCurrentLaw": 18.56,
+      "nhePctGdpAccord": 18.56
+    },
+    {
+      "year": 2,
+      "fundSpend": 9.9,
+      "netOutlays": 7.72,
+      "contribution": 3.3,
+      "convertedWageTaxes": 1.14,
+      "stateClawback": 1.03,
+      "employerTransition": 0,
+      "paymentSavings": 0.05,
+      "adminSavings": 0.01,
+      "medicareSavings": 0.02,
+      "immigrantCoverage": 0.24,
+      "healthcareReserve": 0.01,
+      "healthcareReserveRealB": 3,
+      "nhePctGdpCurrentLaw": 18.81,
+      "nhePctGdpAccord": 18.65
+    },
+    {
+      "year": 6,
+      "fundSpend": 9.69,
+      "netOutlays": 7.67,
+      "contribution": 3.3,
+      "convertedWageTaxes": 1.14,
+      "stateClawback": 0.93,
+      "employerTransition": 0,
+      "paymentSavings": 0.26,
+      "adminSavings": 0.07,
+      "medicareSavings": 0.08,
+      "immigrantCoverage": 0.71,
+      "healthcareReserve": 0.03,
+      "healthcareReserveRealB": 11,
+      "nhePctGdpCurrentLaw": 19.81,
+      "nhePctGdpAccord": 18.98
+    },
+    {
+      "year": 10,
+      "fundSpend": 9.37,
+      "netOutlays": 7.8,
+      "contribution": 3.3,
+      "convertedWageTaxes": 1.12,
+      "stateClawback": 0.82,
+      "employerTransition": 0,
+      "paymentSavings": 0.25,
+      "adminSavings": 0.07,
+      "medicareSavings": 0.15,
+      "immigrantCoverage": 1.19,
+      "healthcareReserve": 0.05,
+      "healthcareReserveRealB": 23,
+      "nhePctGdpCurrentLaw": 20.86,
+      "nhePctGdpAccord": 19.61
+    },
+    {
+      "year": 20,
+      "fundSpend": 8.56,
+      "netOutlays": 8.1,
+      "contribution": 3.3,
+      "convertedWageTaxes": 1.07,
+      "stateClawback": 0.75,
+      "employerTransition": 0,
+      "paymentSavings": 0.23,
+      "adminSavings": 0.06,
+      "medicareSavings": 0.32,
+      "immigrantCoverage": 2.35,
+      "healthcareReserve": 0.09,
+      "healthcareReserveRealB": 62,
+      "nhePctGdpCurrentLaw": 23.25,
+      "nhePctGdpAccord": 20.83
+    },
+    {
+      "year": 30,
+      "fundSpend": 7.57,
+      "netOutlays": 8.21,
+      "contribution": 3.3,
+      "convertedWageTaxes": 1,
+      "stateClawback": 0.67,
+      "employerTransition": 0,
+      "paymentSavings": 0.2,
+      "adminSavings": 0.05,
+      "medicareSavings": 0.45,
+      "immigrantCoverage": 3.38,
+      "healthcareReserve": 0.09,
+      "healthcareReserveRealB": 93,
+      "nhePctGdpCurrentLaw": 25.06,
+      "nhePctGdpAccord": 21.42
+    },
+    {
+      "year": 35,
+      "fundSpend": 7.07,
+      "netOutlays": 8.23,
+      "contribution": 3.3,
+      "convertedWageTaxes": 0.95,
+      "stateClawback": 0.62,
+      "employerTransition": 0,
+      "paymentSavings": 0.19,
+      "adminSavings": 0.05,
+      "medicareSavings": 0.48,
+      "immigrantCoverage": 3.83,
+      "healthcareReserve": 0.09,
+      "healthcareReserveRealB": 111,
+      "nhePctGdpCurrentLaw": 25.82,
+      "nhePctGdpAccord": 21.56
+    }
+  ],
+  "withoutSupplement": {
+    "debt35": {
+      "on": 49.9,
+      "off": 25
+    },
+    "intToRev35": {
+      "on": 5.8,
+      "off": 3.3
+    },
+    "bottomHalfAvgGain1to30": {
+      "on": 25662,
+      "off": 14129
+    },
+    "bottom80AvgGain1to30": {
+      "on": 27432,
+      "off": 15112
+    }
+  },
+  "households": {
+    "B10": {
+      "2": {
+        "newWages": 1789,
+        "premiumsAndCostSharingRemoved": 1246,
+        "contributionAndTaxes": 836,
+        "coverageValue": 1167,
+        "net": 3366
+      },
+      "10": {
+        "newWages": 2404,
+        "premiumsAndCostSharingRemoved": 1643,
+        "contributionAndTaxes": 856,
+        "coverageValue": 1509,
+        "net": 4701
+      }
+    },
+    "P20": {
+      "2": {
+        "newWages": 6802,
+        "premiumsAndCostSharingRemoved": 4112,
+        "contributionAndTaxes": 3865,
+        "coverageValue": 1297,
+        "net": 8346
+      },
+      "10": {
+        "newWages": 9141,
+        "premiumsAndCostSharingRemoved": 5487,
+        "contributionAndTaxes": 4413,
+        "coverageValue": 1676,
+        "net": 11891
+      }
+    },
+    "P40": {
+      "2": {
+        "newWages": 8005,
+        "premiumsAndCostSharingRemoved": 4644,
+        "contributionAndTaxes": 6089,
+        "coverageValue": 1220,
+        "net": 7780
+      },
+      "10": {
+        "newWages": 10757,
+        "premiumsAndCostSharingRemoved": 6200,
+        "contributionAndTaxes": 7003,
+        "coverageValue": 1578,
+        "net": 11532
+      }
+    },
+    "P50": {
+      "2": {
+        "newWages": 9283,
+        "premiumsAndCostSharingRemoved": 5068,
+        "contributionAndTaxes": 7589,
+        "coverageValue": 1013,
+        "net": 7775
+      },
+      "10": {
+        "newWages": 12475,
+        "premiumsAndCostSharingRemoved": 6768,
+        "contributionAndTaxes": 8829,
+        "coverageValue": 1310,
+        "net": 11723
+      }
+    },
+    "P70": {
+      "2": {
+        "newWages": 12072,
+        "premiumsAndCostSharingRemoved": 6039,
+        "contributionAndTaxes": 12047,
+        "coverageValue": 517,
+        "net": 6581
+      },
+      "10": {
+        "newWages": 16223,
+        "premiumsAndCostSharingRemoved": 8071,
+        "contributionAndTaxes": 14576,
+        "coverageValue": 669,
+        "net": 10387
+      }
+    },
+    "P80": {
+      "2": {
+        "newWages": 12431,
+        "premiumsAndCostSharingRemoved": 6283,
+        "contributionAndTaxes": 19686,
+        "coverageValue": 537,
+        "net": -436
+      },
+      "10": {
+        "newWages": 16705,
+        "premiumsAndCostSharingRemoved": 8397,
+        "contributionAndTaxes": 25130,
+        "coverageValue": 695,
+        "net": 666
+      }
+    },
+    "T10": {
+      "2": {
+        "newWages": 12790,
+        "premiumsAndCostSharingRemoved": 6509,
+        "contributionAndTaxes": 37518,
+        "coverageValue": 537,
+        "net": -17683
+      },
+      "10": {
+        "newWages": 17187,
+        "premiumsAndCostSharingRemoved": 8700,
+        "contributionAndTaxes": 49190,
+        "coverageValue": 695,
+        "net": -22608
+      }
+    }
+  },
+  "unsourced": [
+    "Copay design: share of package out-of-pocket the Fund absorbs (0.65)",
+    "Growth cap beyond five years: Maryland measured 2014-2018 only",
+    "Added residents' age mix (cost set at the under-65 average)",
+    "Excess cost growth path between 2034 (CMS 1.3 pp) and 2055 (CBO 0.6 pp): linear",
+    "Applying 2020 under-65 out-of-pocket shares to 2024",
+    "ESI family-policy share by bracket (rises with the joint-filer share)",
+    "Individual-market enrollment above 400% of poverty (0.4 of the subsidized rate)",
+    "Filer AGI standing in for family income when mapping KFF coverage rates by poverty level",
+    "Prime-age (25-54) share of wages, converting CEA's 0.3% of prime-age wages to GDP (0.65)",
+    "Induced rise in business formation outside the Medicare-at-65 group: half of Fairlie-Kapur-Gates (central)",
+    "Induced businesses become employers at the average rate",
+    "Unincorporated self-employment share of workers (6%), for the founder output loss"
+  ]
+}

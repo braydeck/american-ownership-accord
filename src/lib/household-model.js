@@ -5,11 +5,12 @@
 // (see use-fiscal-params.js); FISCAL_DEFAULTS is the engine default.
 // Design decisions: docs/engine-spec-2026-10-07.md.
 import { BRACKETS, CARBON_TONS } from '@/lib/brackets';
-import { lvtNetIncidenceArray, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
+import { lvtNetIncidenceArray, lvtIncidenceByBracket, PREBATE_BASE, PREBATE_REDIRECTED, EXEMPTION_AMOUNT } from '@/lib/land';
 import { DEMOS, DEMO_KEYS, POP, PROG_LOST, AMCF_LIQ_BASE, CL_ETR } from '@/lib/demographics';
 import { CL_SCHED, accordSchedule, accordScheduleTax, earnersPerFiler, SS_CAP_SNAPSHOT, SS_RATE } from '@/lib/income-tax';
 import { consumptionTaxCoverage, BASE_PARAMS, carbonDividendPerCapita, carbonDecayFactor, realGrantSeries, householdFiscalSeries } from '@/lib/fiscal-engine';
-import { psuDividendPerFiler, wefBalancePerFiler, sectoralBalancePerFiler, extraGrantsPerFiler } from '@/lib/worker-equity';
+import { psuDividendPerFiler, wefBalancePerFiler, wefAccrualPerFiler, sectoralBalancePerFiler, extraGrantsPerFiler } from '@/lib/worker-equity';
+import { costShareAbsorbed, clHealthIndex, healthCapFactor, convertedWagePerFiler, workerPremiumPerFiler, oopPerFiler, nongroupPremiumPerFiler, coverageValuePerFiler, FICA_RATE } from '@/lib/health';
 
 export const BASE_ONLY = new Set(['BASE']);
 
@@ -81,7 +82,7 @@ export function accordIncomeTax(income, hhSz, fx, y = 0) {
   const ded   = (jFrac * fx.incomeTaxExemptJoint + (1 - jFrac) * fx.incomeTaxExemptSingle) * w;
   const sched = accordSchedule({ brackets: fx.incomeTaxBrackets ?? undefined,
     lowRate: fx.incomeTaxLow, highRate: fx.incomeTaxHigh, threshold: fx.incomeTaxThreshold,
-    riseEnd: fx.incomeTaxRiseEnd, riseShape: fx.incomeTaxRiseShape })
+    riseEnd: fx.incomeTaxRiseEnd, riseShape: fx.incomeTaxRiseShape, floorRate: fx.incomeTaxFloorRate })
     .map(([hi, r]) => [hi * w, r]);
   return accordScheduleTax(income, ded, sched);
 }
@@ -101,9 +102,11 @@ export const taxAt = (k, y, fx = FISCAL_DEFAULTS, inc = incomeAt(k, y)) =>
   accordIncomeTax(inc, DEMOS[k].hhSz, fx, y) - clTaxAt(k, y);
 // Social Security contribution above the cap: 12.4% on all income above the per-worker cap,
 // with no benefit credit. The cap follows average wages (wageIndex).
-export function payrollFix(k, y, fx = FISCAL_DEFAULTS, inc = incomeAt(k, y)) {
+export const payrollFix = (k, y, fx = FISCAL_DEFAULTS, inc = incomeAt(k, y)) =>
+  payrollFixBi(DEMO_BRACKET[k], y, fx, inc);
+function payrollFixBi(bi, y, fx, inc) {
   if (fx.ssUncapOn === false) return 0;
-  const jFrac = BRACKETS[DEMO_BRACKET[k]].jFrac;
+  const jFrac = BRACKETS[bi].jFrac;
   const e = earnersPerFiler(jFrac);
   const cap = SS_CAP_SNAPSHOT * wageIndex(fx, y);
   return SS_RATE * Math.max(0, inc / e - cap) * e;
@@ -256,6 +259,94 @@ export function extraNetShare(k, y, P, fx = FISCAL_DEFAULTS) {
 export const psuIncomeTax = extraIncomeTax;
 export const psuNetShare = extraNetShare;
 
+// ─── HEALTHCARE SUPPLEMENT ───────────────────────────────────────────────────
+// Per household, Year-0 dollars, at the persona's income bracket (health.js). Current law: the
+// employer's premium contribution (hidden compensation), the worker's premium, individual-market
+// premiums and out-of-pocket costs, growing with wages and current-law excess cost growth.
+// The Supplement: the employer contribution becomes cash wages (compensation unchanged, so wages
+// rise by contribution / 1.0765, half in Year 1), the premiums disappear, the package absorbs part
+// of out-of-pocket costs, and the household pays the health contribution on all income plus the
+// income tax, Social Security contribution and employee payroll tax on the new wages.
+export const healthLayer = (k, y, fx, inc) => healthLayerBi(DEMO_BRACKET[k], DEMOS[k].hhSz, y, fx, inc);
+function healthLayerBi(bi, hhSz, y, fx, inc) {
+  if (!fx.healthSupplementOn || y < 1) return { tax: 0, gain: 0, wages: 0, coverage: 0 };
+  const grow = wageIndex(fx, y) * clHealthIndex(y) / clHealthIndex(0);
+  const wages = convertedWagePerFiler(bi) * grow * Math.min(1, y / 2);
+  const premiums = (workerPremiumPerFiler(bi) + nongroupPremiumPerFiler(bi)) * grow;
+  const capped = 1 - fx.healthCapScope * (1 - healthCapFactor(y, fx));
+  const oop = oopPerFiler(bi) * costShareAbsorbed(fx) * grow * capped;
+  const coverage = coverageValuePerFiler(bi) * grow * capped;
+  const exempt = fx.healthContribExempt * wageIndex(fx, y);
+  const contribution = fx.healthContributionRate * Math.max(0, inc + wages - exempt);
+  const wageTax = accordIncomeTax(inc + wages, hhSz, fx, y) - accordIncomeTax(inc, hhSz, fx, y)
+    + payrollFixBi(bi, y, fx, inc + wages) - payrollFixBi(bi, y, fx, inc);
+  const e = earnersPerFiler(BRACKETS[bi].jFrac);
+  const belowCap = Math.max(0, Math.min(wages, SS_CAP_SNAPSHOT * wageIndex(fx, y) * e - inc));
+  return { tax: contribution + wageTax + FICA_RATE / 2 * belowCap, gain: wages + premiums + oop, wages, coverage };
+}
+
+// ─── HOUSEHOLDS OUTSIDE THE PERSONA SET ──────────────────────────────────────
+// The lab pages that model their own households (racial groups, retirement quintiles) take the
+// Accord's taxes and transfers from here, so they follow the defaults. The rules match
+// reformCosts and the PRE layer. Bracket-level inputs (carbon footprint, consumption share,
+// residential LVT, health premiums and coverage, worker equity) come from the BRACKETS row the
+// income falls in, with the per-person items (carbon footprint, premiums, coverage) scaled to the
+// household's size. Programs the prebate replaces are interpolated per person across the personas
+// on income. These households hold no dilutable business assets, so no rent taxes are assigned by
+// holdings. Households 65 and over keep Medicare and pay the health contribution only, and lose no
+// programs: EITC and the child tax credit go to working-age households (assumption).
+const BRACKET_TOPS = [10e3, 15e3, 25e3, 40e3, 55e3, 75e3, 100e3, 150e3, 200e3, 500e3, 1e6, 2e6, 5e6, 15e6];
+export const bracketOf = income => {
+  const i = BRACKET_TOPS.findIndex(t => income < t);
+  return i < 0 ? BRACKET_TOPS.length : i;
+};
+const PERSONA_PROGRAMS = ['B10','P10','P20','P30','P40','P50','P60','P70','P80','T10','T1']
+  .map(k => [DEMOS[k].income, PROG_LOST[k] / DEMOS[k].hhSz]);
+const NO_PROVISIONS = new Set();
+// Optional: `own`, the household's homeownership rate (default: the bracket's); `taxableIncome`,
+// the income the income tax and health contribution apply to (default: all of it).
+export function householdFlowsAt({ income, hhSz, own, taxableIncome = income, over65 = false, wageIncome = true }, y, fx = FISCAL_DEFAULTS) {
+  const bi = bracketOf(income), b = BRACKETS[bi];
+  const pref = Math.min(0.9, b.cgShare + PREF_EXTRA[bi]);
+  const prebate = prebatePC(NO_PROVISIONS, fx, y) * hhSz;
+  const dividend = carbonDivPC(fx.carbonRate, y) * hhSz;
+  const size = hhSz / b.hhSz;
+  const programs = over65 ? 0 : lerp(PERSONA_PROGRAMS, income) * hhSz;
+  const incomeTax = accordIncomeTax(taxableIncome, hhSz, fx, y) - clIncomeTax(taxableIncome, hhSz, pref);
+  const vat = fx.vatRate * b.cRat * income * consumptionTaxCoverage(fx);
+  const li = lvtIncidenceByBracket({ rate: fx.lvtRate, exemption: 0, year: y, rentGap: hhAt(fx, y).rentGap ?? null })[bi];
+  const ownRate = own ?? li.own;
+  const lvt = ownRate * li.ownerLvt - (1 - ownRate) * li.renterRelief;
+  const carbon = carbonCostAt(bi, y, fx) * size;
+  const ssAboveCap = wageIncome ? payrollFixBi(bi, y, fx, income) : 0;
+  const h = !over65 ? (x => ({ tax: x.tax, gain: x.gain * size, coverage: x.coverage * size }))(healthLayerBi(bi, hhSz, y, fx, income))
+    : { tax: fx.healthSupplementOn && y >= 1 ? fx.healthContributionRate * Math.max(0, taxableIncome - fx.healthContribExempt * wageIndex(fx, y)) : 0, gain: 0, coverage: 0 };
+  const net = prebate + dividend - programs - incomeTax - vat - lvt - carbon - ssAboveCap - h.tax + h.gain;
+  return { bracket: bi, prebate, dividend, programs, incomeTax, vat, lvt, carbon, ssAboveCap,
+    healthTax: h.tax, healthGain: h.gain, coverage: h.coverage, net };
+}
+// Worker equity per tax filer in the income's bracket: Worker Equity Fund units issued in year y,
+// the Sectoral Fund balance held at year y, and the year's cash payouts. `earners` splits a
+// filer's values across its workers.
+export function workerEquityAt(income, y, fx = FISCAL_DEFAULTS) {
+  const bi = bracketOf(income);
+  return {
+    unitsIssued: wefAccrualPerFiler(bi, y, fx.hh),
+    sectoral: sectoralBalancePerFiler(bi, y, fx.hh),
+    cash: psuDividendPerFiler(bi, y, fx.hh),
+    earners: earnersPerFiler(BRACKETS[bi].jFrac),
+  };
+}
+// Worker Equity Fund unit price at year t relative to Year 1 (units move with the fund's price).
+export const wefPriceAt = (t, fx = FISCAL_DEFAULTS) => hhAt(fx, t).wefPrice / hhAt(fx, 1).wefPrice;
+// A child's AMCF account at 18 when born at the start of the Accord: one grant a year, units
+// compounding at 5% real, as in the custodial layer of getNW.
+export function childAccountAt18(fx = FISCAL_DEFAULTS) {
+  let acct = 0;
+  for (let t = 1; t <= 18; t++) acct = acct * 1.05 + amcfG(t, fx);
+  return acct;
+}
+
 // All tax-reform cash costs for one persona in year y (positive = cost): income tax delta,
 // VAT, residential LVT, carbon, the payroll fix and assigned rent taxes.
 function reformCosts(k, y, P, fx) {
@@ -269,9 +360,13 @@ function reformCosts(k, y, P, fx) {
     carbon: carbonCostAt(bi, y, fx),
     payrollFix: payrollFix(k, y, fx, inc),
     assigned: assignedRentTax(k, y, fx),
+    ...(h => ({ healthTax: h.tax, healthGain: h.gain, healthCoverage: h.coverage }))(healthLayer(k, y, fx, inc)),
   };
 }
-const sumCosts = c => c.incomeTax + c.vat + c.lvt + c.carbon + c.payrollFix + c.assigned;
+// healthGain (new wages, premiums and out-of-pocket costs saved) enters as a negative cost.
+// healthCoverage (in-kind coverage for the previously uninsured) is income but not savings, so it
+// stays out of sumCosts, which getNW saves from.
+const sumCosts = c => c.incomeTax + c.vat + c.lvt + c.carbon + c.payrollFix + c.assigned + c.healthTax - c.healthGain;
 
 // ╔═══════════════════════════════════════╗
 // ║  COMPUTATION ENGINE                   ║
@@ -287,7 +382,7 @@ export function getInc(k, y, P, fx = FISCAL_DEFAULTS) {
   const d = DEMOS[k];
   const base = accordIncomeAt(k, y, P, fx);
   const costs = P.has('TAX') ? reformCosts(k, y, P, fx) : null;
-  const tax = costs ? -(sumCosts(costs) - (portfolioPaid(k) ? costs.assigned : 0)) : 0;
+  const tax = costs ? -(sumCosts(costs) - (portfolioPaid(k) ? costs.assigned : 0)) + costs.healthCoverage : 0;
   const carbonDiv = carbonDivPC(fx.carbonRate, y) * d.hhSz;
   const pre = P.has('PRE') ? (prebatePC(P, fx, y) * d.hhSz + carbonDiv - PROG_LOST[k]) : 0;
   // AMCF and PSU layers are after the income tax on their taxable part.
@@ -393,7 +488,8 @@ export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
   const econInc   = incY + unrealBiz + unrealFin;
   let taxes = clTaxAt(k, y) + incomeAt(k, y) * PAYROLL_RATE[k];
   if (P.has('TAX')) {
-    taxes += sumCosts(reformCosts(k, y, P, fx));
+    const c = reformCosts(k, y, P, fx);
+    taxes += sumCosts(c) + c.healthGain;
   }
   if (P.has('PRE')) {
     taxes -= (prebatePC(P, fx, y) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k]);
@@ -405,9 +501,13 @@ export function billionaireETR(k, y, P, fx = FISCAL_DEFAULTS) {
 export function getETR(k, y, P, fx = FISCAL_DEFAULTS) {
   if (k === 'BILL' || k === 'ELON') return billionaireETR(k, y, P, fx);
   const d = DEMOS[k];
-  const g = accordIncomeAt(k, y, P, fx);
+  let g = accordIncomeAt(k, y, P, fx);
   let taxes = clTaxAt(k, y) + incomeAt(k, y) * PAYROLL_RATE[k], bens = 0;
-  if (P.has('TAX')) taxes += sumCosts(reformCosts(k, y, P, fx));
+  if (P.has('TAX')) {
+    const c = reformCosts(k, y, P, fx);
+    taxes += sumCosts(c) + c.healthGain;
+    g += c.healthGain;
+  }
   if (P.has('PRE')) bens += prebatePC(P, fx, y) * d.hhSz + carbonDivPC(fx.carbonRate, y) * d.hhSz - PROG_LOST[k];
   return g > 0 ? (taxes - bens) / g * 100 : 0;
 }
@@ -440,6 +540,8 @@ export function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
   const carb = c ? -c.carbon : 0;
   const payFix = c ? -c.payrollFix : 0;
   const assigned = c && !portfolioPaid(k) ? -c.assigned : 0;
+  const health = c ? c.healthGain - c.healthTax : 0;
+  const coverage = c ? c.healthCoverage : 0;
   const progLost = P.has('PRE') ? -PROG_LOST[k] : 0;
   const pre  = P.has('PRE') ? prebatePC(P, fx, y) * d.hhSz : 0;
   const cdiv = P.has('PRE') ? carbonDivPC(fx.carbonRate, y) * d.hhSz : 0;
@@ -447,9 +549,9 @@ export function cashFlowPt(k, y, P, norm, fx = FISCAL_DEFAULTS) {
   const pd   = P.has('PSU_D') ? psuDAt(k, y, fx) : 0;
   const pc   = 0;
   const psuTax = -extraIncomeTax(k, y, P, fx);
-  const net  = gross + clTax + taxRef + vat + lvt + carb + payFix + assigned + progLost + pre + cdiv + ag + pd + pc + psuTax;
+  const net  = gross + clTax + taxRef + vat + lvt + carb + payFix + assigned + health + coverage + progLost + pre + cdiv + ag + pd + pc + psuTax;
   const div  = norm ? Math.max(Math.abs(gross), 1) / 100 : 1;
   return { grossInc:gross/div, clTax:clTax/div, taxRef:taxRef/div, vat:vat/div, lvt:lvt/div,
-    carb:carb/div, payFix:payFix/div, assigned:assigned/div, progLost:progLost/div, pre:pre/div, cdiv:cdiv/div,
+    carb:carb/div, payFix:payFix/div, assigned:assigned/div, health:health/div, coverage:coverage/div, progLost:progLost/div, pre:pre/div, cdiv:cdiv/div,
     ag:ag/div, pd:pd/div, pc:pc/div, psuTax:psuTax/div, net:net/div };
 }

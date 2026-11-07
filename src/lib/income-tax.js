@@ -116,11 +116,19 @@ export function risingSchedule({ low, top, start, end, shape = 1, steps = RISE_S
 // income; the standard deduction comes off the bottom. `brackets` overrides everything (the design
 // search's bracket and curve designs). Otherwise, with riseEnd above the threshold the rate rises
 // smoothly from lowRate at the threshold to highRate at riseEnd; without it, the two-rate form.
+// floorRate is a minimum rate on every bracket (the design search's zero-start base rate).
 export function accordSchedule({ brackets, lowRate = INCOME_TAX_DEFAULTS.lowRate,
-  highRate = INCOME_TAX_DEFAULTS.highRate, threshold = INCOME_TAX_DEFAULTS.threshold, riseEnd, riseShape = 1 } = {}) {
-  if (brackets) return brackets;
-  if (riseEnd > threshold) return risingSchedule({ low: lowRate, top: highRate, start: threshold, end: riseEnd, shape: riseShape });
-  return [[threshold, lowRate], [Infinity, highRate]];
+  highRate = INCOME_TAX_DEFAULTS.highRate, threshold = INCOME_TAX_DEFAULTS.threshold, riseEnd, riseShape = 1, floorRate = 0 } = {}) {
+  const sched = brackets ? brackets
+    : riseEnd > threshold ? risingSchedule({ low: lowRate, top: highRate, start: threshold, end: riseEnd, shape: riseShape })
+    : [[threshold, lowRate], [Infinity, highRate]];
+  return floorRate > 0 ? sched.map(([hi, r]) => [hi, Math.max(r, floorRate)]) : sched;
+}
+// Top of the band taxed at the schedule's starting rate. With a floor rate the marginal rate can
+// stay at the floor well past the threshold, so this is where it first rises.
+export function startingBandTop(sched) {
+  const j = sched.findIndex(([, r]) => r > sched[0][1]);
+  return j > 0 ? sched[j - 1][0] : Infinity;
 }
 export function accordScheduleTax(income, ded, sched) {
   let t = 0, lo = 0;
@@ -164,34 +172,38 @@ export function bracketIncomeTax(b, {
   ssUncapOn    = true,
   riseEnd,
   riseShape,
+  floorRate,
+  healthRate   = 0,  // Healthcare Supplement contribution on all income (health.js)
+  healthExempt = 0,
 } = {}) {
   const meanAgi = b.agi / b.filers;
   const sd = bracketDeduction(b, exemptSingle, exemptJoint);
-  const sched = accordSchedule({ brackets, lowRate, highRate, threshold, riseEnd, riseShape });
+  const sched = accordSchedule({ brackets, lowRate, highRate, threshold, riseEnd, riseShape, floorRate });
   const floor = etiTopFloor(sched);
   const pts = POINTS[BRACKETS.indexOf(b)] ?? [meanAgi];
-  let raw = 0, perFiler = 0, ssPerFiler = 0, mNew = 0, mCL = 0;
+  let raw = 0, perFiler = 0, ssPerFiler = 0, healthPerFiler = 0, mNew = 0, mCL = 0;
   for (const agi of pts) {
     const r = accordScheduleTax(agi, sd, sched);
     const ssBase = ssUncapOn ? ssAboveCapBase(agi, b.jFrac) : 0;
-    const m = accordMarginalRate(agi, sd, sched) + (ssBase > 0 ? SS_RATE : 0);
+    const healthBase = Math.max(0, agi - healthExempt);
+    const m = accordMarginalRate(agi, sd, sched) + (ssBase > 0 ? SS_RATE : 0) + (healthBase > 0 ? healthRate : 0);
     const mc = clMarginalRate(agi, b.jFrac);
     const f = Math.pow(Math.max(0.05, 1 - m) / Math.max(0.05, 1 - mc), agi > floor ? etiTop : etiMid);
-    raw += r; perFiler += r * f; ssPerFiler += SS_RATE * ssBase * f; mNew += m; mCL += mc;
+    raw += r; perFiler += r * f; ssPerFiler += SS_RATE * ssBase * f; healthPerFiler += healthRate * healthBase * f; mNew += m; mCL += mc;
   }
   const n = pts.length;
-  raw /= n; perFiler /= n; ssPerFiler /= n; mNew /= n; mCL /= n;
+  raw /= n; perFiler /= n; ssPerFiler /= n; healthPerFiler /= n; mNew /= n; mCL /= n;
   return { meanAgi, sd, rawPerFiler: raw, eff: raw / Math.max(meanAgi, 1), mNew, mCL,
-    bFactor: raw > 0 ? perFiler / raw : 1, perFiler, ssPerFiler };
+    bFactor: raw > 0 ? perFiler / raw : 1, perFiler, ssPerFiler, healthPerFiler };
 }
 
 // Total individual income tax and Social Security contribution revenue, with a per-bracket
 // breakdown, for a given structure.
 export function incomeTaxRevenue(structure = {}) {
   const byBracket = BRACKETS.map(b => {
-    const { sd, eff, bFactor, perFiler, ssPerFiler, mNew, mCL } = bracketIncomeTax(b, structure);
+    const { sd, eff, bFactor, perFiler, ssPerFiler, healthPerFiler, mNew, mCL } = bracketIncomeTax(b, structure);
     return { label: b.label, sd, eff, bFactor, perFiler, mNew, mCL, revenue: perFiler * b.filers,
-             ssRevenue: ssPerFiler * b.filers, capGainsRevenue: perFiler * b.filers * b.cgShare };
+             ssRevenue: ssPerFiler * b.filers, healthRevenue: healthPerFiler * b.filers, capGainsRevenue: perFiler * b.filers * b.cgShare };
   });
   const total = byBracket.reduce((s, x) => s + x.revenue, 0);
   // Capital gains are ordinary income under the Accord schedule, so they are already inside
@@ -199,7 +211,8 @@ export function incomeTaxRevenue(structure = {}) {
   // its gains share of AGI), split out only so the engine can apply realization cyclicality.
   const capGains = byBracket.reduce((s, x) => s + x.capGainsRevenue, 0);
   const ss = byBracket.reduce((s, x) => s + x.ssRevenue, 0);
-  return { total, capGains, ss, byBracket, fracOfGdp: total / INCOME_REF_GDP };
+  const health = byBracket.reduce((s, x) => s + x.healthRevenue, 0);
+  return { total, capGains, ss, health, byBracket, fracOfGdp: total / INCOME_REF_GDP };
 }
 
 // ─── FISCAL-ENGINE DROP-IN ───────────────────────────────────────────────────
@@ -211,7 +224,7 @@ export function incomeTaxRevForFiscal({ nominalGdp, ...structure }) {
 
 // Same revenue split into the tax on capital gains and the tax on all other income.
 export function incomeTaxSplitForFiscal({ nominalGdp, ...structure }) {
-  const { total, capGains, ss } = incomeTaxRevenue(structure);
+  const { total, capGains, ss, health } = incomeTaxRevenue(structure);
   const scale = nominalGdp / INCOME_REF_GDP;
-  return { ordinary: (total - capGains) * scale, capGains: capGains * scale, ss: ss * scale };
+  return { ordinary: (total - capGains) * scale, capGains: capGains * scale, ss: ss * scale, health: health * scale };
 }

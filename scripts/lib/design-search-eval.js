@@ -4,7 +4,7 @@
 import { runFiscalSimulation, BASE_PARAMS, realGrantSeries, householdFiscalSeries } from '@/lib/fiscal-engine';
 import { getInc, getNW, BASE_ONLY, computeGini } from '@/lib/household-model';
 import { DEMO_KEYS, POP } from '@/lib/demographics';
-import { stableRentRevYr1, RENT_TAX_DEFAULTS, YR1_NOM_GDP } from '@/lib/rent-taxes';
+import { stableRentFrac, RENT_TAX_DEFAULTS } from '@/lib/rent-taxes';
 
 const ALL = new Set(['BASE', 'TAX', 'PRE', 'AMCF', 'PSU_D', 'PSU_C']);
 export const BOTTOM_80 = ['B10', 'P10', 'P20', 'P30', 'P40', 'P50', 'P60', 'P70'];
@@ -46,7 +46,7 @@ export function designFromUnit(u) {
     prebateIndex: PREBATE_INDEX_OPTIONS[Math.floor(u[11] * PREBATE_INDEX_OPTIONS.length)],
     citizenFloorIndex: FLOOR_INDEX_OPTIONS[Math.floor(u[12] * FLOOR_INDEX_OPTIONS.length)],
     fttPct,
-    stableTaxFrac: stableRentRevYr1({ ...RENT_TAX_DEFAULTS, fttPct }) / YR1_NOM_GDP,
+    stableTaxFrac: stableRentFrac({ ...RENT_TAX_DEFAULTS, fttPct }),
   };
 }
 export const UNIT_DIMS = 13;

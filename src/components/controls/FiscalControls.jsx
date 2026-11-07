@@ -12,6 +12,7 @@ const usd = v => `$${Math.round(v).toLocaleString()}`;
 const GROUPS = [
   { title: 'Income tax', items: [
     { k: 'incomeTaxLow',          label: v => `Starting rate: ${pct(v, 0)}`,     min: 0, max: 0.40, step: 0.01 },
+    { k: 'incomeTaxFloorRate',    label: v => `Minimum rate on all income: ${pct(v, 1)}`, min: 0, max: 0.10, step: 0.005 },
     { k: 'incomeTaxThreshold',    label: v => `Rate starts rising at: ${usd(v)}`, min: 10000, max: 1000000, step: 1000 },
     { k: 'incomeTaxRiseEnd',      label: v => `Top rate reached at: ${usd(v)} (at or below the start = two rates)`, min: 10000, max: 5000000, step: 1000 },
     { k: 'incomeTaxRiseShape',    label: v => `Rise shape: ${v.toFixed(2)} (above 1 rises late, below 1 rises early)`, min: 0.3, max: 3, step: 0.01 },
@@ -44,7 +45,7 @@ const GROUPS = [
 
 // `only` limits the panel to named groups, for pages where the other parameters provably
 // do not change the output. Passing nothing shows all three.
-export function FiscalControls({ values, set, isDefault, reset, grants, compact = false, only }) {
+export function FiscalControls({ values, set, isDefault, reset, grants, compact = false, only, note }) {
   const groups = only ? GROUPS.filter(g => only.includes(g.title)) : GROUPS;
   return (
     <div>
@@ -59,9 +60,9 @@ export function FiscalControls({ values, set, isDefault, reset, grants, compact 
         )}
       </div>
       <p className="text-[10px] text-muted-foreground mb-3 leading-snug">
-        {only
+        {note ?? (only
           ? 'Parameters from the National Balance Sheet that change citizen unit deposits. Tax rates are omitted because they do not enter this calculation.'
-          : 'The same parameters the National Balance Sheet runs. Household figures are in today\'s dollars. Citizen units come from a share of Growth Tax scrip, topped up to the floor from the Treasury tranche.'}
+          : 'The same parameters the National Balance Sheet runs. Household figures are in today\'s dollars. Citizen units come from a share of Growth Tax scrip, topped up to the floor from the Treasury tranche.')}
       </p>
 
       <div className={compact ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4' : 'space-y-4'}>
