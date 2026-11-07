@@ -48,11 +48,11 @@ const PRESET_LIST = Object.keys(PRESET_OVERRIDES).map(k => ({
 }));
 
 const CHART_TABS = [
-  { id: "deficit",  label: "Deficit Trajectory" },
-  { id: "debt",     label: "Debt & Net Position" },
   { id: "interest", label: "Interest Burden" },
-  { id: "amcf",     label: "AMCF Growth" },
+  { id: "debt",     label: "Debt / GDP" },
+  { id: "deficit",  label: "Deficit / GDP" },
   { id: "revenue",  label: "Revenue vs. Spending" },
+  { id: "amcf",     label: "AMCF Growth" },
   { id: "credits",  label: "Credit Balance" },
 ];
 
@@ -183,12 +183,13 @@ const TOGGLES = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 function computeSensitivity(baseParams) {
-  const base = runFiscalSimulation(baseParams).milestones;
+  const run = q => headlineFigures(runFiscalSimulation(q).rows);
+  const base = run(baseParams);
   return SENS_PARAMS.map(({ key, label }) => {
     const val = baseParams[key];
     const delta = Math.abs(val) * 0.2 + (val === 0 ? 0.001 : 0);
-    const rH = runFiscalSimulation({ ...baseParams, [key]: val + delta }).milestones;
-    const rL = runFiscalSimulation({ ...baseParams, [key]: Math.max(0, val - delta) }).milestones;
+    const rH = run({ ...baseParams, [key]: val + delta });
+    const rL = run({ ...baseParams, [key]: Math.max(0, val - delta) });
     return { key, label, baseVal: val, base, high: rH, low: rL };
   });
 }
@@ -243,7 +244,20 @@ const ttFmt = (v, unit) => {
 
 const axisT = v => `$${v}T`;
 const axisPct = v => `${v}%`;
-const fmtYr = v => v == null ? "Never" : `Year ${v}`;
+const share = (v, gdp) => gdp > 0 ? +(v / gdp * 100).toFixed(1) : null;
+const clIntToRev = r => r.clRev > 0 ? +(r.clInterest / r.clRev * 100).toFixed(1) : null;
+
+// Headline figures, matching the About page: current law in Year 1, then the Accord in Year 1 and
+// Year 30, for the interest share of revenue, debt, the deficit and debt net of the Treasury tranche.
+function headlineFigures(rows) {
+  const y1 = rows[0], y30 = rows[29];
+  return {
+    clIntY1: clIntToRev(y1), intY1: y1.intToRev, intY30: y30.intToRev, clIntY30: clIntToRev(y30),
+    clDebtY1: y1.clDebtToGdp, debtY1: y1.debtToGdp, debtY30: y30.debtToGdp, clDebtY30: y30.clDebtToGdp,
+    deficitY30: share(y30.deficit, y30.nominalGdp), clDeficitY30: share(y30.clDeficit, y30.clNominalGdp),
+    netDebtY30: share(y30.netSovPos, y30.nominalGdp),
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CHART RENDERERS
@@ -252,23 +266,26 @@ const fmtYr = v => v == null ? "Never" : `Year ${v}`;
 const CHART_H = 340;
 
 function DeficitChart({ rows, compareRows }) {
-  const data = rows.map(r => ({
-    year: r.year,
-    "Accord Deficit": r.deficit,
-    "Current Law (CBO)": r.clDeficit,
-    ...(compareRows ? { "Compare": compareRows[r.year - 1]?.deficit } : {}),
-  }));
+  const data = rows.map(r => {
+    const c = compareRows?.[r.year - 1];
+    return {
+      year: r.year,
+      "Accord Deficit": share(r.deficit, r.nominalGdp),
+      "Current Law (CBO)": share(r.clDeficit, r.clNominalGdp),
+      ...(c ? { "Compare": share(c.deficit, c.nominalGdp) } : {}),
+    };
+  });
   return (
     <ChartContainer
-      title="Annual fiscal deficit/surplus"
-      subtitle="Accord narrows the gap faster than current-law trajectory"
+      title="Annual deficit as a share of GDP"
+      subtitle="A deficit below the economy's nominal growth rate times the debt ratio keeps debt/GDP falling"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
         <CartesianGrid {...CHART_GRID} />
         <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
-        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <YAxis tickFormatter={axisPct} tick={CHART_AXIS.tick} label={{ value: "% of GDP", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "%"), n]} labelFormatter={v => `Year ${v}`} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} strokeDasharray="4 4" label={{ value: "Balance", fill: "#374151", fontSize: 11 }} />
         <Line dataKey="Accord Deficit" stroke={C.accord} strokeWidth={2.5} dot={false} />
@@ -279,33 +296,32 @@ function DeficitChart({ rows, compareRows }) {
   );
 }
 
-function DebtChart({ rows, compareRows }) {
+function DebtChart({ rows, compareRows, floor }) {
   const data = rows.map(r => ({
     year: r.year,
-    "Debt Held by Public (Accord)": r.grossDebt,
-    "AMCF Treasury Tranche": r.amcfEquity,
-    "Net Sovereign Position": r.netSovPos,
-    "Debt Held by Public (CL)": r.clGrossDebt,
-    ...(compareRows ? { "Compare Debt": compareRows[r.year - 1]?.grossDebt } : {}),
+    "Debt / GDP (Accord)": r.debtToGdp,
+    "Debt / GDP (Current Law)": r.clDebtToGdp,
+    "Debt Less Treasury Tranche": share(r.netSovPos, r.nominalGdp),
+    ...(compareRows ? { "Compare Debt / GDP": compareRows[r.year - 1]?.debtToGdp } : {}),
   }));
   return (
     <ChartContainer
-      title="Debt held by the public vs. the AMCF Treasury tranche"
-      subtitle="Net sovereign position turns negative when the Treasury tranche exceeds debt held by the public"
+      title="Debt held by the public as a share of GDP"
+      subtitle="The dotted line nets out the Treasury tranche's AMCF units, an asset the government holds against the debt"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
         <CartesianGrid {...CHART_GRID} />
         <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
-        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <YAxis tickFormatter={axisPct} tick={CHART_AXIS.tick} label={{ value: "% of GDP", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "%"), n]} labelFormatter={v => `Year ${v}`} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
-        <Line dataKey="Debt Held by Public (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
-        <Line dataKey="Debt Held by Public (CL)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
-        <Line dataKey="AMCF Treasury Tranche" stroke={C.amcf} strokeWidth={2.5} dot={false} />
-        <Line dataKey="Net Sovereign Position" stroke={C.netPos} strokeWidth={2} strokeDasharray="3 3" dot={false} />
-        {compareRows && <Line dataKey="Compare Debt" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
+        {floor != null && <ReferenceLine y={floor} stroke={C.accord} strokeDasharray="5 3" label={{ value: `${floor}% debt floor`, fill: C.accord, fontSize: 11 }} />}
+        <Line dataKey="Debt / GDP (Accord)" stroke={C.debt} strokeWidth={2.5} dot={false} />
+        <Line dataKey="Debt / GDP (Current Law)" stroke={C.currentLaw} strokeWidth={2} strokeDasharray="6 3" dot={false} />
+        <Line dataKey="Debt Less Treasury Tranche" stroke={C.netPos} strokeWidth={2} strokeDasharray="3 3" dot={false} />
+        {compareRows && <Line dataKey="Compare Debt / GDP" stroke={C.compare} strokeWidth={2} strokeDasharray="4 2" dot={false} />}
       </ComposedChart>
     </ChartContainer>
   );
@@ -321,7 +337,7 @@ function InterestChart({ rows, compareRows }) {
   return (
     <ChartContainer
       title="Interest as % of federal revenue"
-      subtitle="Accord prevents the interest spiral that traps current-law trajectory"
+      subtitle="Net interest falls as a share of revenue under the Accord and rises under current law"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
@@ -373,33 +389,45 @@ function AmcfChart({ rows, compareRows }) {
 }
 
 function RevenueChart({ rows, compareRows }) {
-  const data = rows.map(r => ({
-    year: r.year,
-    "Income Tax": r.incomeTax,
-    "Payroll Tax": r.payrollTax,
-    "VAT (gross)": r.vatGross,
-    "Financial Activities Tax": r.fatRev,
-    "LVT": r.lvtRev,
-    "SS Contribution Above Cap": r.payrollFix,
-    "Carbon": r.carbonRev,
-    "Other Rent Taxes": r.stableTaxRev,
-    "Cap. Gains + Other": +(r.capGainsTax + r.otherTax + r.publicOptionRev).toFixed(2),
-    "Total Revenue": r.totalRev,
-    "Total Outlays": r.totalOutlays,
-    "Current Law Revenue": r.clRev,
-    ...(compareRows ? { "Compare Outlays": compareRows[r.year - 1]?.totalOutlays } : {}),
-  }));
+  const data = rows.map(r => {
+    const g = r.nominalGdp, c = compareRows?.[r.year - 1];
+    // The engine taxes immigrants' added output at a lower average rate by scaling the summed
+    // tax lines; apply the same factor to each line so the bars add up to total revenue.
+    const healthOther = (r.healthWageRev ?? 0) + (r.healthClawback ?? 0) + (r.healthEmployerTransition ?? 0);
+    const gross = r.incomeTax + r.payrollTax + r.vatGross + r.fatRev + r.lvtRev + r.payrollFix + r.carbonRev
+      + r.stableTaxRev + (r.healthContribution ?? 0) + r.capGainsTax + r.otherTax + (r.publicOptionRev ?? 0) + (r.realizationRev ?? 0);
+    const k = gross > 0 ? (r.totalRev - healthOther) / gross : 1;
+    const line = v => share(v * k, g);
+    return {
+      year: r.year,
+      "Income Tax": line(r.incomeTax),
+      "Payroll Tax": line(r.payrollTax),
+      "VAT (gross)": line(r.vatGross),
+      "Financial Activities Tax": line(r.fatRev),
+      "LVT": line(r.lvtRev),
+      "SS Contribution Above Cap": line(r.payrollFix),
+      "Carbon": line(r.carbonRev),
+      "Other Rent Taxes": line(r.stableTaxRev),
+      "Health Contribution": line(r.healthContribution ?? 0),
+      "Health: Wages, States, Employers": share(healthOther, g),
+      "Cap. Gains + Other": line(r.capGainsTax + r.otherTax + (r.publicOptionRev ?? 0) + (r.realizationRev ?? 0)),
+      "Total Revenue": share(r.totalRev, g),
+      "Total Outlays": share(r.totalOutlays, g),
+      "Current Law Revenue": share(r.clRev, r.clNominalGdp),
+      ...(c ? { "Compare Outlays": share(c.totalOutlays, c.nominalGdp) } : {}),
+    };
+  });
   return (
     <ChartContainer
-      title="Revenue components vs. total outlays"
-      subtitle="Prebate, childcare, and family leave are spending items funded from general revenue"
+      title="Revenue by source vs. total outlays, as a share of GDP"
+      subtitle="Prebate, childcare, family leave and the Health Fund are spending items in outlays"
       height={CHART_H}
     >
       <ComposedChart data={data} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
         <CartesianGrid {...CHART_GRID} />
         <XAxis dataKey="year" tickFormatter={v => `Yr ${v}`} tick={CHART_AXIS.tick} />
-        <YAxis tickFormatter={axisT} tick={CHART_AXIS.tick} label={{ value: "$ Trillions", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "T"), n]} labelFormatter={v => `Year ${v}`} />
+        <YAxis tickFormatter={axisPct} tick={CHART_AXIS.tick} label={{ value: "% of GDP", angle: -90, position: "insideLeft", offset: -8, style: { fontSize: 11 } }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [ttFmt(v, "%"), n]} labelFormatter={v => `Year ${v}`} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="Income Tax" stackId="rev" fill="#60a5fa" />
         <Bar dataKey="Payroll Tax" stackId="rev" fill="#93c5fd" />
@@ -409,6 +437,8 @@ function RevenueChart({ rows, compareRows }) {
         <Bar dataKey="SS Contribution Above Cap" stackId="rev" fill="#a9cde0" />
         <Bar dataKey="Carbon" stackId="rev" fill="#fcd34d" />
         <Bar dataKey="Other Rent Taxes" stackId="rev" fill="#c4b5fd" />
+        <Bar dataKey="Health Contribution" stackId="rev" fill="#f9a8d4" />
+        <Bar dataKey="Health: Wages, States, Employers" stackId="rev" fill="#fbcfe8" />
         <Bar dataKey="Cap. Gains + Other" stackId="rev" fill="#a3e635" />
         <Line dataKey="Total Revenue" stroke={C.accord} strokeWidth={2.5} dot={false} />
         <Line dataKey="Total Outlays" stroke={C.debt} strokeWidth={2.5} dot={false} />
@@ -456,19 +486,17 @@ function CreditsChart({ rows, compareRows }) {
 
 function SensitivityTable({ data }) {
   const milestoneKeys = [
-    { key: "fiscalCrossoverYear",   label: "Fiscal Crossover",   dir: "lower" },
-    { key: "debtPeakYear",          label: "Debt Peak",          dir: "lower" },
-    { key: "amcfSelfFundingYear",   label: "AMCF Self-Funds",    dir: "lower" },
-    { key: "netCreditorYear",       label: "Net Creditor",       dir: "lower" },
-    { key: "interestThresholdYear", label: "Interest {'<'} 10%", dir: "lower" },
+    { key: "intY30",     label: "Net Interest / Revenue, Yr 30", dir: "lower" },
+    { key: "debtY30",    label: "Debt / GDP, Yr 30",             dir: "lower" },
+    { key: "deficitY30", label: "Deficit / GDP, Yr 30",          dir: "lower" },
+    { key: "netDebtY30", label: "Debt Less Tranche, Yr 30",      dir: "lower" },
   ];
+  const fmtPct = v => v == null ? "\u2014" : `${v.toFixed(1)}%`;
 
   const cellColor = (base, test, dir) => {
-    if (base == null && test == null) return undefined;
-    if (test == null && base != null) return dir === "lower" ? "bg-[#c27040]/10" : "bg-[#307ca6]/10";
-    if (base == null && test != null) return dir === "lower" ? "bg-[#307ca6]/10" : "bg-[#c27040]/10";
+    if (base == null || test == null) return undefined;
     const diff = test - base;
-    if (Math.abs(diff) <= 1) return undefined;
+    if (Math.abs(diff) < 0.5) return undefined;
     const better = dir === "lower" ? diff < 0 : diff > 0;
     return better ? "bg-[#307ca6]/10" : "bg-[#c27040]/10";
   };
@@ -477,7 +505,7 @@ function SensitivityTable({ data }) {
     <div className="mt-4">
       <h3 className="text-lg font-semibold tracking-tight mb-2">Sensitivity Analysis</h3>
       <p className="text-sm text-muted-foreground mb-4">
-        +/- 20% on each parameter; green = earlier/better, red = later/worse
+        +/- 20% on each parameter; blue = lower (better), orange = higher (worse), by half a point or more
       </p>
       <div className="rounded-lg border overflow-x-auto">
         <Table>
@@ -505,10 +533,10 @@ function SensitivityTable({ data }) {
                 {milestoneKeys.map(mk => (
                   <React.Fragment key={mk.key}>
                     <TableCell className={`text-center ${cellColor(row.base[mk.key], row.high[mk.key], mk.dir) ?? ''}`}>
-                      {fmtYr(row.high[mk.key])}
+                      {fmtPct(row.high[mk.key])}
                     </TableCell>
                     <TableCell className={`text-center ${cellColor(row.base[mk.key], row.low[mk.key], mk.dir) ?? ''}`}>
-                      {fmtYr(row.low[mk.key])}
+                      {fmtPct(row.low[mk.key])}
                     </TableCell>
                   </React.Fragment>
                 ))}
@@ -518,7 +546,7 @@ function SensitivityTable({ data }) {
               <TableCell className="text-left font-bold">Base Case</TableCell>
               {milestoneKeys.map(mk => (
                 <TableCell key={mk.key} colSpan={2} className="text-center font-bold">
-                  {fmtYr(data[0]?.base[mk.key])}
+                  {fmtPct(data[0]?.base[mk.key])}
                 </TableCell>
               ))}
             </TableRow>
@@ -646,7 +674,7 @@ function ParameterPanel({ params, setParam }) {
 export default function FiscalTrajectorySimulator() {
   const [params, setParams] = useUrlState(BASE_PARAMS);
   const [activePreset, setActivePreset] = useState("base");
-  const [activeChart, setActiveChart] = useUrlValue("tab", "deficit");
+  const [activeChart, setActiveChart] = useUrlValue("tab", "interest");
   const [compareMode, setCompareMode] = useState(false);
   const [comparePreset, setComparePreset] = useState("conservative");
   const [showSensitivity, setShowSensitivity] = useState(false);
@@ -671,8 +699,10 @@ export default function FiscalTrajectorySimulator() {
     setActivePreset(k);
   };
 
-  const { rows, milestones: m } = result;
-  const cm = compareResult?.milestones;
+  const { rows } = result;
+  const h = headlineFigures(rows);
+  const ch = compareResult ? headlineFigures(compareResult.rows) : null;
+  const compareLabel = PRESET_LABELS[comparePreset];
 
   const presetKeys = Object.keys(PRESET_OVERRIDES);
 
@@ -693,42 +723,27 @@ export default function FiscalTrajectorySimulator() {
       </div>
 
       {/* Milestone Dashboard */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
         <MilestoneCard
-          label="Fiscal Goal Met"
-          value={fmtYr(m.fiscalGoalYear)}
-          sub={cm ? `vs ${fmtYr(cm.fiscalGoalYear)}` : "Interest < 10% of revenue, debt/GDP falling, through Yr 75"}
-        />
-        {params.debtFloorOn ? (
-          <MilestoneCard
-            label="Debt Floor Reached"
-            value={fmtYr(m.debtFloorYear)}
-            sub={cm ? `vs ${fmtYr(cm.debtFloorYear)}` : `Debt held at ${Math.round(params.prebateIndexFloor * 100)}% of GDP; surpluses left to Congress`}
-          />
-        ) : (
-          <MilestoneCard
-            label="Fiscal Crossover"
-            value={fmtYr(m.fiscalCrossoverYear)}
-            sub={cm ? `vs ${fmtYr(cm.fiscalCrossoverYear)}` : "First year of surplus"}
-          />
-        )}
-        <MilestoneCard
-          label="Debt / GDP, Year 30"
-          value={`${rows[29]?.debtToGdp ?? '—'}%`}
-          sub={`vs ${rows[29]?.clDebtToGdp ?? '—'}% under current law`}
+          label="Net Interest / Revenue"
+          value={`${h.clIntY1}% → ${h.intY1}% → ${h.intY30}%`}
+          sub={ch ? `Current law, Year 1, Year 30; ${ch.intY30}% at Year 30 in ${compareLabel}` : `Current law, then the Accord in Year 1 and Year 30; current law reaches ${h.clIntY30}%`}
         />
         <MilestoneCard
-          label="Net Creditor Year"
-          value={fmtYr(m.netCreditorYear)}
-          sub={cm ? `vs ${fmtYr(cm.netCreditorYear)}` : "Treasury tranche > debt held by public"}
+          label="Debt / GDP"
+          value={`${h.clDebtY1}% → ${h.debtY1}% → ${h.debtY30}%`}
+          sub={ch ? `Current law, Year 1, Year 30; ${ch.debtY30}% at Year 30 in ${compareLabel}` : `Current law, then the Accord in Year 1 and Year 30; current law reaches ${h.clDebtY30}%`}
         />
-        {!params.debtFloorOn && (
-          <MilestoneCard
-            label="Debt-Free"
-            value={fmtYr(m.debtFreeYear)}
-            sub={cm ? `vs ${fmtYr(cm.debtFreeYear)}` : "Debt held by the public below zero"}
-          />
-        )}
+        <MilestoneCard
+          label="Deficit, Year 30"
+          value={`${h.deficitY30}% of GDP`}
+          sub={ch ? `vs ${ch.deficitY30}% in ${compareLabel}` : `vs ${h.clDeficitY30}% under current law`}
+        />
+        <MilestoneCard
+          label="Debt Less Treasury Tranche, Year 30"
+          value={`${h.netDebtY30}% of GDP`}
+          sub={ch ? `vs ${ch.netDebtY30}% in ${compareLabel}` : "Debt held by the public minus the Treasury tranche's AMCF units"}
+        />
       </div>
 
       {/* Presets + Compare */}
@@ -775,7 +790,7 @@ export default function FiscalTrajectorySimulator() {
                   ))}
                 </select>
                 <span className="text-xs text-cyan-600">
-                  — crossover: {fmtYr(cm?.fiscalCrossoverYear)}, debt peak: {fmtYr(cm?.debtPeakYear)}
+                  — Year 30: net interest {ch?.intY30}% of revenue, debt {ch?.debtY30}% of GDP
                 </span>
               </>
             )}
@@ -824,7 +839,7 @@ export default function FiscalTrajectorySimulator() {
                   <DeficitChart rows={rows} compareRows={compareResult?.rows} />
                 </TabsContent>
                 <TabsContent value="debt">
-                  <DebtChart rows={rows} compareRows={compareResult?.rows} />
+                  <DebtChart rows={rows} compareRows={compareResult?.rows} floor={params.debtFloorOn ? Math.round(params.prebateIndexFloor * 100) : null} />
                 </TabsContent>
                 <TabsContent value="interest">
                   <InterestChart rows={rows} compareRows={compareResult?.rows} />
@@ -850,7 +865,7 @@ export default function FiscalTrajectorySimulator() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      {["Year", "Nom. GDP", "Treasury Tranche", "Fund Own %", "Debt (Public)", "Debt/GDP", "Deficit", "AMCF Cash Flow", "Healthcare Reserve", "To Budget", "Citizen Deposit/Cap (nominal)", "Net Interest / Revenue", "Brake"].map(h => (
+                      {["Year", "Nom. GDP", "Treasury Tranche", "Fund Own %", "Debt (Public)", "Debt/GDP", "Deficit/GDP", "AMCF Cash Flow", "Healthcare Reserve", "To Budget", "Citizen Deposit/Cap (nominal)", "Net Interest / Revenue", "Brake"].map(h => (
                         <TableHead key={h} className="text-right whitespace-nowrap">{h}</TableHead>
                       ))}
                     </TableRow>
@@ -868,7 +883,7 @@ export default function FiscalTrajectorySimulator() {
                           <TableCell className="text-right" style={{ color: C.debt }}>${r.grossDebt}T</TableCell>
                           <TableCell className="text-right" style={{ color: r.debtToGdp > 150 ? C.debt : r.debtToGdp < 100 ? C.accord : undefined }}>{r.debtToGdp}%</TableCell>
                           <TableCell className="text-right" style={{ color: r.deficit < 0 ? C.accord : C.debt }}>
-                            {r.deficit < 0 ? `($${Math.abs(r.deficit).toFixed(2)}T)` : `$${r.deficit}T`}
+                            {r.deficit < 0 ? `(${Math.abs(share(r.deficit, r.nominalGdp)).toFixed(1)}%)` : `${share(r.deficit, r.nominalGdp).toFixed(1)}%`}
                           </TableCell>
                           <TableCell className="text-right" style={{ color: C.credits }}>
                             ${r.amcfCashFlow}T <span className="text-muted-foreground text-[10px]">({r.combinedYield}%)</span>

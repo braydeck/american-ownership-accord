@@ -47,7 +47,7 @@
     {
       "year": 1,
       "debtToGdp": 97.8,
-      "clDebtToGdp": 94.6,
+      "clDebtToGdp": 100.4,
       "intToRev": 9.6,
       "revenuePctGdp": 34.1,
       "clRevenuePctGdp": 17.5,
@@ -61,7 +61,7 @@
     {
       "year": 5,
       "debtToGdp": 93.3,
-      "clDebtToGdp": 97.7,
+      "clDebtToGdp": 103.2,
       "intToRev": 9.5,
       "revenuePctGdp": 32.4,
       "clRevenuePctGdp": 17.6,
@@ -75,7 +75,7 @@
     {
       "year": 7,
       "debtToGdp": 88.8,
-      "clDebtToGdp": 98.6,
+      "clDebtToGdp": 103.9,
       "intToRev": 9.1,
       "revenuePctGdp": 32.1,
       "clRevenuePctGdp": 17.7,
@@ -89,7 +89,7 @@
     {
       "year": 10,
       "debtToGdp": 82.2,
-      "clDebtToGdp": 99.9,
+      "clDebtToGdp": 105.4,
       "intToRev": 8.6,
       "revenuePctGdp": 31.2,
       "clRevenuePctGdp": 17.7,
@@ -103,7 +103,7 @@
     {
       "year": 20,
       "debtToGdp": 65.2,
-      "clDebtToGdp": 104.4,
+      "clDebtToGdp": 110.2,
       "intToRev": 7,
       "revenuePctGdp": 28.9,
       "clRevenuePctGdp": 18.3,
@@ -117,7 +117,7 @@
     {
       "year": 30,
       "debtToGdp": 54.2,
-      "clDebtToGdp": 110.5,
+      "clDebtToGdp": 116.9,
       "intToRev": 6.1,
       "revenuePctGdp": 27,
       "clRevenuePctGdp": 18.7,
@@ -131,7 +131,7 @@
     {
       "year": 35,
       "debtToGdp": 49.9,
-      "clDebtToGdp": 114.6,
+      "clDebtToGdp": 121.3,
       "intToRev": 5.8,
       "revenuePctGdp": 26.2,
       "clRevenuePctGdp": 18.8,
@@ -145,7 +145,7 @@
     {
       "year": 50,
       "debtToGdp": 36.6,
-      "clDebtToGdp": 130.2,
+      "clDebtToGdp": 138.1,
       "intToRev": 4.7,
       "revenuePctGdp": 24.2,
       "clRevenuePctGdp": 18.8,
@@ -159,7 +159,7 @@
     {
       "year": 75,
       "debtToGdp": 29.2,
-      "clDebtToGdp": 182.9,
+      "clDebtToGdp": 196,
       "intToRev": 4.2,
       "revenuePctGdp": 21.8,
       "clRevenuePctGdp": 18.8,

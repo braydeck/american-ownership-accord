@@ -19,9 +19,9 @@ const ROW = y => SIM.rows[y - 1];
 const real = (row, nominalT) => nominalT * 1e12 / row.priceLevel;
 const REC5 = runFiscalSimulation({ ...P, recessionYear: 5 }, 35);
 const GOAL_AFTER_RECESSION = REC5.milestones.fiscalGoalYear;
-const REC5_Y35 = REC5.rows[34];
+const REC5_Y30 = REC5.rows[29];
 const REC5_PEAK_INT = Math.max(...REC5.rows.map(r => r.intToRev));
-const LOW_Y35 = runFiscalSimulation({ ...P, growthCase: 'low' }, 35).rows[34];
+const LOW_Y30 = runFiscalSimulation({ ...P, growthCase: 'low' }, 35).rows[29];
 const MAX_INT_SHARE = Math.max(...SIM.rows.map(r => r.intToRev));
 // The lowest rate on income: the starting rate or the minimum rate on all income, whichever is higher.
 const START_RATE = Math.max(P.incomeTaxLow, P.incomeTaxFloorRate ?? 0);
@@ -66,14 +66,14 @@ const NW_GINI = { accord: gini(k => getNW(k, 30, ALL_PROVS).total), cl: gini(k =
 const ACCOUNT_AT_18 = GRANTS.slice(1, 19).reduce((b, [, g]) => b * 1.05 + g, 0);
 
 // Fiscal path
-const Y1 = ROW(1), Y10 = ROW(10), Y30 = ROW(30), Y35 = ROW(35);
+const Y1 = ROW(1), Y10 = ROW(10), Y30 = ROW(30);
 const intShare = r => r.intToRev;
 const clIntShare = r => r.clInterest / r.clRev * 100;
 
 // Housing and health
 const SHORTAGE_CLOSED = SIM.rows.find(r => r.year > 1 && r.housingShortageM <= 0)?.year;
 const HEALTH_RESERVE_Y10 = real(Y10, Y10.healthcareAMCF);
-const NHE_Y35 = nheShareOfGdp(35, P);
+const NHE_Y30 = nheShareOfGdp(30, P);
 const HEALTH_RATE = `${+(P.healthContributionRate * 100).toFixed(1)}%`;
 const HEALTH_RATE_ARTICLE = /^(8|11|18)(\D|$)/.test(HEALTH_RATE) ? 'an' : 'a';
 const HOSPITAL_RATE = /^rate(\d+)/.exec(P.healthPaymentLevel)?.[1];
@@ -84,6 +84,7 @@ const HELD_HARMLESS = P.healthPaymentLevel.endsWith('-narrow') ? 'critical acces
 const MEDIAN_HEALTH_Y10 = (h => h.gain - h.tax + h.coverage)(healthLayer('P50', 10, H_FX, accordIncomeAt('P50', 10, ALL_PROVS, H_FX)));
 
 const pct0 = v => `${Math.round(v)}%`;
+const pct1 = v => `${v.toFixed(1)}%`;
 const pctChange = (a, c) => `${a >= c ? '+' : ''}${Math.round((a - c) / c * 100)}%`;
 const billions = v => `$${Math.round(v / 1e9)} billion`;
 const millions = v => `${(v).toFixed(v < 10 ? 1 : 0)} million`;
@@ -96,9 +97,9 @@ const COVERAGE_STATS = [
 ];
 
 const HERO_STATS = [
-  { label: 'Federal debt as a share of the economy, today to Year 30', value: `${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, sub: `Current law: ${pct0(Y30.clDebtToGdp)} at Year 30` },
-  { label: 'Interest costs as a share of federal revenue, today to Year 35', value: `${pct0(intShare(Y1))} → ${pct0(intShare(Y35))}`, sub: `Current law: ${pct0(clIntShare(Y35))} at Year 35` },
-  { label: 'Income gain for the bottom half of households in Year 1', value: `+${Math.round(bottomHalfPct(1))}%`, sub: `+${exact(BOTTOM_HALF_GAIN_Y1)} a household, rising to +${exact(BOTTOM_HALF_GAIN_Y30)} (+${Math.round(bottomHalfPct(30))}%) by Year 30` },
+  { label: 'Federal debt as a share of the economy: current law, then the Accord in Year 1 and Year 30', value: `${pct0(Y1.clDebtToGdp)} → ${pct0(Y1.debtToGdp)} → ${pct0(Y30.debtToGdp)}`, sub: `Current law reaches ${pct0(Y30.clDebtToGdp)} at Year 30` },
+  { label: 'Interest costs as a share of federal revenue: current law, then the Accord in Year 1 and Year 30', value: `${pct1(clIntShare(Y1))} → ${pct1(intShare(Y1))} → ${pct1(intShare(Y30))}`, sub: `Current law reaches ${pct1(clIntShare(Y30))} at Year 30` },
+  { label: 'Income gain for the bottom half of households, Year 1 to Year 30', value: `+${Math.round(bottomHalfPct(1))}% → +${Math.round(bottomHalfPct(30))}%`, sub: `+${exact(BOTTOM_HALF_GAIN_Y1)} a household in Year 1, +${exact(BOTTOM_HALF_GAIN_Y30)} by Year 30` },
 ];
 
 const SECTIONS = [
@@ -130,7 +131,7 @@ const SECTIONS = [
     title: 'Healthcare',
     lead: `Every lawful resident under 65 is covered from birth or arrival, with no premium and no deductible. ${Math.round(HEALTH_2024.lawfulUninsured / 1e6)} million uninsured residents gain coverage in Year 1.`,
     stats: [
-      { label: 'National health spending at Year 35', value: `${(NHE_Y35.accord * 100).toFixed(1)}% of GDP`, sub: `Current law: ${(NHE_Y35.currentLaw * 100).toFixed(1)}%` },
+      { label: 'National health spending at Year 30', value: `${(NHE_Y30.accord * 100).toFixed(1)}% of GDP`, sub: `Current law: ${(NHE_Y30.currentLaw * 100).toFixed(1)}%` },
       { label: 'Health gain for the median household, Year 10', value: exact(MEDIAN_HEALTH_Y10), sub: 'New wages, premiums and copays saved, less the health contribution' },
       { label: 'Healthcare Reserve funding at Year 10', value: billions(HEALTH_RESERVE_Y10), sub: 'A year from fund dividends, paid into the Health Fund' },
     ],
@@ -138,12 +139,12 @@ const SECTIONS = [
   },
   {
     title: 'The federal budget',
-    lead: `Federal debt falls every year, from ${pct0(Y1.debtToGdp)} of GDP today to ${pct0(Y30.debtToGdp)} at Year 30. Under current law it rises to ${pct0(Y30.clDebtToGdp)}.`,
+    lead: `Federal debt falls every year, from ${pct0(Y1.debtToGdp)} of GDP in Year 1 to ${pct0(Y30.debtToGdp)} at Year 30. Under current law it rises to ${pct0(Y30.clDebtToGdp)}.`,
     stats: [
-      { label: 'Federal debt at Year 35 after a 2008-scale recession in Year 5', value: pct0(REC5_Y35.debtToGdp), sub: `Current law: ${pct0(REC5_Y35.clDebtToGdp)}` },
-      { label: 'Federal debt at Year 35 with slower growth', value: pct0(LOW_Y35.debtToGdp), sub: `Current law: ${pct0(LOW_Y35.clDebtToGdp)}` },
+      { label: 'Federal debt at Year 30 after a 2008-scale recession in Year 5', value: pct0(REC5_Y30.debtToGdp), sub: `Current law: ${pct0(REC5_Y30.clDebtToGdp)}` },
+      { label: 'Federal debt at Year 30 with slower growth', value: pct0(LOW_Y30.debtToGdp), sub: `Current law: ${pct0(LOW_Y30.clDebtToGdp)}` },
     ],
-    body: `Interest costs ${MAX_INT_SHARE < 10 ? 'stay below 10% of federal revenue in every year and fall' : 'fall'} to ${pct0(intShare(Y35))} by Year 35, against ${pct0(clIntShare(Y35))} under current law. After a 2008-scale recession in Year 5, they peak at ${pct0(REC5_PEAK_INT)} and are back below 10% by Year ${GOAL_AFTER_RECESSION}.`,
+    body: `Interest costs ${MAX_INT_SHARE < 10 ? 'stay below 10% of federal revenue in every year and fall' : 'fall'} to ${pct0(intShare(Y30))} by Year 30, against ${pct0(clIntShare(Y30))} under current law. After a 2008-scale recession in Year 5, they peak at ${pct0(REC5_PEAK_INT)} and are back below 10% by Year ${GOAL_AFTER_RECESSION}.`,
   },
   {
     title: 'Immigration',
@@ -235,7 +236,7 @@ const PILLARS = [
     title: 'Debt falls every year',
     points: [
       <>Fund dividends and asset sales <B>pay down federal debt</B></>,
-      <>Debt falls to <B>{pct0(Y35.debtToGdp)} of GDP</B> by Year 35</>,
+      <>Debt falls to <B>{pct0(Y30.debtToGdp)} of GDP</B> by Year 30</>,
       <>If debt reaches <B>{pct0(P.prebateIndexFloor * 100)} of GDP</B>, Congress decides how to use surpluses</>,
     ],
   },
@@ -372,8 +373,8 @@ export default function AboutPage({ onNavigate }) {
             jobs, start a business or stop working. Employers turn their premium payments into
             wages, and {HEALTH_RATE_ARTICLE} {HEALTH_RATE} health contribution on income above
             ${P.healthContribExempt.toLocaleString()} per tax filer replaces premiums. National
-            health spending is {(NHE_Y35.accord * 100).toFixed(1)}% of GDP at Year 35, against{' '}
-            {(NHE_Y35.currentLaw * 100).toFixed(1)}% under current law.
+            health spending is {(NHE_Y30.accord * 100).toFixed(1)}% of GDP at Year 30, against{' '}
+            {(NHE_Y30.currentLaw * 100).toFixed(1)}% under current law.
           </p>
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {COVERAGE_STATS.map(st => (

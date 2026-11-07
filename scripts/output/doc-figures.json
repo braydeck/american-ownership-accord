@@ -157,7 +157,7 @@
     "recessionYear5": {
       "fiscalGoalYear": 12,
       "debtY35": 76.4,
-      "clDebtY35": 189.8,
+      "clDebtY35": 204.8,
       "peakDebt": 103.4,
       "interestAtOrAbove10Years": [
         6,
@@ -172,7 +172,7 @@
     "recessionYear12": {
       "fiscalGoalYear": 18,
       "debtY35": 73.2,
-      "clDebtY35": 169.8,
+      "clDebtY35": 182.6,
       "peakDebt": 97.8,
       "interestAtOrAbove10Years": [],
       "maxIntToRev": 9.8
@@ -180,7 +180,7 @@
     "lowGrowth": {
       "fiscalGoalYear": 1,
       "debtY35": 68.9,
-      "clDebtY35": 114.6,
+      "clDebtY35": 121.3,
       "peakDebt": 98.3,
       "interestAtOrAbove10Years": [],
       "maxIntToRev": 9.9

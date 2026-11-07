@@ -932,7 +932,7 @@ function runFiscalSimulation(p, horizon = 35) {
       totalOutlays: T(totalOutlays), deficit: T(deficit),
       grossDebt: +(debt / 1e12).toFixed(2), debtToGdp: +(debt / nominalGdp * 100).toFixed(1),
       netSovPos: +(netSovPos / 1e12).toFixed(2), intToRev: +intToRev.toFixed(1),
-      clDeficit: T(clDeficit), clNominalGdp: T(clNomGdp), clGrossDebt: +(clDebt / 1e12).toFixed(1), clDebtToGdp: +(clDtG * 100).toFixed(1),
+      clDeficit: T(clDeficit), clNominalGdp: T(clNomGdp), clGrossDebt: +(clDebt / 1e12).toFixed(1), clDebtToGdp: +(clDebt / clNomGdp * 100).toFixed(1), // end-of-year, like debtToGdp
       clRev: T(clRev), clInterest: T(clInterest),
     });
   }
